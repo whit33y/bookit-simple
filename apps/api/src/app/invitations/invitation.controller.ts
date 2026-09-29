@@ -15,6 +15,7 @@ import {
   InvitationResponse,
   MeResponse,
   MIN_PASSWORD_LENGTH,
+  PASSWORD_TOO_SHORT,
 } from '@bookit/shared';
 import { Request } from 'express';
 import { z } from 'zod';
@@ -22,8 +23,6 @@ import { Public } from '../auth/access.decorators';
 import { AuthService } from '../auth/auth.service';
 import { startSession } from '../auth/session-helpers';
 import { InvitationService } from './invitation.service';
-
-export const PASSWORD_TOO_SHORT = `Hasło musi mieć co najmniej ${MIN_PASSWORD_LENGTH} znaków`;
 
 const acceptSchema = z.object({
   token: z.string().min(1),

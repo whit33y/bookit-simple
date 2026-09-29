@@ -14,6 +14,7 @@ export interface MeResponse {
 
 /** Minimum password length, for setting it from an invitation or a reset. */
 export const MIN_PASSWORD_LENGTH = 10;
+export const PASSWORD_TOO_SHORT = `Hasło musi mieć co najmniej ${MIN_PASSWORD_LENGTH} znaków`;
 
 /** `GET /api/auth/invitations/:token`: what the screen for setting the password shows. */
 export interface InvitationResponse {

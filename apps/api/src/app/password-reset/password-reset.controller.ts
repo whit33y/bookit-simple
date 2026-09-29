@@ -11,12 +11,12 @@ import {
 import {
   ConfirmPasswordResetRequest,
   MIN_PASSWORD_LENGTH,
+  PASSWORD_TOO_SHORT,
   PasswordResetRequest,
 } from '@bookit/shared';
 import { z } from 'zod';
 import { Public } from '../auth/access.decorators';
 import { LoginThrottlerGuard } from '../auth/login-throttler.guard';
-import { PASSWORD_TOO_SHORT } from '../invitations/invitation.controller';
 import { PasswordResetService } from './password-reset.service';
 
 const requestSchema = z.object({

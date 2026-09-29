@@ -183,6 +183,36 @@ describe('Password reset', () => {
       await confirm(newToken).expect(204);
     });
 
+    it('keeps the newer link when two requests race', async () => {
+      const { user, email } = await createOwner();
+      let openGate = () => undefined as void;
+      smtpGate = new Promise((resolve) => (openGate = resolve));
+
+      try {
+        await Promise.all([
+          requestReset(email).expect(202),
+          requestReset(email).expect(202),
+        ]);
+        // Both links exist before either e-mail goes out.
+        while (
+          (await raw.passwordReset.count({ where: { userId: user.id } })) < 2
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+      } finally {
+        openGate();
+        smtpGate = undefined;
+      }
+      await resets.whenIdle();
+
+      const tokens = sent
+        .filter((m) => m.to === email)
+        .map((m) => /\/reset-hasla\/([\w-]+)/.exec(m.text)?.[1] ?? '');
+      const statuses = [];
+      for (const token of tokens) statuses.push((await confirm(token)).status);
+      expect(statuses.sort()).toEqual([204, 410]);
+    });
+
     it('returns 400 without an e-mail', async () => {
       await agent().post('/api/auth/password-reset').send({}).expect(400);
     });

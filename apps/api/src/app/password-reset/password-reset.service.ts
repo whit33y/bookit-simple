@@ -105,7 +105,7 @@ export class PasswordResetService implements BeforeApplicationShutdown {
 
     const { token, tokenHash } = newOneTimeToken();
     const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
-    const { id } = await this.prisma.passwordReset.create({
+    const { createdAt } = await this.prisma.passwordReset.create({
       data: { userId: user.id, tokenHash, expiresAt },
     });
     await this.mail.send({
@@ -116,8 +116,9 @@ export class PasswordResetService implements BeforeApplicationShutdown {
       }),
     });
     // Only after the e-mail went out, so a failed send leaves the previous link working.
+    // Only older links: of two requests racing, the newer link must survive the older one.
     await this.prisma.passwordReset.deleteMany({
-      where: { userId: user.id, usedAt: null, id: { not: id } },
+      where: { userId: user.id, usedAt: null, createdAt: { lt: createdAt } },
     });
   }
 }

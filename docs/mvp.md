@@ -235,7 +235,7 @@ SEO: `<title>`, `meta description` z O nas, Open Graph ze zdjęciem nagłówka, 
 Wszystkie ścieżki panelu działają w kontekście Salonu z sesji. Nie ma `salonId` w URL.
 
 ```
-POST   /auth/login | /auth/logout | /auth/password-reset | /auth/accept-invitation
+POST   /auth/login | /auth/logout | /auth/password-reset | /auth/password-reset/confirm | /auth/accept-invitation
 GET    /auth/me
 
 GET    /admin/salons            POST /admin/salons
