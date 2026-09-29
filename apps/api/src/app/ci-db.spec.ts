@@ -7,3 +7,6 @@ describe('CI database', () => {
     expect(out.toString().trim()).toBe('1');
   });
 });
+
+// Temporary lint error: no-unused-vars / prefer-const
+let unused = 1;
