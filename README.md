@@ -45,4 +45,6 @@ npx nx run-many -t lint test build
 npx nx run web-e2e:e2e
 ```
 
+Testy Playwright (`apps/web-e2e`) potrzebują Postgresa i Mailpita z `docker compose up -d`. Same uruchamiają `nx serve web` (razem z `api`), a jeśli aplikacja już działa na :4200, korzystają z niej. Linki z zaproszeń i resetu hasła pobierają z API Mailpita. Zanim Administrator będzie mógł założyć Salon w aplikacji (#11), Salon z zaproszonym Właścicielem zakłada skrypt `apps/api/src/seed/e2e-invited-owner.ts`. Przy pierwszym uruchomieniu zainstaluj przeglądarkę: `npx playwright install chromium`.
+
 CI (`.github/workflows/ci.yml`) uruchamia `nx affected -t lint test build` na każdym PR i pushu do `main`, z Postgresem 16 i zmiennymi z `.env.example`.

@@ -1,5 +1,7 @@
+import { RenderMode } from '@angular/ssr';
 import { RESERVED_SLUGS } from '@bookit/shared';
 import { appRoutes } from './app.routes';
+import { serverRoutes } from './app.routes.server';
 
 describe('appRoutes', () => {
   it('uses only reserved slugs for static top-level paths, so no Wizytówka is shadowed', () => {
@@ -13,5 +15,29 @@ describe('appRoutes', () => {
     expect(RESERVED_SLUGS).toEqual(
       expect.arrayContaining(staticTopLevelSegments),
     );
+  });
+});
+
+describe('serverRoutes', () => {
+  it('renders every page that needs the session in the browser, the rest (Wizytówka) on the server', () => {
+    const modeOf = (path: string) =>
+      serverRoutes.find((route) => route.path === path)?.renderMode;
+
+    for (const path of [
+      'panel',
+      'panel/**',
+      'admin',
+      'admin/**',
+      'logowanie',
+      'zaproszenie/**',
+      'reset-hasla',
+      'reset-hasla/**',
+    ]) {
+      expect(modeOf(path)).toBe(RenderMode.Client);
+    }
+    expect(serverRoutes.at(-1)).toEqual({
+      path: '**',
+      renderMode: RenderMode.Server,
+    });
   });
 });
