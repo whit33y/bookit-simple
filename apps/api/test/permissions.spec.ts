@@ -51,13 +51,14 @@ type Person = 'ANONYMOUS' | Role;
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 type Row = [method: Method, path: string, allowed: readonly Person[]];
 
-const PUBLIC: readonly Person[] = [
+/** Everyone each row is sent as. */
+const PEOPLE: readonly Person[] = [
   'ANONYMOUS',
   'ADMINISTRATOR',
   'OWNER',
   'EMPLOYEE',
 ];
-const PEOPLE = PUBLIC;
+const PUBLIC = PEOPLE;
 
 const MATRIX: Row[] = [
   // Test controllers, one route per access decorator.
@@ -237,11 +238,15 @@ describe('permission matrix', () => {
     '$method $path as $person: allowed=$allowed',
     async ({ method, path, person, allowed }) => {
       const res = await send(person, method, path);
+      // The body goes along, so a failure shows why, e.g. the message of a `500`.
+      const reply = { status: res.status, body: res.body as unknown };
 
       if (allowed) {
-        expect([401, 403]).not.toContain(res.status);
+        expect([401, 403]).not.toContain(reply.status);
       } else {
-        expect(res.status).toBe(person === 'ANONYMOUS' ? 401 : 403);
+        expect(reply).toMatchObject({
+          status: person === 'ANONYMOUS' ? 401 : 403,
+        });
       }
     },
   );

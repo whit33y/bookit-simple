@@ -14,7 +14,7 @@ export const ACCESS = 'bookit:access';
  * Access of an endpoint without a decorator: the Personel of a Salon.
  * The Administrator gets `403` there: they do not see calendars or Clients of Salons.
  */
-export const PERSONEL_ACCESS: readonly Role[] = ['OWNER', 'EMPLOYEE'];
+export const STAFF_ACCESS: readonly Role[] = ['OWNER', 'EMPLOYEE'];
 
 const access = (value: Access) => SetMetadata(ACCESS, value);
 
@@ -29,4 +29,4 @@ export const AdminOnly = () =>
   applyDecorators(access(['ADMINISTRATOR']), AdminScope());
 
 /** Anyone logged in, the Administrator included, e.g. `GET /api/auth/me`. */
-export const AnyRole = () => access(['ADMINISTRATOR', 'OWNER', 'EMPLOYEE']);
+export const AnyRole = () => access(['ADMINISTRATOR', ...STAFF_ACCESS]);
