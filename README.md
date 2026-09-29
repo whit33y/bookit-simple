@@ -36,3 +36,5 @@ Kontener `minio-init` tworzy bucket `bookit` i kończy pracę, więc w `docker c
 npx nx run-many -t lint test build
 npx nx run web-e2e:e2e
 ```
+
+CI (`.github/workflows/ci.yml`) uruchamia `nx affected -t lint test build` na każdym PR i pushu do `main`, z Postgresem 16 i zmiennymi z `.env.example`.
