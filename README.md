@@ -14,7 +14,7 @@ Nx, Angular (SSR dla Wizytówki), NestJS, PostgreSQL + Prisma, MinIO, Mailpit. S
 
 > Kodu jeszcze nie ma. Poniższe kroki powstają w zadaniach T01–T03 i trzeba je zweryfikować, gdy będą gotowe.
 
-Wymagania: Node.js 22 LTS, Docker.
+Wymagania: Node.js 24 LTS, Docker.
 
 ```bash
 cp .env.example .env
