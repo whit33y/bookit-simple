@@ -18,6 +18,7 @@ const DAY_MS = 86_400_000;
 describe('Invitations', () => {
   const raw = createPrismaClient(process.env.DATABASE_URL ?? '');
   const sent: Mail[] = [];
+  let smtpDown = false;
   let app: INestApplication;
   let invitations: InvitationService;
   let cls: ClsService<SalonContext>;
@@ -73,7 +74,7 @@ describe('Invitations', () => {
     return token;
   }
 
-  /** An Owner invited by the Administrator, and the token from the e-mail. */
+  /** A Właściciel invited by the Administrator, and the token from the e-mail. */
   async function invitedOwner() {
     const salon = await createSalon();
     const staffMember = await createStaffMember(salon.id);
@@ -91,7 +92,12 @@ describe('Invitations', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(MailService)
-      .useValue({ send: async (mail: Mail) => void sent.push(mail) })
+      .useValue({
+        send: async (mail: Mail) => {
+          if (smtpDown) throw new Error('SMTP down');
+          sent.push(mail);
+        },
+      })
       .compile();
     app = configureApp(moduleRef.createNestApplication());
     await app.init();
@@ -127,14 +133,14 @@ describe('Invitations', () => {
       expect(days).toBeLessThanOrEqual(7);
     });
 
-    it('names the Administrator as the one who invites the Owner', async () => {
+    it('names the Administrator as the one who invites the Właściciel', async () => {
       const { email } = await invitedOwner();
 
       const mail = sent.filter((m) => m.to === email).at(-1);
       expect(mail?.text).toContain('Administrator Bookit zaprasza Cię');
     });
 
-    it('names the Owner who invites an Employee', async () => {
+    it('names the Właściciel who invites a Pracownik', async () => {
       const salon = await createSalon();
       const owner = await createStaffMember(salon.id, 'OWNER', 'Anna');
       const employee = await createStaffMember(salon.id, 'EMPLOYEE', 'Ola');
@@ -145,7 +151,7 @@ describe('Invitations', () => {
       expect(mail?.text).toContain('Anna zaprasza Cię');
     });
 
-    it('does not let an Owner invite a person from another Salon', async () => {
+    it('does not let a Właściciel invite a person from another Salon', async () => {
       const owner = await createStaffMember((await createSalon()).id);
       const stranger = await createStaffMember((await createSalon()).id);
 
@@ -164,6 +170,18 @@ describe('Invitations', () => {
       await agent().get(`/api/auth/invitations/${oldToken}`).expect(410);
       await accept(agent(), oldToken).expect(410);
       await agent().get(`/api/auth/invitations/${newToken}`).expect(200);
+    });
+
+    it('keeps the previous invitation when the e-mail cannot be sent', async () => {
+      const { staffMember, token } = await invitedOwner();
+
+      smtpDown = true;
+      await expect(
+        asAdministrator(() => invitations.createFor(staffMember.id)),
+      ).rejects.toThrow('SMTP down');
+      smtpDown = false;
+
+      await agent().get(`/api/auth/invitations/${token}`).expect(200);
     });
   });
 

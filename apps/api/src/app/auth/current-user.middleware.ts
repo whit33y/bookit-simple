@@ -8,8 +8,8 @@ import { destroySession } from './session-helpers';
  * Turns the session into `req.user`, which `SalonContextGuard` copies into the Salon
  * context (#5). Checks the account and the Salon on every request: a session of a
  * removed person is dropped, a session of a suspended Salon gets `403` until the Salon
- * is active again. Login and logout skip it (`AuthModule`), so such a session can
- * still be replaced or ended.
+ * is active again. Login, logout and the invitation routes skip it (`AuthModule`), so
+ * such a session can still be replaced or ended.
  */
 @Injectable()
 export class CurrentUserMiddleware implements NestMiddleware {

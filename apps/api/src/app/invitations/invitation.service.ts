@@ -19,7 +19,7 @@ import { SalonContext } from '../salon-context/salon-context';
 export const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** One message for an unknown, used, expired or replaced invitation. */
 export const INVITATION_GONE = 'Zaproszenie wygasło albo zostało już użyte';
-/** Who invites, in the e-mail to an Owner. */
+/** Who invites, in the e-mail to a Właściciel. */
 const ADMINISTRATOR_NAME = 'Administrator Bookit';
 
 /** Only this goes to the database; the token itself is only in the e-mail. */
@@ -28,8 +28,8 @@ function hashToken(token: string): string {
 }
 
 /**
- * Invitations to the Personel: the Administrator invites an Owner (#11), an Owner
- * invites Employees (#14). The invited person sets the password from the link.
+ * Invitations to the Personel: the Administrator invites a Właściciel (#11), a
+ * Właściciel invites Pracownicy (#14). The invited person sets the password from the link.
  */
 @Injectable()
 export class InvitationService {
@@ -45,8 +45,8 @@ export class InvitationService {
   }
 
   /**
-   * Replaces the person's pending invitation with a new one, valid 7 days, and e-mails
-   * the link. Who invites comes from the Salon context: the Administrator or the
+   * E-mails the person a link valid 7 days and then drops their previous pending
+   * invitation. Who invites comes from the Salon context: the Administrator or the
    * person from the Personel making the request. `404` for a person outside that Salon.
    */
   async createFor(staffMemberId: string): Promise<void> {
@@ -59,15 +59,9 @@ export class InvitationService {
 
     const token = randomBytes(32).toString('base64url');
     const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
-    await this.prisma.$transaction([
-      this.prisma.invitation.deleteMany({
-        where: { staffMemberId, usedAt: null },
-      }),
-      this.prisma.invitation.create({
-        data: { staffMemberId, tokenHash: hashToken(token), expiresAt },
-      }),
-    ]);
-
+    const { id } = await this.prisma.invitation.create({
+      data: { staffMemberId, tokenHash: hashToken(token), expiresAt },
+    });
     await this.mail.send({
       to: staffMember.user.email,
       ...invitationEmail({
@@ -76,6 +70,10 @@ export class InvitationService {
         link: `${this.appUrl}/zaproszenie/${token}`,
         expiresAt,
       }),
+    });
+    // Only after the e-mail went out, so a failed send leaves the previous link working.
+    await this.prisma.invitation.deleteMany({
+      where: { staffMemberId, usedAt: null, id: { not: id } },
     });
   }
 
