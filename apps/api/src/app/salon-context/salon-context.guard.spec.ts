@@ -11,6 +11,7 @@ import { Test } from '@nestjs/testing';
 import { NextFunction, Request, Response } from 'express';
 import { ClsService } from 'nestjs-cls';
 import request from 'supertest';
+import { Public } from '../auth/access.decorators';
 import { AdminScope } from './admin-scope.decorator';
 import { SalonContext } from './salon-context';
 import { AuthenticatedUser } from './salon-context.guard';
@@ -53,6 +54,13 @@ class ProbeController {
   admin() {
     return this.context();
   }
+
+  @Get('public-read')
+  @Public()
+  @AdminScope()
+  publicRead() {
+    return this.context();
+  }
 }
 
 @AdminScope()
@@ -62,6 +70,12 @@ class AdminProbeController {
 
   @Get()
   get() {
+    return { adminScope: this.cls.get('adminScope') };
+  }
+
+  @Get('public')
+  @Public()
+  publicHandler() {
     return { adminScope: this.cls.get('adminScope') };
   }
 }
@@ -150,5 +164,27 @@ describe('SalonContextGuard', () => {
 
   it('rejects an anonymous request on an @AdminScope() route', async () => {
     await request(app.getHttpServer()).get('/admin').expect(401);
+  });
+
+  describe('on a @Public() @AdminScope() route', () => {
+    it('lets an anonymous request read every Salon', async () => {
+      await request(app.getHttpServer())
+        .get('/public-read')
+        .expect(200, { adminScope: true });
+    });
+
+    it('needs both decorators on the same target', async () => {
+      // `@Public()` on a handler of an `@AdminScope()` controller stays Administrator-only.
+      await request(app.getHttpServer())
+        .get('/admin-controller/public')
+        .expect(401);
+    });
+
+    it('does not tie the Personel to their own Salon', async () => {
+      await request(app.getHttpServer())
+        .get('/public-read')
+        .set(as(owner))
+        .expect(200, { adminScope: true });
+    });
   });
 });

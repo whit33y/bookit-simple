@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { ClsService } from 'nestjs-cls';
 import { StaffRole } from '../../generated/prisma/client';
+import { Access, ACCESS } from '../auth/access.decorators';
 import { ADMIN_SCOPE } from './admin-scope.decorator';
 import { SalonContext } from './salon-context';
 
@@ -37,10 +38,24 @@ export class SalonContextGuard implements CanActivate {
     const user = context
       .switchToHttp()
       .getRequest<{ user?: AuthenticatedUser }>().user;
+    const targets = [context.getHandler(), context.getClass()];
     const adminScope = this.reflector.getAllAndOverride<boolean | undefined>(
       ADMIN_SCOPE,
-      [context.getHandler(), context.getClass()],
+      targets,
     );
+
+    // A public read across Salons, e.g. the Wizytówka. Both decorators must sit on the
+    // same handler or class, so a `@Public()` handler of an Administrator controller
+    // does not open every Salon to anyone.
+    const publicAcrossSalons = targets.some(
+      (target) =>
+        this.reflector.get<boolean | undefined>(ADMIN_SCOPE, target) &&
+        this.reflector.get<Access | undefined>(ACCESS, target) === 'public',
+    );
+    if (publicAcrossSalons) {
+      this.cls.set('adminScope', true);
+      return true;
+    }
 
     if (adminScope) {
       // Same answers as `AccessGuard` for `@AdminOnly()`, whichever guard runs first;
