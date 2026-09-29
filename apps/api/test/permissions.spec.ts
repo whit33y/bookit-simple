@@ -101,6 +101,9 @@ const MATRIX: Row[] = [
     ['ADMINISTRATOR'],
   ],
 
+  // T34: the Wizytówka (unknown address, so 404)
+  ['GET', '/api/public/pages/nieznany-salon', PUBLIC],
+
   // Health check for the hosting
   ['GET', '/api/health', PUBLIC],
 ];
