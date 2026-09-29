@@ -5,7 +5,7 @@ import { SalonContextGuard } from './salon-context.guard';
 
 /**
  * Request context (`nestjs-cls`) and `SalonContextGuard` for every route.
- * The session guard from #6 must run before it, so `req.user` is set.
+ * `AuthModule` middleware runs before it and sets `req.user` from the session.
  */
 @Module({
   imports: [ClsModule.forRoot({ global: true, middleware: { mount: true } })],

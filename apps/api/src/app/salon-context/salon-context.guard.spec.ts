@@ -16,7 +16,7 @@ import { SalonContext } from './salon-context';
 import { AuthenticatedUser } from './salon-context.guard';
 import { SalonContextModule } from './salon-context.module';
 
-/** Stands in for the session login from #6: the `x-test-user` header becomes `req.user`. */
+/** Stands in for `CurrentUserMiddleware`: the `x-test-user` header becomes `req.user`. */
 class FakeLoginMiddleware implements NestMiddleware {
   use(
     req: Request & { user?: AuthenticatedUser },
@@ -80,12 +80,16 @@ describe('SalonContextGuard', () => {
   let app: INestApplication;
 
   const owner: AuthenticatedUser = {
+    userId: '33333333-3333-4333-8333-333333333333',
     isAdministrator: false,
     salonId: '11111111-1111-4111-8111-111111111111',
     staffMemberId: '22222222-2222-4222-8222-222222222222',
     role: 'OWNER',
   };
-  const administrator: AuthenticatedUser = { isAdministrator: true };
+  const administrator: AuthenticatedUser = {
+    userId: '44444444-4444-4444-8444-444444444444',
+    isAdministrator: true,
+  };
 
   const as = (user: AuthenticatedUser) => ({
     'x-test-user': JSON.stringify(user),

@@ -10,8 +10,9 @@ import { StaffRole } from '../../generated/prisma/client';
 import { ADMIN_SCOPE } from './admin-scope.decorator';
 import { SalonContext } from './salon-context';
 
-/** The logged-in person as `req.user`. Sessions (#6) will fill it in. */
+/** The logged-in person as `req.user`, filled in from the session by `CurrentUserMiddleware`. */
 export interface AuthenticatedUser {
+  userId: string;
   isAdministrator: boolean;
   /** The Salon of the person from the Personel; absent for the Administrator. */
   salonId?: string;
