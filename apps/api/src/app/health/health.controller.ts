@@ -5,6 +5,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import {
+  DbHealthIndicator,
   HealthIndicator,
   S3HealthIndicator,
   SmtpHealthIndicator,
@@ -16,6 +17,7 @@ type ServiceStatus = 'ok' | 'down';
 
 export interface HealthReport {
   status: ServiceStatus;
+  db: ServiceStatus;
   s3: ServiceStatus;
   smtp: ServiceStatus;
 }
@@ -23,6 +25,7 @@ export interface HealthReport {
 @Controller('health')
 export class HealthController {
   constructor(
+    private readonly db: DbHealthIndicator,
     private readonly s3: S3HealthIndicator,
     private readonly smtp: SmtpHealthIndicator,
     @Inject(HEALTH_TIMEOUT_MS) private readonly timeoutMs: number,
@@ -30,12 +33,14 @@ export class HealthController {
 
   @Get()
   async check(): Promise<HealthReport> {
-    const [s3, smtp] = await Promise.all([
+    const [db, s3, smtp] = await Promise.all([
+      this.probe(this.db),
       this.probe(this.s3),
       this.probe(this.smtp),
     ]);
     const report: HealthReport = {
-      status: s3 === 'ok' && smtp === 'ok' ? 'ok' : 'down',
+      status: db === 'ok' && s3 === 'ok' && smtp === 'ok' ? 'ok' : 'down',
+      db,
       s3,
       smtp,
     };

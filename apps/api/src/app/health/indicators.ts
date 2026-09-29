@@ -3,10 +3,20 @@ import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createTransport, Transporter } from 'nodemailer';
 import { Env } from '../config/env';
+import { PrismaService } from '../prisma/prisma.service';
 
 /** Resolves when the service is reachable, rejects otherwise. */
 export interface HealthIndicator {
   check(): Promise<void>;
+}
+
+@Injectable()
+export class DbHealthIndicator implements HealthIndicator {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async check(): Promise<void> {
+    await this.prisma.$queryRaw`SELECT 1`;
+  }
 }
 
 @Injectable()

@@ -1,0 +1,384 @@
+// Data model from docs/mvp.md, section 4. Models with `salonId` are covered by Salon isolation (ADR 0001).
+// Times are UTC `timestamptz`, amounts are grosze as `Int`.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../apps/api/src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SalonStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum StaffRole {
+  OWNER
+  EMPLOYEE
+}
+
+enum PriceType {
+  FIXED
+  FROM
+}
+
+enum VisitState {
+  SCHEDULED
+  CANCELLED
+  NO_SHOW
+}
+
+enum VisitChangeAction {
+  CREATED
+  UPDATED
+  CANCELLED
+  NO_SHOW
+  RESTORED
+  DELETED
+}
+
+model Salon {
+  id            String      @id @default(uuid()) @db.Uuid
+  createdAt     DateTime    @default(now()) @db.Timestamptz
+  updatedAt     DateTime    @updatedAt @db.Timestamptz
+  name          String
+  /// Adres wizytówki
+  slug          String      @unique
+  status        SalonStatus @default(ACTIVE)
+  about         String?
+  street        String?
+  postalCode    String?
+  city          String?
+  phone         String?
+  email         String?
+  mapUrl        String?
+  /// Hex, e.g. `#c0392b`
+  accentColor   String?
+  logoPhotoId   String?     @db.Uuid
+  heroPhotoId   String?     @db.Uuid
+  /// Which Wizytówka sections are enabled
+  sections      Json        @default("{}")
+  privacyNotice String?
+
+  logoPhoto         Photo?              @relation("SalonLogo", fields: [logoPhotoId], references: [id], onDelete: SetNull)
+  heroPhoto         Photo?              @relation("SalonHero", fields: [heroPhotoId], references: [id], onDelete: SetNull)
+  slugRedirects     SalonSlugRedirect[]
+  staffMembers      StaffMember[]
+  serviceCategories ServiceCategory[]
+  services          Service[]
+  openingHours      OpeningHours[]
+  announcements     Announcement[]
+  photos            Photo[]             @relation("SalonPhotos")
+  galleryItems      GalleryItem[]
+  clients           Client[]
+  visits            Visit[]
+  absences          Absence[]
+  visitChanges      VisitChange[]
+}
+
+/// Old Adres wizytówki after a change by the Administrator; answers `301` to the current one.
+model SalonSlugRedirect {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  oldSlug   String   @unique
+  salonId   String   @db.Uuid
+
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@index([salonId])
+}
+
+model User {
+  id              String   @id @default(uuid()) @db.Uuid
+  createdAt       DateTime @default(now()) @db.Timestamptz
+  updatedAt       DateTime @updatedAt @db.Timestamptz
+  /// Stored lowercased
+  email           String   @unique
+  /// Null until the invitation is accepted
+  passwordHash    String?
+  isAdministrator Boolean  @default(false)
+
+  staffMembers StaffMember[]
+  sessions     Session[]
+}
+
+/// A person from the Personel. After removal only `displayName` is kept.
+model StaffMember {
+  id            String    @id @default(uuid()) @db.Uuid
+  createdAt     DateTime  @default(now()) @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @db.Timestamptz
+  salonId       String    @db.Uuid
+  /// Null after removal
+  userId        String?   @db.Uuid
+  role          StaffRole
+  displayName   String
+  /// Przyjmuje Wizyty
+  acceptsVisits Boolean   @default(true)
+  showOnPage    Boolean   @default(true)
+  photoId       String?   @db.Uuid
+  bio           String?
+  sortOrder     Int       @default(0)
+  deletedAt     DateTime? @db.Timestamptz
+
+  salon         Salon         @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  photo         Photo?        @relation(fields: [photoId], references: [id], onDelete: SetNull)
+  invitations   Invitation[]
+  visits        Visit[]       @relation("VisitStaffMember")
+  visitsCreated Visit[]       @relation("VisitCreatedBy")
+  visitsUpdated Visit[]       @relation("VisitUpdatedBy")
+  absences      Absence[]
+  visitChanges  VisitChange[]
+
+  @@unique([salonId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id            String    @id @default(uuid()) @db.Uuid
+  createdAt     DateTime  @default(now()) @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @db.Timestamptz
+  staffMemberId String    @db.Uuid
+  tokenHash     String    @unique
+  expiresAt     DateTime  @db.Timestamptz
+  usedAt        DateTime? @db.Timestamptz
+
+  staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
+
+  @@index([staffMemberId])
+}
+
+/// express-session store. Owned by Prisma, so `migrate dev` does not see a foreign table as drift.
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  /// express-session id from the cookie
+  sid       String   @unique
+  /// Lets us drop every session of a person (removal from the Personel, suspended Salon)
+  userId    String?  @db.Uuid
+  data      Json
+  expiresAt DateTime @db.Timestamptz
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model ServiceCategory {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  salonId   String   @db.Uuid
+  name      String
+  sortOrder Int      @default(0)
+
+  salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  services Service[]
+
+  @@index([salonId])
+}
+
+/// Usługa. Archived instead of deleted, because Visits refer to it.
+model Service {
+  id          String    @id @default(uuid()) @db.Uuid
+  createdAt   DateTime  @default(now()) @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @db.Timestamptz
+  salonId     String    @db.Uuid
+  categoryId  String    @db.Uuid
+  name        String
+  description String?
+  priceGrosze Int
+  priceType   PriceType
+  durationMin Int
+  /// Default Przerwa po Wizycie
+  breakMin    Int       @default(0)
+  sortOrder   Int       @default(0)
+  /// Not shown on the Wizytówka
+  hidden      Boolean   @default(false)
+  archivedAt  DateTime? @db.Timestamptz
+
+  salon         Salon           @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  category      ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: NoAction)
+  visitServices VisitService[]
+
+  @@index([salonId])
+  @@index([categoryId])
+}
+
+/// One interval per weekday. No row means closed.
+model OpeningHours {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  salonId   String   @db.Uuid
+  /// 1 = Monday ... 7 = Sunday
+  weekday   Int
+  opensAt   DateTime @db.Time
+  closesAt  DateTime @db.Time
+
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@unique([salonId, weekday])
+}
+
+/// Ogłoszenie. `showFrom` and `showUntil` are calendar days in Europe/Warsaw.
+model Announcement {
+  id        String    @id @default(uuid()) @db.Uuid
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  updatedAt DateTime  @updatedAt @db.Timestamptz
+  salonId   String    @db.Uuid
+  title     String
+  body      String
+  photoId   String?   @db.Uuid
+  showFrom  DateTime  @db.Date
+  /// Null = no end
+  showUntil DateTime? @db.Date
+
+  salon Salon  @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  photo Photo? @relation(fields: [photoId], references: [id], onDelete: SetNull)
+
+  @@index([salonId, showFrom])
+}
+
+model Photo {
+  id         String   @id @default(uuid()) @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
+  salonId    String   @db.Uuid
+  storageKey String   @unique
+  width      Int
+  height     Int
+  bytes      Int
+
+  salon         Salon          @relation("SalonPhotos", fields: [salonId], references: [id], onDelete: Cascade)
+  salonLogos    Salon[]        @relation("SalonLogo")
+  salonHeroes   Salon[]        @relation("SalonHero")
+  staffMembers  StaffMember[]
+  announcements Announcement[]
+  galleryItem   GalleryItem?
+
+  @@index([salonId])
+}
+
+/// At most 30 per Salon, enforced by the api.
+model GalleryItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  salonId   String   @db.Uuid
+  photoId   String   @unique @db.Uuid
+  sortOrder Int      @default(0)
+
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  photo Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
+
+  @@index([salonId])
+}
+
+/// Klient. No health information (ADR 0003).
+model Client {
+  id        String    @id @default(uuid()) @db.Uuid
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  updatedAt DateTime  @updatedAt @db.Timestamptz
+  salonId   String    @db.Uuid
+  name      String
+  phoneE164 String?
+  notes     String?
+  deletedAt DateTime? @db.Timestamptz
+
+  salon  Salon   @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  visits Visit[]
+
+  @@index([salonId, phoneE164])
+}
+
+/// Wizyta. Occupies `[startsAt, startsAt + durationMin + breakMin)`.
+model Visit {
+  id            String     @id @default(uuid()) @db.Uuid
+  createdAt     DateTime   @default(now()) @db.Timestamptz
+  updatedAt     DateTime   @updatedAt @db.Timestamptz
+  salonId       String     @db.Uuid
+  staffMemberId String     @db.Uuid
+  clientId      String     @db.Uuid
+  startsAt      DateTime   @db.Timestamptz
+  durationMin   Int
+  breakMin      Int        @default(0)
+  /// Required when the Visit has no Services
+  description   String?
+  state         VisitState @default(SCHEDULED)
+  createdById   String     @db.Uuid
+  updatedById   String     @db.Uuid
+
+  salon       Salon          @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  staffMember StaffMember    @relation("VisitStaffMember", fields: [staffMemberId], references: [id], onDelete: NoAction)
+  client      Client         @relation(fields: [clientId], references: [id], onDelete: NoAction)
+  createdBy   StaffMember    @relation("VisitCreatedBy", fields: [createdById], references: [id], onDelete: NoAction)
+  updatedBy   StaffMember    @relation("VisitUpdatedBy", fields: [updatedById], references: [id], onDelete: NoAction)
+  services    VisitService[]
+
+  @@index([salonId, staffMemberId, startsAt])
+  @@index([clientId])
+}
+
+/// Copy of the Service at booking time, because the Cennik changes and the Client history shows what it was then.
+model VisitService {
+  id                  String    @id @default(uuid()) @db.Uuid
+  createdAt           DateTime  @default(now()) @db.Timestamptz
+  updatedAt           DateTime  @updatedAt @db.Timestamptz
+  visitId             String    @db.Uuid
+  serviceId           String    @db.Uuid
+  nameSnapshot        String
+  priceGroszeSnapshot Int
+  priceTypeSnapshot   PriceType
+
+  visit   Visit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: NoAction)
+
+  @@index([visitId])
+  @@index([serviceId])
+}
+
+/// Nieobecność
+model Absence {
+  id            String   @id @default(uuid()) @db.Uuid
+  createdAt     DateTime @default(now()) @db.Timestamptz
+  updatedAt     DateTime @updatedAt @db.Timestamptz
+  salonId       String   @db.Uuid
+  staffMemberId String   @db.Uuid
+  startsAt      DateTime @db.Timestamptz
+  endsAt        DateTime @db.Timestamptz
+  reason        String?
+
+  salon       Salon       @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
+
+  @@index([salonId, staffMemberId, startsAt])
+}
+
+/// Historia zmian. `visitId` has no foreign key, because the Visit may have been deleted.
+model VisitChange {
+  id            String            @id @default(uuid()) @db.Uuid
+  createdAt     DateTime          @default(now()) @db.Timestamptz
+  updatedAt     DateTime          @updatedAt @db.Timestamptz
+  salonId       String            @db.Uuid
+  visitId       String            @db.Uuid
+  /// Who made the change
+  staffMemberId String            @db.Uuid
+  at            DateTime          @default(now()) @db.Timestamptz
+  action        VisitChangeAction
+  before        Json?
+  after         Json?
+
+  salon       Salon       @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: NoAction)
+
+  @@index([salonId, visitId])
+  @@index([salonId, at])
+}
