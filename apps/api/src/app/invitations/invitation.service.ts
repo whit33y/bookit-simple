@@ -8,10 +8,10 @@ import { ConfigService } from '@nestjs/config';
 import { InvitationResponse } from '@bookit/shared';
 import { hash } from 'argon2';
 import { ClsService } from 'nestjs-cls';
-import { createHash, randomBytes } from 'node:crypto';
 import { MailService } from '../../mail/mail.service';
 import { invitationEmail } from '../../mail/templates/invitation';
 import { assertSalonActive, SessionIdentity } from '../auth/auth.service';
+import { hashOneTimeToken, newOneTimeToken } from '../auth/one-time-token';
 import { Env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
 import { SalonContext } from '../salon-context/salon-context';
@@ -21,11 +21,6 @@ export const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const INVITATION_GONE = 'Zaproszenie wygasło albo zostało już użyte';
 /** Who invites, in the e-mail to a Właściciel. */
 const ADMINISTRATOR_NAME = 'Administrator Bookit';
-
-/** Only this goes to the database; the token itself is only in the e-mail. */
-function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
 
 /**
  * Invitations to the Personel: the Administrator invites a Właściciel (#11), a
@@ -57,10 +52,10 @@ export class InvitationService {
     if (!staffMember?.user) throw new NotFoundException();
     const inviterName = await this.inviterName();
 
-    const token = randomBytes(32).toString('base64url');
+    const { token, tokenHash } = newOneTimeToken();
     const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
     const { id } = await this.prisma.invitation.create({
-      data: { staffMemberId, tokenHash: hashToken(token), expiresAt },
+      data: { staffMemberId, tokenHash, expiresAt },
     });
     await this.mail.send({
       to: staffMember.user.email,
@@ -113,7 +108,7 @@ export class InvitationService {
    */
   private async findUsable(token: string) {
     const invitation = await this.prisma.invitation.findUnique({
-      where: { tokenHash: hashToken(token) },
+      where: { tokenHash: hashOneTimeToken(token) },
       include: { staffMember: { include: { salon: true, user: true } } },
     });
     const { staffMember } = invitation ?? {};

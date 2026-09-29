@@ -103,8 +103,9 @@ model User {
   passwordHash    String?
   isAdministrator Boolean  @default(false)
 
-  staffMembers StaffMember[]
-  sessions     Session[]
+  staffMembers   StaffMember[]
+  sessions       Session[]
+  passwordResets PasswordReset[]
 }
 
 /// A person from the Personel. After removal only `displayName` is kept.
@@ -151,6 +152,21 @@ model Invitation {
   staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
 
   @@index([staffMemberId])
+}
+
+/// A link for setting a new password, valid 1 hour, used once.
+model PasswordReset {
+  id        String    @id @default(uuid()) @db.Uuid
+  createdAt DateTime  @default(now()) @db.Timestamptz
+  updatedAt DateTime  @updatedAt @db.Timestamptz
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz
+  usedAt    DateTime? @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /// express-session store. Owned by Prisma, so `migrate dev` does not see a foreign table as drift.

@@ -14,6 +14,7 @@ export interface MeResponse {
 
 /** Minimum password length, for setting it from an invitation or a reset. */
 export const MIN_PASSWORD_LENGTH = 10;
+export const PASSWORD_TOO_SHORT = `Hasło musi mieć co najmniej ${MIN_PASSWORD_LENGTH} znaków`;
 
 /** `GET /api/auth/invitations/:token`: what the screen for setting the password shows. */
 export interface InvitationResponse {
@@ -23,6 +24,17 @@ export interface InvitationResponse {
 
 /** `POST /api/auth/accept-invitation` body. Replies with `MeResponse`, like login. */
 export interface AcceptInvitationRequest {
+  token: string;
+  password: string;
+}
+
+/** `POST /api/auth/password-reset` body. Always `202`, whether the account exists or not. */
+export interface PasswordResetRequest {
+  email: string;
+}
+
+/** `POST /api/auth/password-reset/confirm` body. Replies `204`; the person logs in again. */
+export interface ConfirmPasswordResetRequest {
   token: string;
   password: string;
 }
