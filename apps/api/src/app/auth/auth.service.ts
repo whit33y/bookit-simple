@@ -19,7 +19,7 @@ export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function assertSalonActive(salon?: { status: SalonStatus }): void {
+export function assertSalonActive(salon?: { status: SalonStatus }): void {
   if (salon?.status === 'SUSPENDED') {
     throw new ForbiddenException(SALON_SUSPENDED);
   }
