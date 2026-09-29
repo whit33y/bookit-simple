@@ -1,5 +1,10 @@
 import { expect, Page, test } from '@playwright/test';
-import { ADMINISTRATOR, newSalonData, PASSWORD } from './support/invited-owner';
+import {
+  ADMINISTRATOR,
+  loggedInOwner,
+  newSalonData,
+  PASSWORD,
+} from './support/invited-owner';
 import { linkSentTo } from './support/mailpit';
 
 async function logInAsAdministrator(page: Page) {
@@ -87,4 +92,47 @@ test('the form rejects a reserved and a taken Adres wizytówki', async ({
   await expect(summary(page).getByRole('status')).toContainText(
     'Ten adres jest już zajęty',
   );
+});
+
+test('suspending a Salon logs its Personel out until the Administrator resumes it', async ({
+  page,
+  browser,
+}) => {
+  const ownerPage = await (await browser.newContext()).newPage();
+  const owner = await loggedInOwner(ownerPage.request);
+  await ownerPage.goto('/panel');
+  await expect(
+    ownerPage.getByRole('heading', { name: 'Kalendarz' }),
+  ).toBeVisible();
+
+  await logInAsAdministrator(page);
+  await page.getByLabel('Szukaj po nazwie').fill(owner.salonName);
+  await page.getByRole('link', { name: owner.salonName }).click();
+  await expect(
+    page.getByRole('heading', { name: owner.salonName }),
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: 'Zawieś Salon' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText(`Zawiesić Salon ${owner.salonName}?`);
+  await dialog.getByRole('button', { name: 'Zawieś Salon' }).click();
+  await expect(page.getByRole('status')).toContainText(
+    'Personel został wylogowany',
+  );
+
+  await ownerPage.reload();
+  await expect(ownerPage).toHaveURL('/logowanie');
+  const logIn = async () => {
+    await ownerPage.getByLabel('E-mail').fill(owner.email);
+    await ownerPage.getByLabel('Hasło', { exact: true }).fill(PASSWORD);
+    await ownerPage.getByRole('button', { name: 'Zaloguj się' }).click();
+  };
+  await logIn();
+  await expect(ownerPage.getByRole('alert')).toHaveText('Salon jest zawieszony');
+
+  await page.getByRole('button', { name: 'Odwieś Salon' }).click();
+  await expect(page.getByRole('status')).toContainText('znów aktywny');
+
+  await logIn();
+  await expect(ownerPage).toHaveURL('/panel');
 });

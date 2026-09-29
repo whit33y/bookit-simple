@@ -1,16 +1,26 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   addressLine,
+  AdminSalonDetails,
+  AdminSalonSummary,
   ALL_PAGE_SECTIONS,
   CreateSalonResponse,
   DEFAULT_ACCENT_COLOR,
+  INVITATION_ALREADY_ACCEPTED,
   OWNER_EMAIL_TAKEN,
+  RESEND_SALON_SUSPENDED,
   privacyNoticeTemplate,
   SLUG_ERROR_MESSAGES,
   SlugAvailabilityResponse,
   validateSlug,
 } from '@bookit/shared';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma, SalonStatus } from '../../generated/prisma/client';
+import { SessionService } from '../auth/session.service';
 import { InvitationService } from '../invitations/invitation.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -29,6 +39,47 @@ export interface NewSalon {
   city: string | null;
 }
 
+/** The Właściciel still in the Personel; the first one, should there ever be more. */
+const withOwner = {
+  staffMembers: {
+    where: { role: 'OWNER', deletedAt: null },
+    include: { user: true },
+    orderBy: { createdAt: 'asc' },
+    take: 1,
+  },
+} as const satisfies Prisma.SalonInclude;
+
+type SalonWithOwner = Prisma.SalonGetPayload<{ include: typeof withOwner }>;
+
+function toSummary(salon: SalonWithOwner): AdminSalonSummary {
+  const owner = salon.staffMembers[0];
+  return {
+    id: salon.id,
+    name: salon.name,
+    slug: salon.slug,
+    status: salon.status,
+    createdAt: salon.createdAt.toISOString(),
+    owner: owner?.user
+      ? {
+          displayName: owner.displayName,
+          email: owner.user.email,
+          invitationAccepted: owner.user.passwordHash !== null,
+        }
+      : null,
+  };
+}
+
+function toDetails(salon: SalonWithOwner): AdminSalonDetails {
+  return {
+    ...toSummary(salon),
+    phone: salon.phone,
+    email: salon.email,
+    street: salon.street,
+    postalCode: salon.postalCode,
+    city: salon.city,
+  };
+}
+
 /** Sending the invitation happens inside the transaction, and SMTP can be slow. */
 const CREATE_TIMEOUT_MS = 15_000;
 
@@ -38,7 +89,85 @@ export class AdminSalonsService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(InvitationService) private readonly invitations: InvitationService,
+    @Inject(SessionService) private readonly sessions: SessionService,
   ) {}
+
+  /** Every Salon, newest first. Few enough in the MVP to search in the browser. */
+  async list(): Promise<AdminSalonSummary[]> {
+    const salons = await this.prisma.salon.findMany({
+      include: withOwner,
+      orderBy: { createdAt: 'desc' },
+    });
+    return salons.map(toSummary);
+  }
+
+  /** `404` for an unknown Salon. */
+  async details(id: string): Promise<AdminSalonDetails> {
+    return toDetails(await this.find(id));
+  }
+
+  /**
+   * The Personel cannot log in, and whoever is logged in loses the session.
+   * The status goes first, so a request racing the logout already gets `403`.
+   */
+  async suspend(id: string): Promise<AdminSalonDetails> {
+    const salon = await this.setStatus(id, 'SUSPENDED');
+    await this.sessions.destroyAllForSalon(id);
+    return salon;
+  }
+
+  async resume(id: string): Promise<AdminSalonDetails> {
+    return this.setStatus(id, 'ACTIVE');
+  }
+
+  /**
+   * A new link for a Właściciel who has not set the password; the previous one stops
+   * working. `409` once they have, or while the Salon is suspended, since the link
+   * would not let them in.
+   */
+  async resendInvitation(id: string): Promise<void> {
+    const salon = await this.find(id);
+    const owner = salon.staffMembers[0];
+    if (!owner?.user) throw new NotFoundException();
+    if (owner.user.passwordHash !== null) {
+      throw new ConflictException(INVITATION_ALREADY_ACCEPTED);
+    }
+    if (salon.status === 'SUSPENDED') {
+      throw new ConflictException(RESEND_SALON_SUSPENDED);
+    }
+    await this.invitations.createFor(owner.id);
+  }
+
+  private async find(id: string): Promise<SalonWithOwner> {
+    const salon = await this.prisma.salon.findUnique({
+      where: { id },
+      include: withOwner,
+    });
+    if (!salon) throw new NotFoundException();
+    return salon;
+  }
+
+  private async setStatus(
+    id: string,
+    status: SalonStatus,
+  ): Promise<AdminSalonDetails> {
+    try {
+      const salon = await this.prisma.salon.update({
+        where: { id },
+        data: { status },
+        include: withOwner,
+      });
+      return toDetails(salon);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException();
+      }
+      throw error;
+    }
+  }
 
   /** Checks the form of the address, then whether a Salon has it now or had it before. */
   async slugAvailability(slug: string): Promise<SlugAvailabilityResponse> {

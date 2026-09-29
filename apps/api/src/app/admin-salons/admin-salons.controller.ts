@@ -3,11 +3,17 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Inject,
+  Param,
+  ParseUUIDPipe,
   Post,
   Query,
 } from '@nestjs/common';
 import {
+  AdminSalonDetails,
+  AdminSalonSummary,
   CreateSalonResponse,
   parsePhone,
   PHONE_INVALID,
@@ -77,6 +83,11 @@ export class AdminSalonsController {
     @Inject(AdminSalonsService) private readonly salons: AdminSalonsService,
   ) {}
 
+  @Get()
+  list(): Promise<AdminSalonSummary[]> {
+    return this.salons.list();
+  }
+
   /** For the live check in the form. A missing `slug` is too short. */
   @Get('slug-available')
   slugAvailable(
@@ -92,5 +103,33 @@ export class AdminSalonsController {
       throw new BadRequestException(parsed.error.issues[0]?.message);
     }
     return this.salons.create(parsed.data);
+  }
+
+  @Get(':id')
+  details(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<AdminSalonDetails> {
+    return this.salons.details(id);
+  }
+
+  /** Also logs the Personel out. */
+  @Post(':id/suspend')
+  @HttpCode(HttpStatus.OK)
+  suspend(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<AdminSalonDetails> {
+    return this.salons.suspend(id);
+  }
+
+  @Post(':id/resume')
+  @HttpCode(HttpStatus.OK)
+  resume(@Param('id', ParseUUIDPipe) id: string): Promise<AdminSalonDetails> {
+    return this.salons.resume(id);
+  }
+
+  @Post(':id/resend-invitation')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  resendInvitation(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.salons.resendInvitation(id);
   }
 }

@@ -1,6 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import {
+  AdminSalonDetails,
+  AdminSalonSummary,
   CreateSalonRequest,
   CreateSalonResponse,
   SlugAvailabilityResponse,
@@ -22,6 +24,37 @@ export class AdminSalonsService {
   create(body: CreateSalonRequest): Promise<CreateSalonResponse> {
     return firstValueFrom(
       this.http.post<CreateSalonResponse>('/api/admin/salons', body),
+    );
+  }
+
+  list(): Promise<AdminSalonSummary[]> {
+    return firstValueFrom(
+      this.http.get<AdminSalonSummary[]>('/api/admin/salons'),
+    );
+  }
+
+  details(id: string): Promise<AdminSalonDetails> {
+    return firstValueFrom(
+      this.http.get<AdminSalonDetails>(`/api/admin/salons/${id}`),
+    );
+  }
+
+  /** Also logs the Personel of the Salon out. */
+  suspend(id: string): Promise<AdminSalonDetails> {
+    return firstValueFrom(
+      this.http.post<AdminSalonDetails>(`/api/admin/salons/${id}/suspend`, {}),
+    );
+  }
+
+  resume(id: string): Promise<AdminSalonDetails> {
+    return firstValueFrom(
+      this.http.post<AdminSalonDetails>(`/api/admin/salons/${id}/resume`, {}),
+    );
+  }
+
+  resendInvitation(id: string): Promise<void> {
+    return firstValueFrom(
+      this.http.post<void>(`/api/admin/salons/${id}/resend-invitation`, {}),
     );
   }
 }
