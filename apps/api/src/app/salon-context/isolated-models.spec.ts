@@ -1,5 +1,9 @@
 import { Prisma } from '../../generated/prisma/client';
-import { ISOLATED_MODELS } from './isolated-models';
+import {
+  GLOBAL_MODELS,
+  ISOLATED_MODELS,
+  SALON_LINKED_MODELS,
+} from './isolated-models';
 
 /** Scalar fields per model, straight from the DMMF the Prisma Client was generated from. */
 function scalarFields(model: Prisma.ModelName): string[] {
@@ -16,5 +20,15 @@ describe('ISOLATED_MODELS', () => {
     );
 
     expect([...ISOLATED_MODELS].sort()).toEqual(withSalonId.sort());
+  });
+
+  it('together with the linked and global models covers every model once', () => {
+    const classified = [
+      ...ISOLATED_MODELS,
+      ...Object.keys(SALON_LINKED_MODELS),
+      ...GLOBAL_MODELS,
+    ];
+
+    expect(classified.sort()).toEqual(Object.values(Prisma.ModelName).sort());
   });
 });

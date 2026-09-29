@@ -1,6 +1,6 @@
 import { ClsService } from 'nestjs-cls';
 import { Prisma } from '../../generated/prisma/client';
-import { ISOLATED_MODELS } from './isolated-models';
+import { ISOLATED_MODELS, SALON_LINKED_MODELS } from './isolated-models';
 import { SalonContext } from './salon-context';
 
 /** A query on a Salon's data ran outside a Salon context and outside `@AdminScope()`. */
@@ -21,13 +21,14 @@ export class SalonIsolationError extends Error {
   }
 }
 
-const isolated: ReadonlySet<string> = new Set(ISOLATED_MODELS);
-
 type Args = Record<string, unknown>;
-type Data = Record<string, unknown>;
 
-/** Operations whose `where` gets `salonId`. `findUnique`, `update` and `delete` accept extra fields since Prisma 5. */
-const FILTERED = new Set([
+const isolatedModels: ReadonlySet<string> = new Set(ISOLATED_MODELS);
+const linkedModelFilters: Partial<Record<string, (salonId: string) => object>> =
+  SALON_LINKED_MODELS;
+
+/** Operations with a `where`. `findUnique`, `update` and `delete` accept extra fields since Prisma 5. */
+const WHERE_OPERATIONS = new Set([
   'findUnique',
   'findUniqueOrThrow',
   'findFirst',
@@ -44,12 +45,20 @@ const FILTERED = new Set([
   'upsert',
 ]);
 
+/** The query being scoped and the Salon it is limited to. */
+interface Scope {
+  model: string;
+  operation: string;
+  salonId: string;
+}
+
 /**
- * Limits every query on a model with `salonId` to the Salon from the context (ADR 0001).
+ * Limits every query on a Salon's data to the Salon from the context (ADR 0001).
  * Services do not filter by `salonId` themselves.
  *
- * Only top-level queries go through here. Nested reads and writes follow relations
- * from a record that already passed the filter.
+ * Only top-level queries go through here. Nested reads and writes are safe because
+ * every model they can start from is filtered too (`SALON_LINKED_MODELS`).
+ * Raw SQL (`$queryRaw`) is not filtered.
  */
 export function salonIsolation(cls: ClsService<SalonContext>) {
   return Prisma.defineExtension({
@@ -57,34 +66,42 @@ export function salonIsolation(cls: ClsService<SalonContext>) {
     query: {
       $allModels: {
         $allOperations({ model, operation, args, query }) {
-          if (!isolated.has(model) || cls.get('adminScope')) {
-            return query(args);
-          }
+          if (cls.get('adminScope')) return query(args);
           const salonId = cls.get('salonId');
-          if (!salonId) {
-            throw new SalonContextMissingError(model, operation);
+
+          if (isolatedModels.has(model)) {
+            if (!salonId) throw new SalonContextMissingError(model, operation);
+            return query(
+              scopeIsolated({ model, operation, salonId }, args as Args),
+            );
           }
-          return query(scopeToSalon(model, operation, args as Args, salonId));
+          const linkedFilter = linkedModelFilters[model];
+          if (linkedFilter && salonId) {
+            return query(
+              scopeLinked(
+                { model, operation, salonId },
+                args as Args,
+                linkedFilter,
+              ),
+            );
+          }
+          return query(args);
         },
       },
     },
   });
 }
 
-function scopeToSalon(
-  model: string,
-  operation: string,
-  args: Args,
-  salonId: string,
-): Args {
+/** Model with `salonId`: filter reads, stamp new records, refuse moves to another Salon. */
+function scopeIsolated(scope: Scope, args: Args): Args {
+  const { operation, salonId } = scope;
   const scoped: Args = { ...args };
-  const stamp = (data: unknown) =>
-    stampSalonId(model, operation, data as Data, salonId);
-  const guard = (data: unknown) =>
-    guardSalonId(model, operation, data as Data, salonId);
+  const stamp = (data: unknown) => stampSalonId(scope, data as Args);
+  const rejectForeign = (data: unknown) =>
+    rejectForeignSalonId(scope, data as Args | undefined);
 
-  if (FILTERED.has(operation)) {
-    scoped.where = { ...(args.where as Data | undefined), salonId };
+  if (WHERE_OPERATIONS.has(operation)) {
+    scoped.where = { ...(args.where as Args | undefined), salonId };
   }
   switch (operation) {
     case 'create':
@@ -98,42 +115,46 @@ function scopeToSalon(
       break;
     case 'upsert':
       scoped.create = stamp(args.create);
-      guard(args.update);
+      rejectForeign(args.update);
       break;
     case 'update':
     case 'updateMany':
     case 'updateManyAndReturn':
-      guard(args.data);
+      rejectForeign(args.data);
       break;
   }
   return scoped;
 }
 
+/** Model linked through its id or a parent: `AND` keeps the caller's own filter on that field. */
+function scopeLinked(
+  { operation, salonId }: Scope,
+  args: Args,
+  linkedFilter: (salonId: string) => object,
+): Args {
+  if (!WHERE_OPERATIONS.has(operation)) return args;
+  const where = (args.where ?? {}) as Args;
+  const and = where.AND === undefined ? [] : [where.AND].flat();
+  return { ...args, where: { ...where, AND: [...and, linkedFilter(salonId)] } };
+}
+
 /** New record: `salonId` comes from the context. */
-function stampSalonId(
-  model: string,
-  operation: string,
-  data: Data,
-  salonId: string,
-): Data {
-  guardSalonId(model, operation, data, salonId);
-  return { ...data, salonId };
+function stampSalonId(scope: Scope, data: Args): Args {
+  rejectForeignSalonId(scope, data);
+  return { ...data, salonId: scope.salonId };
 }
 
 /** A write may name the context's Salon, but never another one. */
-function guardSalonId(
-  model: string,
-  operation: string,
-  data: Data | undefined,
-  salonId: string,
+function rejectForeignSalonId(
+  { model, operation, salonId }: Scope,
+  data: Args | undefined,
 ): void {
   if (!data) return;
-  const salonIdValue = data.salonId;
-  const target =
-    typeof salonIdValue === 'object' && salonIdValue !== null
-      ? (salonIdValue as { set?: unknown }).set
-      : salonIdValue;
-  if ('salon' in data || (target !== undefined && target !== salonId)) {
+  const requested =
+    typeof data.salonId === 'object' && data.salonId !== null
+      ? (data.salonId as { set?: unknown }).set
+      : data.salonId;
+  if ('salon' in data || (requested !== undefined && requested !== salonId)) {
     throw new SalonIsolationError(model, operation);
   }
 }

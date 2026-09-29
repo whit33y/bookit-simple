@@ -13,7 +13,7 @@ import { SalonContext } from './salon-context';
 /** The logged-in person as `req.user`. Sessions (#6) will fill it in. */
 export interface AuthenticatedUser {
   isAdministrator: boolean;
-  /** The Salon of the Personel member; absent for the Administrator. */
+  /** The Salon of the person from the Personel; absent for the Administrator. */
   salonId?: string;
   staffMemberId?: string;
   role?: StaffRole;

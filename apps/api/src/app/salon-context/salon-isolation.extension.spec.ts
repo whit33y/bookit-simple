@@ -19,6 +19,8 @@ interface SalonFixture {
   clientId: string;
   serviceId: string;
   photoId: string;
+  visitServiceId: string;
+  invitationId: string;
 }
 
 /** The part of a model delegate these tests call, so one table covers four models. */
@@ -96,9 +98,27 @@ describe('Salon isolation Prisma extension', () => {
         updatedById: staffMember.id,
       },
     });
+    const visitService = await raw.visitService.create({
+      data: {
+        visitId: visit.id,
+        serviceId: service.id,
+        nameSnapshot: service.name,
+        priceGroszeSnapshot: service.priceGrosze,
+        priceTypeSnapshot: service.priceType,
+      },
+    });
+    const invitation = await raw.invitation.create({
+      data: {
+        staffMemberId: staffMember.id,
+        tokenHash: randomUUID(),
+        expiresAt: new Date('2026-10-08T09:00:00Z'),
+      },
+    });
     return {
       salonId,
       staffMemberId: staffMember.id,
+      visitServiceId: visitService.id,
+      invitationId: invitation.id,
       visitId: visit.id,
       clientId: client.id,
       serviceId: service.id,
@@ -112,9 +132,10 @@ describe('Salon isolation Prisma extension', () => {
   });
 
   afterAll(async () => {
-    await raw.salon.deleteMany({
-      where: { id: { in: [a.salonId, b.salonId] } },
-    });
+    const salonIds = [a.salonId, b.salonId];
+    // VisitService -> Service is NoAction, so remove Visits (and their Services) first.
+    await raw.visit.deleteMany({ where: { salonId: { in: salonIds } } });
+    await raw.salon.deleteMany({ where: { id: { in: salonIds } } });
     await raw.$disconnect();
     await prisma.$disconnect();
   });
@@ -212,6 +233,81 @@ describe('Salon isolation Prisma extension', () => {
       });
 
       expect(await recordOfB()).not.toBeNull();
+    });
+  });
+
+  describe('models linked to a Salon without their own salonId', () => {
+    it('hides another Salon, including its data under include', async () => {
+      await inSalon(a.salonId, async () => {
+        expect(
+          await prisma.salon.findUnique({
+            where: { id: b.salonId },
+            include: { clients: true },
+          }),
+        ).toBeNull();
+        expect(
+          await prisma.salon.findMany({
+            where: { id: { in: [a.salonId, b.salonId] } },
+            select: { id: true },
+          }),
+        ).toEqual([{ id: a.salonId }]);
+      });
+    });
+
+    it('cannot edit another Salon or its data through nested writes', async () => {
+      await inSalon(a.salonId, async () => {
+        await expect(
+          prisma.salon.update({
+            where: { id: b.salonId },
+            data: { clients: { deleteMany: {} } },
+          }),
+        ).rejects.toMatchObject({ code: 'P2025' });
+      });
+
+      expect(
+        await raw.client.count({ where: { salonId: b.salonId } }),
+      ).toBeGreaterThan(0);
+    });
+
+    it('sees its own Salon', async () => {
+      await expect(
+        inSalon(a.salonId, () =>
+          prisma.salon.findUnique({ where: { id: a.salonId } }),
+        ),
+      ).resolves.toMatchObject({ id: a.salonId });
+    });
+
+    it.each([
+      {
+        model: 'VisitService',
+        delegate: () => prisma.visitService as unknown as Delegate,
+        id: (s: SalonFixture) => s.visitServiceId,
+      },
+      {
+        model: 'Invitation',
+        delegate: () => prisma.invitation as unknown as Delegate,
+        id: (s: SalonFixture) => s.invitationId,
+      },
+    ])('limits $model through its parent', async ({ delegate, id }) => {
+      await inSalon(a.salonId, async () => {
+        expect(
+          await delegate().findUnique({ where: { id: id(b) } }),
+        ).toBeNull();
+        expect(
+          await delegate().findMany({ where: { id: { in: [id(a), id(b)] } } }),
+        ).toEqual([expect.objectContaining({ id: id(a) })]);
+        expect(await delegate().deleteMany({ where: { id: id(b) } })).toEqual({
+          count: 0,
+        });
+      });
+    });
+
+    it("keeps the caller's own relation filter", async () => {
+      const rows = await inSalon(a.salonId, () =>
+        prisma.visitService.findMany({ where: { visit: { id: b.visitId } } }),
+      );
+
+      expect(rows).toEqual([]);
     });
   });
 
@@ -335,7 +431,11 @@ describe('Salon isolation Prisma extension', () => {
       ).not.toBeNull();
     });
 
-    it('does not filter models without salonId', async () => {
+    it('does not filter global models', async () => {
+      await expect(prisma.user.count()).resolves.toEqual(expect.any(Number));
+    });
+
+    it('leaves linked models unfiltered, for public pages and login', async () => {
       await expect(
         prisma.salon.count({ where: { id: a.salonId } }),
       ).resolves.toBe(1);
