@@ -4,7 +4,7 @@ import { AuthService } from '../auth/auth.service';
 import { AppShell, NavItem } from '../shared/app-shell';
 
 const ADMIN_NAV: NavItem[] = [
-  { icon: 'storefront', label: 'Salony', link: '/admin', exact: true },
+  { icon: 'storefront', label: 'Salony', link: '/admin' },
 ];
 
 /** `/admin/**`: the panel of the Administrator. */

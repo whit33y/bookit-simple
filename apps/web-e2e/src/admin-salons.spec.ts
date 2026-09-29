@@ -1,0 +1,90 @@
+import { expect, Page, test } from '@playwright/test';
+import { ADMINISTRATOR, newSalonData, PASSWORD } from './support/invited-owner';
+import { linkSentTo } from './support/mailpit';
+
+async function logInAsAdministrator(page: Page) {
+  await page.goto('/logowanie');
+  await page.getByLabel('E-mail').fill(ADMINISTRATOR.email);
+  await page.getByLabel('Hasło', { exact: true }).fill(ADMINISTRATOR.password);
+  await page.getByRole('button', { name: 'Zaloguj się' }).click();
+  await expect(page).toHaveURL('/admin');
+}
+
+const summary = (page: Page) =>
+  page.getByRole('complementary', { name: 'Podsumowanie' });
+
+test('the Administrator creates a Salon, and its Właściciel accepts the invitation and sees an empty panel', async ({
+  page,
+  browser,
+}) => {
+  const salon = newSalonData();
+  await logInAsAdministrator(page);
+
+  await page.getByRole('link', { name: 'Nowy Salon' }).click();
+  await expect(page).toHaveURL('/admin/salony/nowy');
+  await page.getByLabel('Nazwa Salonu').fill(salon.salonName);
+  await expect(page.getByLabel('Adres wizytówki')).toHaveValue(salon.slug);
+  await expect(summary(page).getByRole('status')).toContainText('Adres wolny');
+  await expect(summary(page)).toContainText(
+    `http://localhost:4200/${salon.slug}`,
+  );
+  await page.getByLabel('Telefon').fill('600 123 456');
+  await expect(summary(page)).toContainText('+48 600 123 456');
+  await page.getByLabel('Imię i nazwisko').fill(salon.ownerName);
+  await page.getByLabel('E-mail Właściciela').fill(salon.email);
+  await page.getByRole('button', { name: 'Załóż Salon' }).click();
+
+  await expect(page).toHaveURL('/admin');
+  await expect(page.getByRole('status')).toHaveText(
+    `Salon ${salon.salonName} został założony. Zaproszenie poszło na ${salon.email}.`,
+  );
+
+  // The Właściciel, in a browser of their own.
+  const owner = await (await browser.newContext()).newPage();
+  await owner.goto(await linkSentTo(salon.email, 'zaproszenie'));
+  await expect(
+    owner.getByRole('heading', { name: salon.salonName }),
+  ).toBeVisible();
+  await owner.getByLabel('Nowe hasło').fill(PASSWORD);
+  await owner.getByLabel('Powtórz hasło').fill(PASSWORD);
+  await owner.getByRole('button', { name: 'Ustaw hasło' }).click();
+
+  await expect(owner).toHaveURL('/panel');
+  await expect(owner.getByRole('heading', { name: 'Kalendarz' })).toBeVisible();
+  await expect(
+    owner.getByText('Ta sekcja jest w przygotowaniu.'),
+  ).toBeVisible();
+  await expect(owner.getByText(salon.salonName)).toBeVisible();
+});
+
+test('the form rejects a reserved and a taken Adres wizytówki', async ({
+  page,
+}) => {
+  await logInAsAdministrator(page);
+  await page.goto('/admin/salony/nowy');
+  const slug = page.getByLabel('Adres wizytówki');
+
+  await slug.fill('admin');
+  await expect(
+    page.getByText('Ten adres jest zarezerwowany').first(),
+  ).toBeVisible();
+
+  await page.getByLabel('Nazwa Salonu').fill('Nowa nazwa');
+  await expect(slug).toHaveValue('admin');
+
+  const salon = newSalonData();
+  await slug.fill('');
+  await page.getByLabel('Nazwa Salonu').fill(salon.salonName);
+  await expect(slug).toHaveValue(salon.slug);
+  await page.getByLabel('Imię i nazwisko').fill(salon.ownerName);
+  await page.getByLabel('E-mail Właściciela').fill(salon.email);
+  await expect(summary(page).getByRole('status')).toContainText('Adres wolny');
+  await page.getByRole('button', { name: 'Załóż Salon' }).click();
+  await expect(page).toHaveURL('/admin');
+
+  await page.goto('/admin/salony/nowy');
+  await page.getByLabel('Nazwa Salonu').fill(salon.salonName);
+  await expect(summary(page).getByRole('status')).toContainText(
+    'Ten adres jest już zajęty',
+  );
+});

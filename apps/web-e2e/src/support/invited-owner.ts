@@ -1,38 +1,63 @@
-import { APIRequestContext } from '@playwright/test';
-import { execFileSync } from 'node:child_process';
-import { WORKSPACE_ROOT } from '../../playwright.config';
+import 'dotenv/config';
+import { APIRequestContext, request } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 import { linkSentTo } from './mailpit';
 
 export const PASSWORD = 'haslo-do-testow-e2e';
+
+/** The Administrator from `.env`, created by `nx run api:seed`. */
+export const ADMINISTRATOR = {
+  email: process.env['ADMIN_EMAIL'] ?? 'admin@bookit.local',
+  password: process.env['ADMIN_PASSWORD'] ?? 'admin1234',
+};
 
 export interface InvitedOwner {
   email: string;
   salonName: string;
 }
 
+/** A unique Salon name, Właściciel e-mail and the address slugified from the name. */
+export function newSalonData() {
+  const id = randomUUID().slice(0, 8);
+  return {
+    salonName: `Studio E2E ${id}`,
+    slug: `studio-e2e-${id}`,
+    ownerName: 'Ewa',
+    email: `wlasciciel-${id}@bookit.test`,
+  };
+}
+
 /**
- * A new Salon with a Właściciel who got the invitation e-mail but has not set a password.
- * Until the Administrator can create a Salon in the app (#11), a script does it.
+ * A new Salon with a Właściciel who got the invitation e-mail but has not set a password,
+ * created through the Administrator's API, as the form does.
  */
-export function invitedOwner(): InvitedOwner {
-  const output = execFileSync(
-    'npx',
-    [
-      'tsx',
-      '--tsconfig',
-      'apps/api/tsconfig.app.json',
-      'apps/api/src/seed/e2e-invited-owner.ts',
-    ],
-    { cwd: WORKSPACE_ROOT, encoding: 'utf8' },
-  );
-  return JSON.parse(output.trim().split('\n').at(-1) ?? '') as InvitedOwner;
+export async function invitedOwner(): Promise<InvitedOwner> {
+  const { salonName, slug, ownerName, email } = newSalonData();
+  const admin = await request.newContext({ baseURL: 'http://localhost:4200' });
+  try {
+    const login = await admin.post('/api/auth/login', { data: ADMINISTRATOR });
+    if (!login.ok()) {
+      throw new Error(
+        `Administrator login: ${login.status()}. Run \`npx nx run api:seed\`.`,
+      );
+    }
+    const created = await admin.post('/api/admin/salons', {
+      data: { name: salonName, slug, ownerName, ownerEmail: email },
+    });
+    if (!created.ok()) {
+      throw new Error(`POST /api/admin/salons: ${created.status()}`);
+    }
+  } finally {
+    await admin.dispose();
+  }
+  return { email, salonName };
 }
 
 /** A Właściciel who has set `PASSWORD`, logged in on `request` (and so its page). */
 export async function loggedInOwner(
   request: APIRequestContext,
 ): Promise<InvitedOwner> {
-  const owner = invitedOwner();
+  const owner = await invitedOwner();
   const link = await linkSentTo(owner.email, 'zaproszenie');
   const token = link.split('/').at(-1);
   const response = await request.post('/api/auth/accept-invitation', {

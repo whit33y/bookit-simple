@@ -15,7 +15,7 @@ async function logIn(page: Page, email: string, password: string) {
 test('an invited person sets a password, lands in the panel, logs out and logs in again', async ({
   page,
 }) => {
-  const owner = invitedOwner();
+  const owner = await invitedOwner();
   await page.goto(await linkSentTo(owner.email, 'zaproszenie'));
 
   await expect(
@@ -38,7 +38,7 @@ test('an invited person sets a password, lands in the panel, logs out and logs i
 });
 
 test('the invitation link works only once', async ({ page }) => {
-  const owner = invitedOwner();
+  const owner = await invitedOwner();
   const link = await linkSentTo(owner.email, 'zaproszenie');
   const token = link.split('/').at(-1);
   await page.request.post('/api/auth/accept-invitation', {

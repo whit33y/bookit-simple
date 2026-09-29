@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { AdminSalonsModule } from './admin-salons/admin-salons.module';
 import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env';
 import { HealthModule } from './health/health.module';
@@ -15,6 +16,7 @@ import { SalonContextModule } from './salon-context/salon-context.module';
     PrismaModule,
     AuthModule,
     InvitationsModule,
+    AdminSalonsModule,
     PasswordResetModule,
     HealthModule.register(),
   ],
