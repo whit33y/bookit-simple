@@ -20,8 +20,9 @@ import { SessionService } from './session.service';
  * Its middleware runs before every guard, so `req.user` is set for `AccessGuard` (roles,
  * docs/mvp.md section 2) and `SalonContextGuard`.
  * Routes that must run without a Salon context skip `CurrentUserMiddleware`: login and
- * logout, and the invitation routes (`InvitationsModule`), where a session of someone
- * from another Salon would hide the invitation behind the Salon filter.
+ * logout, the invitation routes (`InvitationsModule`), where a session of someone
+ * from another Salon would hide the invitation behind the Salon filter, and the
+ * password reset routes (`PasswordResetModule`), which need no session at all.
  */
 @Module({
   imports: [ThrottlerModule.forRoot([LOGIN_THROTTLE])],
@@ -44,6 +45,8 @@ export class AuthModule implements NestModule {
         { path: 'auth/logout', method: RequestMethod.POST },
         { path: 'auth/invitations/:token', method: RequestMethod.GET },
         { path: 'auth/accept-invitation', method: RequestMethod.POST },
+        { path: 'auth/password-reset', method: RequestMethod.POST },
+        { path: 'auth/password-reset/confirm', method: RequestMethod.POST },
       )
       .forRoutes('{*path}');
   }

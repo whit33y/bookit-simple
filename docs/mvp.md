@@ -94,6 +94,8 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 
 **Invitation**: `staffMemberId`, `tokenHash`, `expiresAt` (7 dni), `usedAt`.
 
+**PasswordReset**: `userId`, `tokenHash`, `expiresAt` (1 godzina), `usedAt`. Nowy link zastępuje poprzedni, a ustawienie hasła wylogowuje osobę na wszystkich urządzeniach.
+
 **Session**: `sid`, `userId`, `data`, `expiresAt`. Model Prisma zamiast tabeli `connect-pg-simple` ([ADR 0005](adr/0005-sesje-w-tabeli-prisma.md)).
 
 **ServiceCategory** (`salonId`): `name`, `sortOrder`.

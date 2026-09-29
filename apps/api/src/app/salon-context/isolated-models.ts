@@ -30,8 +30,9 @@ export const SALON_LINKED_MODELS = {
   Invitation: (salonId: string) => ({ staffMember: { salonId } }),
 } satisfies Partial<Record<Prisma.ModelName, (salonId: string) => object>>;
 
-/** Models that belong to no Salon: accounts and their sessions. */
+/** Models that belong to no Salon: accounts, their sessions and password resets. */
 export const GLOBAL_MODELS = [
   'User',
   'Session',
+  'PasswordReset',
 ] as const satisfies readonly Prisma.ModelName[];

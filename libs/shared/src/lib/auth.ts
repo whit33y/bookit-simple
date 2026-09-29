@@ -26,3 +26,14 @@ export interface AcceptInvitationRequest {
   token: string;
   password: string;
 }
+
+/** `POST /api/auth/password-reset` body. Always `202`, whether the account exists or not. */
+export interface PasswordResetRequest {
+  email: string;
+}
+
+/** `POST /api/auth/password-reset/confirm` body. Replies `204`; the person logs in again. */
+export interface ConfirmPasswordResetRequest {
+  token: string;
+  password: string;
+}
