@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  main:
+  lint-test-build:
     runs-on: ubuntu-latest
 
     services:
@@ -25,7 +25,7 @@ jobs:
           POSTGRES_PASSWORD: bookit
           POSTGRES_DB: bookit
         ports:
-          - 5432:5432
+          - '5432:5432'
         options: >-
           --health-cmd "pg_isready -U bookit -d bookit"
           --health-interval 5s
