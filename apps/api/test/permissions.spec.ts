@@ -81,6 +81,14 @@ const MATRIX: Row[] = [
   ['GET', '/api/auth/invitations/not-a-token', PUBLIC],
   ['POST', '/api/auth/accept-invitation', PUBLIC],
 
+  // T11: creating a Salon by the Administrator
+  [
+    'GET',
+    '/api/admin/salons/slug-available?slug=studio-kora',
+    ['ADMINISTRATOR'],
+  ],
+  ['POST', '/api/admin/salons', ['ADMINISTRATOR']],
+
   // Health check for the hosting
   ['GET', '/api/health', PUBLIC],
 ];

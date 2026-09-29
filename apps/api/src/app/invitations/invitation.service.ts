@@ -22,6 +22,9 @@ export const INVITATION_GONE = 'Zaproszenie wygasło albo zostało już użyte';
 /** Who invites, in the e-mail to a Właściciel. */
 const ADMINISTRATOR_NAME = 'Administrator Bookit';
 
+/** The client `createFor` works on: `PrismaService` or a transaction on it. */
+export type InvitationDb = Pick<PrismaService, 'staffMember' | 'invitation'>;
+
 /**
  * Invitations to the Personel: the Administrator invites a Właściciel (#11), a
  * Właściciel invites Pracownicy (#14). The invited person sets the password from the link.
@@ -43,18 +46,24 @@ export class InvitationService {
    * E-mails the person a link valid 7 days and then drops their previous pending
    * invitation. Who invites comes from the Salon context: the Administrator or the
    * person from the Personel making the request. `404` for a person outside that Salon.
+   *
+   * Inside a transaction (`db`), the e-mail goes out before the commit, so a failed send
+   * rolls back whatever the transaction created, e.g. a new Salon (#11).
    */
-  async createFor(staffMemberId: string): Promise<void> {
-    const staffMember = await this.prisma.staffMember.findFirst({
+  async createFor(
+    staffMemberId: string,
+    db: InvitationDb = this.prisma,
+  ): Promise<void> {
+    const staffMember = await db.staffMember.findFirst({
       where: { id: staffMemberId, deletedAt: null },
       include: { user: true, salon: true },
     });
     if (!staffMember?.user) throw new NotFoundException();
-    const inviterName = await this.inviterName();
+    const inviterName = await this.inviterName(db);
 
     const { token, tokenHash } = newOneTimeToken();
     const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
-    const { id } = await this.prisma.invitation.create({
+    const { id } = await db.invitation.create({
       data: { staffMemberId, tokenHash, expiresAt },
     });
     await this.mail.send({
@@ -67,7 +76,7 @@ export class InvitationService {
       }),
     });
     // Only after the e-mail went out, so a failed send leaves the previous link working.
-    await this.prisma.invitation.deleteMany({
+    await db.invitation.deleteMany({
       where: { staffMemberId, usedAt: null, id: { not: id } },
     });
   }
@@ -123,7 +132,7 @@ export class InvitationService {
     return { invitation, staffMember, user: staffMember.user };
   }
 
-  private async inviterName(): Promise<string> {
+  private async inviterName(db: InvitationDb): Promise<string> {
     if (this.cls.get('isAdministrator')) return ADMINISTRATOR_NAME;
     const id = this.cls.get('staffMemberId');
     if (!id) {
@@ -131,7 +140,7 @@ export class InvitationService {
         'createFor needs the Administrator or a person from the Personel in the Salon context',
       );
     }
-    const inviter = await this.prisma.staffMember.findUniqueOrThrow({
+    const inviter = await db.staffMember.findUniqueOrThrow({
       where: { id },
     });
     return inviter.displayName;

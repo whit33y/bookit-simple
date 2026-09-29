@@ -76,8 +76,14 @@ export const appRoutes: Route[] = [
       {
         path: '',
         title: 'Salony · Bookit',
-        data: { heading: 'Salony' },
-        loadComponent: placeholder,
+        loadComponent: () =>
+          import('./admin/salons-page').then((m) => m.SalonsPage),
+      },
+      {
+        path: 'salony/nowy',
+        title: 'Nowy Salon · Bookit',
+        loadComponent: () =>
+          import('./admin/new-salon-page').then((m) => m.NewSalonPage),
       },
     ],
   },

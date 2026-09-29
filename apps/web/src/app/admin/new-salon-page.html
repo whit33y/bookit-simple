@@ -1,0 +1,189 @@
+<a class="back" mat-button routerLink="/admin">
+  <mat-icon>arrow_back</mat-icon>
+  Salony
+</a>
+<h1>Nowy Salon</h1>
+
+<form class="layout" [formGroup]="form" (ngSubmit)="submit()">
+  <div class="fields">
+    <h2 class="group">Salon</h2>
+    <mat-form-field appearance="outline">
+      <mat-label>Nazwa Salonu</mat-label>
+      <input matInput formControlName="name" autocomplete="off" />
+      @if (form.controls.name.hasError('required')) {
+      <mat-error>Wpisz nazwę Salonu</mat-error>
+      }
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Adres wizytówki</mat-label>
+      <input
+        matInput
+        formControlName="slug"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        (input)="slugTyped()"
+      />
+      @switch (slugState()) { @case ('checking') {
+      <mat-icon matSuffix class="checking" aria-hidden="true"
+        >progress_activity</mat-icon
+      >
+      } @case ('free') {
+      <mat-icon matSuffix class="free" aria-hidden="true"
+        >check_circle</mat-icon
+      >
+      } } @if (form.controls.slug.invalid) {
+      <mat-error>{{ messages[slugReason()] }}</mat-error>
+      } @else {
+      <mat-hint>
+        @if (slugState() === 'checking') { Sprawdzam, czy adres jest wolny… }
+        @else if (slugState() === 'free') { Adres wolny } @else { Podpowiemy go
+        z nazwy }
+      </mat-hint>
+      }
+    </mat-form-field>
+
+    <h2 class="group">
+      Kontakt Salonu <span class="optional">· opcjonalnie</span>
+    </h2>
+    <div class="row">
+      <mat-form-field appearance="outline">
+        <mat-label>Telefon</mat-label>
+        <input matInput type="tel" formControlName="phone" autocomplete="off" />
+        @if (form.controls.phone.hasError('phone')) {
+        <mat-error>{{ phoneInvalid }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>E-mail Salonu</mat-label>
+        <input
+          matInput
+          type="email"
+          formControlName="email"
+          autocomplete="off"
+        />
+        @if (form.controls.email.hasError('email')) {
+        <mat-error>Nieprawidłowy e-mail</mat-error>
+        }
+      </mat-form-field>
+    </div>
+    <mat-form-field appearance="outline">
+      <mat-label>Ulica i numer</mat-label>
+      <input matInput formControlName="street" autocomplete="off" />
+    </mat-form-field>
+    <div class="row postal">
+      <mat-form-field appearance="outline">
+        <mat-label>Kod pocztowy</mat-label>
+        <input
+          matInput
+          formControlName="postalCode"
+          inputmode="numeric"
+          autocomplete="off"
+        />
+        @if (form.controls.postalCode.hasError('pattern')) {
+        <mat-error>{{ postalCodeInvalid }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Miasto</mat-label>
+        <input matInput formControlName="city" autocomplete="off" />
+      </mat-form-field>
+    </div>
+
+    <h2 class="group">Właściciel</h2>
+    <mat-form-field appearance="outline">
+      <mat-label>Imię i nazwisko</mat-label>
+      <input matInput formControlName="ownerName" autocomplete="off" />
+      @if (form.controls.ownerName.hasError('required')) {
+      <mat-error>Wpisz imię Właściciela</mat-error>
+      }
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>E-mail Właściciela</mat-label>
+      <input
+        matInput
+        type="email"
+        formControlName="ownerEmail"
+        autocomplete="off"
+      />
+      @if (form.controls.ownerEmail.hasError('required')) {
+      <mat-error>Wpisz e-mail Właściciela</mat-error>
+      } @else if (form.controls.ownerEmail.hasError('email')) {
+      <mat-error>Nieprawidłowy e-mail</mat-error>
+      } @else if (form.controls.ownerEmail.hasError('taken')) {
+      <mat-error>{{ ownerEmailTaken }}</mat-error>
+      } @else {
+      <mat-hint
+        >Tu wyślemy zaproszenie. Ten e-mail służy też do logowania.</mat-hint
+      >
+      }
+    </mat-form-field>
+
+    @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+    }
+    <div class="actions">
+      <a mat-button routerLink="/admin">Anuluj</a>
+      <button mat-flat-button type="submit" [disabled]="pending()">
+        Załóż Salon
+      </button>
+    </div>
+  </div>
+
+  <aside class="summary" aria-label="Podsumowanie">
+    <h2 class="group">Po zapisaniu</h2>
+    <dl>
+      <dt>Wizytówka</dt>
+      <dd class="mono" data-testid="summary-url">
+        @if (value().slug) { {{ url() }} } @else {
+        <span class="empty">wpisz nazwę Salonu</span>
+        }
+      </dd>
+    </dl>
+    @switch (slugState()) { @case ('empty') {} @case ('checking') {
+    <span class="status" role="status">Sprawdzam adres…</span>
+    } @case ('free') {
+    <span class="status ok" role="status">
+      <mat-icon aria-hidden="true">check</mat-icon>Adres wolny
+    </span>
+    } @default {
+    <span class="status bad" role="status">
+      <mat-icon aria-hidden="true">close</mat-icon>{{ messages[slugReason()] }}
+    </span>
+    } }
+    <hr />
+    <dl>
+      <dt>Salon</dt>
+      <dd>{{ value().name || '—' }}</dd>
+      <dd class="sub">
+        @if (address()) { {{ address() }} } @else {
+        <span class="empty">adres uzupełni Właściciel</span>
+        }
+      </dd>
+      <dt>Telefon na Wizytówce</dt>
+      <dd class="mono">
+        @if (phonePreview() === null) {
+        <span class="empty">popraw numer</span>
+        } @else if (phonePreview()) { {{ phonePreview() }} } @else {
+        <span class="empty">uzupełni Właściciel</span>
+        }
+      </dd>
+      <dt>E-mail na Wizytówce</dt>
+      <dd class="sub">
+        @if (value().email) { {{ value().email }} } @else {
+        <span class="empty">uzupełni Właściciel</span>
+        }
+      </dd>
+    </dl>
+    <hr />
+    <dl>
+      <dt>Zaproszenie dostanie</dt>
+      <dd>{{ value().ownerName || '—' }}</dd>
+      <dd class="sub mono">{{ value().ownerEmail || '—' }}</dd>
+    </dl>
+    <p class="fine">
+      Link w zaproszeniu jest ważny 7 dni. Wszystkie sekcje Wizytówki będą
+      włączone, a klauzula RODO wypełni się z szablonu.
+    </p>
+  </aside>
+</form>
