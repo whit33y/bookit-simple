@@ -18,11 +18,30 @@ const envSchema = z.object({
   ADMIN_PASSWORD: requiredString,
 });
 
+const seedEnvSchema = envSchema.pick({
+  DATABASE_URL: true,
+  ADMIN_EMAIL: true,
+  ADMIN_PASSWORD: true,
+});
+
 export type Env = z.infer<typeof envSchema>;
+export type SeedEnv = z.infer<typeof seedEnvSchema>;
 
 /** Used by `ConfigModule.forRoot({ validate })`, so a bad env stops `api` before it starts listening. */
 export function validateEnv(raw: Record<string, unknown>): Env {
-  const result = envSchema.safeParse(raw);
+  return parseEnv(envSchema, raw);
+}
+
+/** The seed needs only the database and the Administrator's credentials. */
+export function validateSeedEnv(raw: Record<string, unknown>): SeedEnv {
+  return parseEnv(seedEnvSchema, raw);
+}
+
+function parseEnv<T extends z.ZodType>(
+  schema: T,
+  raw: Record<string, unknown>,
+): z.infer<T> {
+  const result = schema.safeParse(raw);
   if (!result.success) {
     const problems = result.error.issues.map((issue) => {
       const name = String(issue.path[0]);

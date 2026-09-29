@@ -56,7 +56,7 @@ bookit/
 │   └── api/        NestJS
 ├── libs/
 │   └── shared/     typy DTO, stałe (zarezerwowane adresy, limity), funkcja świąt
-├── prisma/         schema, migracje, seed
+├── prisma/         schema i migracje (seed w apps/api/src/seed)
 └── docker-compose.yml   Postgres 16, MinIO, Mailpit
 ```
 
@@ -94,7 +94,7 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 
 **Invitation**: `staffMemberId`, `tokenHash`, `expiresAt` (7 dni), `usedAt`.
 
-**Session**: tabela `connect-pg-simple` albo odpowiednik.
+**Session**: `sid`, `userId`, `data`, `expiresAt`. Model Prisma zamiast tabeli `connect-pg-simple` ([ADR 0005](adr/0005-sesje-w-tabeli-prisma.md)).
 
 **ServiceCategory** (`salonId`): `name`, `sortOrder`.
 
@@ -106,7 +106,7 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 
 **OpeningHours** (`salonId`): `weekday` (1–7), `opensAt`, `closesAt` (typ `time`). Brak wiersza oznacza zamknięte. Jeden przedział na dzień.
 
-**Announcement** (`salonId`): Ogłoszenie. `title`, `body`, `photoId`, `showFrom` (data), `showUntil` (data, null = bez końca).
+**Announcement** (`salonId`): Ogłoszenie. `title`, `body`, `photoId`, `showFrom` (data, typ `date`), `showUntil` (data, null = bez końca).
 
 **Photo** (`salonId`): `storageKey`, `width`, `height`, `bytes`.
 

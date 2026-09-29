@@ -1,4 +1,4 @@
-import { validateEnv } from './env';
+import { validateEnv, validateSeedEnv } from './env';
 
 const validEnv = {
   DATABASE_URL: 'postgresql://bookit:bookit@localhost:5432/bookit',
@@ -57,5 +57,21 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...validEnv, SMTP_PORT: 'abc' })).toThrow(
       /SMTP_PORT/,
     );
+  });
+});
+
+describe('validateSeedEnv', () => {
+  it('needs only the database and the Administrator credentials', () => {
+    const { DATABASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD } = validEnv;
+
+    expect(
+      validateSeedEnv({ DATABASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD }),
+    ).toEqual({ DATABASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD });
+  });
+
+  it('names a missing ADMIN_PASSWORD', () => {
+    const { ADMIN_PASSWORD: _, ...rest } = validEnv;
+
+    expect(() => validateSeedEnv(rest)).toThrow(/ADMIN_PASSWORD: is missing/);
   });
 });

@@ -5,6 +5,43 @@
   "projectType": "application",
   "tags": [],
   "targets": {
+    "prisma-generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prisma generate",
+        "cwd": "{workspaceRoot}"
+      },
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/prisma/schema.prisma",
+        "{workspaceRoot}/prisma.config.ts"
+      ],
+      "outputs": ["{projectRoot}/src/generated/prisma"]
+    },
+    "migrate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prisma migrate dev",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "seed": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prisma db seed",
+        "cwd": "{workspaceRoot}"
+      },
+      "dependsOn": ["prisma-generate"]
+    },
+    "build": {
+      "dependsOn": ["^build", "prisma-generate"]
+    },
+    "test": {
+      "dependsOn": ["prisma-generate"]
+    },
+    "lint": {
+      "dependsOn": ["prisma-generate"]
+    },
     "prune-lockfile": {
       "dependsOn": ["build"],
       "cache": true,

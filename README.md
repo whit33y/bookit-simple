@@ -19,18 +19,26 @@ cp .env.example .env
 docker compose up -d          # Postgres :5432, MinIO :9000 (konsola :9001), Mailpit :1025/:8025
 docker compose ps             # postgres, minio i mailpit powinny być "healthy"
 npm install
+npx nx run api:migrate        # prisma migrate dev: tabele z prisma/schema.prisma
+npx nx run api:seed           # Administrator z ADMIN_EMAIL i ADMIN_PASSWORD, można uruchamiać wielokrotnie
 npx nx run-many -t serve -p api web
 ```
 
-Migracje i seed Administratora dojdą w T03.
-
-- Stan API: http://localhost:3000/api/health (`s3` i `smtp` muszą mieć `ok`, inaczej `503`)
+- Stan API: http://localhost:3000/api/health (`db`, `s3` i `smtp` muszą mieć `ok`, inaczej `503`)
 - Konsola MinIO: http://localhost:9001 (login i hasło z `S3_ACCESS_KEY` / `S3_SECRET_KEY`)
 - E-maile (zaproszenia, reset hasła): http://localhost:8025
 
 Kontener `minio-init` tworzy bucket `bookit` i kończy pracę, więc w `docker compose ps -a` ma stan `exited (0)`. Brak zmiennej w `.env` zatrzymuje start `api` z komunikatem, której brakuje.
 
+## Baza danych
+
+Schemat i migracje są w `prisma/`, konfiguracja CLI w `prisma.config.ts`. Po zmianie schematu `npx nx run api:migrate --name opis-zmiany` tworzy migrację. Prisma Client generuje się do `apps/api/src/generated/prisma` (poza gitem) przed `build`, `test` i `lint` albo ręcznie przez `npx nx run api:prisma-generate`.
+
+Seed nie nadpisuje hasła istniejącego Administratora. Żeby zmienić hasło z `.env`, usuń go z bazy i uruchom seed ponownie.
+
 ## Testy
+
+Testy `api` korzystają z Postgresa z `DATABASE_URL` i przed startem wykonują `prisma migrate deploy`.
 
 ```bash
 npx nx run-many -t lint test build
