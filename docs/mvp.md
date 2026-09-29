@@ -179,7 +179,7 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 ### Adres wizytówki
 
 - Regex `^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$`, bez dwóch myślników pod rząd.
-- Zarezerwowane: `admin`, `api`, `app`, `panel`, `login`, `www`, `static`, `assets`, `health`. Lista w `libs/shared`.
+- Zarezerwowane: `admin`, `api`, `app`, `panel`, `login`, `logowanie`, `zaproszenie`, `reset-hasla`, `www`, `static`, `assets`, `health`. Lista w `libs/shared`. Każda nowa trasa najwyższego poziomu w `apps/web` musi trafić na tę listę, bo inaczej zasłoni Wizytówkę o tym adresie.
 - Zmienia tylko Administrator. Stary adres trafia do `SalonSlugRedirect`, a Wizytówka pod nim odpowiada `301` na nowy.
 - Wizytówka zawieszonego Salonu zwraca `404`.
 

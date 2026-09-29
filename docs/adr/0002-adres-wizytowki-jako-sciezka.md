@@ -4,7 +4,7 @@ Na start Wizytówka jest pod `twojadomena.pl/{adres-wizytowki}`. Ta opcja nie wy
 
 Od pierwszego dnia backend rozpoznaje Salon jedną funkcją `(host, ścieżka) -> Salon`. Dzisiaj patrzy tylko na ścieżkę. Dodanie subdomeny albo własnej domeny to rozszerzenie tej funkcji, bez zmian w reszcie aplikacji.
 
-Adres wizytówki: małe litery, cyfry i myślniki, 3–40 znaków, unikalny w całej platformie. Zarezerwowane nazwy, których Salon nie może dostać: `admin`, `api`, `app`, `panel`, `login`, `www`, `static`, `assets`.
+Adres wizytówki: małe litery, cyfry i myślniki, 3–40 znaków, unikalny w całej platformie. Zarezerwowane nazwy, których Salon nie może dostać: `admin`, `api`, `app`, `panel`, `login`, `logowanie`, `zaproszenie`, `reset-hasla`, `www`, `static`, `assets`, `health`. Ścieżka `/{adres-wizytowki}` dzieli przestrzeń z trasami panelu, więc każda nowa trasa najwyższego poziomu musi trafić na tę listę.
 
 ## Considered Options
 
