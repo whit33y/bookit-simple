@@ -149,6 +149,6 @@ describe('SalonContextGuard', () => {
   });
 
   it('rejects an anonymous request on an @AdminScope() route', async () => {
-    await request(app.getHttpServer()).get('/admin').expect(403);
+    await request(app.getHttpServer()).get('/admin').expect(401);
   });
 });

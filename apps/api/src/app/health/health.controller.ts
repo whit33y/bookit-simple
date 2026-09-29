@@ -4,6 +4,7 @@ import {
   Inject,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { Public } from '../auth/access.decorators';
 import {
   DbHealthIndicator,
   HealthIndicator,
@@ -32,6 +33,7 @@ export class HealthController {
   ) {}
 
   @Get()
+  @Public()
   async check(): Promise<HealthReport> {
     const [db, s3, smtp] = await Promise.all([
       this.probe(this.db),
