@@ -67,7 +67,7 @@ bookit/
 - **Baza:** PostgreSQL z Prisma. Czasy jako `timestamptz` w UTC. Kwoty w groszach jako `int`.
 - **Izolacja Salonów** ([ADR 0001](adr/0001-jedna-aplikacja-jedna-baza.md)): `SalonContextGuard` ustala `salonId` z sesji, a rozszerzenie Prisma Client dopisuje `where: { salonId }` do każdego zapytania o model z kolumną `salonId`. Serwisy nie filtrują same.
 - **Logowanie:** sesja w ciasteczku `httpOnly`, `SameSite=Lax`, przechowywana w Postgresie. Sesję w bazie da się unieważnić przy usunięciu osoby albo zawieszeniu Salonu, JWT tego nie umożliwia. Hasła przez `argon2`.
-- **Pliki:** MinIO (API S3) przez `@aws-sdk/client-s3`. Na hostingu podmieniamy tylko endpoint i klucze.
+- **Pliki:** MinIO (API S3) przez `@aws-sdk/client-s3`. Na hostingu podmieniamy tylko endpoint i klucze. Lokalnie obraz `pgsty/minio` ([ADR 0004](adr/0004-obraz-minio-z-pgsty.md)).
 - **E-maile:** `nodemailer` na SMTP. Lokalnie Mailpit z podglądem pod `http://localhost:8025`.
 - **Telefony:** `libphonenumber-js`, zapis w E.164, domyślny kraj PL.
 - **Testy:** Jest w `api` (jednostkowe i integracyjne na prawdziwym Postgresie z Docker Compose), Vitest lub Jest w `web`, Playwright dla ścieżek end-to-end.

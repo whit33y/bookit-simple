@@ -12,23 +12,23 @@ Nx, Angular (SSR dla Wizytówki), NestJS, PostgreSQL + Prisma, MinIO, Mailpit. S
 
 ## Uruchomienie lokalne
 
-> Kodu jeszcze nie ma. Poniższe kroki powstają w zadaniach T01–T03 i trzeba je zweryfikować, gdy będą gotowe.
-
 Wymagania: Node.js 24 LTS, Docker.
 
 ```bash
 cp .env.example .env
-docker compose up -d          # Postgres :5432, MinIO :9000 (konsola :9001), Mailpit :8025
+docker compose up -d          # Postgres :5432, MinIO :9000 (konsola :9001), Mailpit :1025/:8025
+docker compose ps             # postgres, minio i mailpit powinny być "healthy"
 npm install
-npx nx run api:migrate
-npx nx run api:seed           # Administrator z .env i salon Studio Kora
 npx nx run-many -t serve -p api web
 ```
 
-- Panel: http://localhost:4200/panel
-- Panel Administratora: http://localhost:4200/admin
-- Wizytówka Studio Kora: http://localhost:4200/studio-kora
+Migracje i seed Administratora dojdą w T03.
+
+- Stan API: http://localhost:3000/api/health (`s3` i `smtp` muszą mieć `ok`, inaczej `503`)
+- Konsola MinIO: http://localhost:9001 (login i hasło z `S3_ACCESS_KEY` / `S3_SECRET_KEY`)
 - E-maile (zaproszenia, reset hasła): http://localhost:8025
+
+Kontener `minio-init` tworzy bucket `bookit` i kończy pracę, więc w `docker compose ps -a` ma stan `exited (0)`. Brak zmiennej w `.env` zatrzymuje start `api` z komunikatem, której brakuje.
 
 ## Testy
 
