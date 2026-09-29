@@ -44,3 +44,5 @@ Testy `api` korzystają z Postgresa z `DATABASE_URL` i przed startem wykonują `
 npx nx run-many -t lint test build
 npx nx run web-e2e:e2e
 ```
+
+CI (`.github/workflows/ci.yml`) uruchamia `nx affected -t lint test build` na każdym PR i pushu do `main`, z Postgresem 16 i zmiennymi z `.env.example`.
