@@ -2,22 +2,27 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
 import {
+  AdminSalonDetails,
+  AdminSalonSummary,
   ALL_PAGE_SECTIONS,
   CreateSalonRequest,
   DEFAULT_ACCENT_COLOR,
+  INVITATION_ALREADY_ACCEPTED,
   OWNER_EMAIL_TAKEN,
+  RESEND_SALON_SUSPENDED,
   SLUG_ERROR_MESSAGES,
 } from '@bookit/shared';
 import { hash } from 'argon2';
 import request from 'supertest';
 import { Mail, MailService } from '../../mail/mail.service';
+import { SALON_SUSPENDED } from '../auth/auth.service';
 import { AppModule } from '../app.module';
 import { configureApp } from '../configure-app';
 import { createPrismaClient } from '../prisma/prisma.service';
 
 const PASSWORD = 'correct horse battery staple';
 
-describe('Creating a Salon by the Administrator', () => {
+describe('Salons managed by the Administrator', () => {
   const raw = createPrismaClient(process.env.DATABASE_URL ?? '');
   const sent: Mail[] = [];
   let failMail = false;
@@ -40,6 +45,27 @@ describe('Creating a Salon by the Administrator', () => {
   const create = (body: object) => admin.post('/api/admin/salons').send(body);
   const slugAvailable = (slug: string) =>
     admin.get('/api/admin/salons/slug-available').query({ slug });
+  /** The token from the last invitation e-mail sent to this address. */
+  const invitationToken = (email: string) => {
+    const mail = sent.filter((m) => m.to === email).at(-1);
+    const token = mail?.text.match(/\/zaproszenie\/([\w-]+)/)?.[1];
+    if (!token) throw new Error(`No invitation for ${email}`);
+    return token;
+  };
+  /** A new Salon; with `accepted`, its Właściciel has set the password and is logged in. */
+  const salonWithOwner = async ({ accepted = false } = {}) => {
+    const body = newSalon();
+    const res = await create(body).expect(201);
+    const ownerEmail = body.ownerEmail.toLowerCase();
+    const owner = request.agent(app.getHttpServer());
+    if (accepted) {
+      await owner
+        .post('/api/auth/accept-invitation')
+        .send({ token: invitationToken(ownerEmail), password: PASSWORD })
+        .expect(200);
+    }
+    return { id: res.body.id as string, body, ownerEmail, owner };
+  };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -280,6 +306,158 @@ describe('Creating a Salon by the Administrator', () => {
       await admin
         .get('/api/admin/salons/slug-available')
         .expect(200, { available: false, reason: 'TOO_SHORT' });
+    });
+  });
+
+  describe('GET /api/admin/salons', () => {
+    it('lists Salons newest first with the Właściciel and whether the invitation was accepted', async () => {
+      const pending = await salonWithOwner();
+      const accepted = await salonWithOwner({ accepted: true });
+
+      const res = await admin.get('/api/admin/salons').expect(200);
+
+      const list = res.body as AdminSalonSummary[];
+      const ids = list.map((s) => s.id);
+      expect(ids.indexOf(accepted.id)).toBeLessThan(ids.indexOf(pending.id));
+      expect(list.find((s) => s.id === pending.id)).toEqual({
+        id: pending.id,
+        name: pending.body.name,
+        slug: pending.body.slug,
+        status: 'ACTIVE',
+        createdAt: expect.any(String),
+        owner: {
+          displayName: 'Anna Kora',
+          email: pending.ownerEmail,
+          invitationAccepted: false,
+        },
+      });
+      expect(list.find((s) => s.id === accepted.id)?.owner).toMatchObject({
+        invitationAccepted: true,
+      });
+    });
+  });
+
+  describe('GET /api/admin/salons/:id', () => {
+    it('gives the Salon with its contact details', async () => {
+      const body = newSalon({ phone: '600 123 456', city: 'Łódź' });
+      const { body: created } = await create(body).expect(201);
+
+      const res = await admin.get(`/api/admin/salons/${created.id}`).expect(200);
+
+      expect(res.body).toEqual({
+        id: created.id,
+        name: body.name,
+        slug: body.slug,
+        status: 'ACTIVE',
+        createdAt: expect.any(String),
+        owner: {
+          displayName: 'Anna Kora',
+          email: body.ownerEmail,
+          invitationAccepted: false,
+        },
+        phone: '+48600123456',
+        email: null,
+        street: null,
+        postalCode: null,
+        city: 'Łódź',
+      } satisfies AdminSalonDetails);
+    });
+
+    it('answers 404 for an unknown Salon and 400 for an id that is not a UUID', async () => {
+      await admin.get(`/api/admin/salons/${randomUUID()}`).expect(404);
+      await admin.get('/api/admin/salons/not-an-id').expect(400);
+    });
+  });
+
+  describe('suspending and resuming', () => {
+    const suspend = (id: string) =>
+      admin.post(`/api/admin/salons/${id}/suspend`);
+    const resume = (id: string) => admin.post(`/api/admin/salons/${id}/resume`);
+
+    it('logs the Personel out, stops them logging in, and resuming lets them in again', async () => {
+      const salon = await salonWithOwner({ accepted: true });
+      const other = await salonWithOwner({ accepted: true });
+      await salon.owner.get('/api/auth/me').expect(200);
+
+      const res = await suspend(salon.id).expect(200);
+
+      expect(res.body).toMatchObject({ id: salon.id, status: 'SUSPENDED' });
+      expect(
+        await raw.session.count({
+          where: { user: { email: salon.ownerEmail } },
+        }),
+      ).toBe(0);
+      await salon.owner.get('/api/auth/me').expect(401);
+      const login = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: salon.ownerEmail, password: PASSWORD })
+        .expect(403);
+      expect(login.body.message).toBe(SALON_SUSPENDED);
+      await other.owner.get('/api/auth/me').expect(200);
+
+      const resumed = await resume(salon.id).expect(200);
+
+      expect(resumed.body).toMatchObject({ status: 'ACTIVE' });
+      await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: salon.ownerEmail, password: PASSWORD })
+        .expect(200);
+    });
+
+    it('does nothing when the Salon already has that status', async () => {
+      const { id } = await salonWithOwner();
+
+      await resume(id).expect(200);
+      await suspend(id).expect(200);
+      const res = await suspend(id).expect(200);
+
+      expect(res.body).toMatchObject({ status: 'SUSPENDED' });
+    });
+
+    it('answers 404 for an unknown Salon', async () => {
+      await suspend(randomUUID()).expect(404);
+      await resume(randomUUID()).expect(404);
+    });
+  });
+
+  describe('POST /api/admin/salons/:id/resend-invitation', () => {
+    const resend = (id: string) =>
+      admin.post(`/api/admin/salons/${id}/resend-invitation`);
+
+    it('sends a new link and the previous one stops working', async () => {
+      const { id, ownerEmail } = await salonWithOwner();
+      const oldToken = invitationToken(ownerEmail);
+
+      await resend(id).expect(204);
+
+      const newToken = invitationToken(ownerEmail);
+      expect(newToken).not.toBe(oldToken);
+      const guest = request(app.getHttpServer());
+      await guest.get(`/api/auth/invitations/${oldToken}`).expect(410);
+      await guest.get(`/api/auth/invitations/${newToken}`).expect(200);
+    });
+
+    it('answers 409 when the Właściciel already accepted', async () => {
+      const { id } = await salonWithOwner({ accepted: true });
+
+      const res = await resend(id).expect(409);
+
+      expect(res.body.message).toBe(INVITATION_ALREADY_ACCEPTED);
+    });
+
+    it('answers 409 for a suspended Salon', async () => {
+      const { id, ownerEmail } = await salonWithOwner();
+      await admin.post(`/api/admin/salons/${id}/suspend`).expect(200);
+      const before = sent.length;
+
+      const res = await resend(id).expect(409);
+
+      expect(res.body.message).toBe(RESEND_SALON_SUSPENDED);
+      expect(sent.slice(before).some((m) => m.to === ownerEmail)).toBe(false);
+    });
+
+    it('answers 404 for an unknown Salon', async () => {
+      await resend(randomUUID()).expect(404);
     });
   });
 });

@@ -59,6 +59,7 @@ const PEOPLE: readonly Person[] = [
   'EMPLOYEE',
 ];
 const PUBLIC = PEOPLE;
+const UNKNOWN_ID = '00000000-0000-4000-8000-000000000000';
 
 const MATRIX: Row[] = [
   // Test controllers, one route per access decorator.
@@ -88,6 +89,17 @@ const MATRIX: Row[] = [
     ['ADMINISTRATOR'],
   ],
   ['POST', '/api/admin/salons', ['ADMINISTRATOR']],
+
+  // T12: list and details of Salons, suspending (unknown id, so nothing changes)
+  ['GET', '/api/admin/salons', ['ADMINISTRATOR']],
+  ['GET', `/api/admin/salons/${UNKNOWN_ID}`, ['ADMINISTRATOR']],
+  ['POST', `/api/admin/salons/${UNKNOWN_ID}/suspend`, ['ADMINISTRATOR']],
+  ['POST', `/api/admin/salons/${UNKNOWN_ID}/resume`, ['ADMINISTRATOR']],
+  [
+    'POST',
+    `/api/admin/salons/${UNKNOWN_ID}/resend-invitation`,
+    ['ADMINISTRATOR'],
+  ],
 
   // Health check for the hosting
   ['GET', '/api/health', PUBLIC],

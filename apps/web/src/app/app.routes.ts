@@ -85,6 +85,12 @@ export const appRoutes: Route[] = [
         loadComponent: () =>
           import('./admin/new-salon-page').then((m) => m.NewSalonPage),
       },
+      {
+        path: 'salony/:id',
+        title: 'Salon · Bookit',
+        loadComponent: () =>
+          import('./admin/salon-details-page').then((m) => m.SalonDetailsPage),
+      },
     ],
   },
 ];
