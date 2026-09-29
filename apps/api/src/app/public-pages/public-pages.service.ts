@@ -6,13 +6,20 @@ import {
   PublicPage,
   warsawDate,
 } from '@bookit/shared';
+import { ClsService } from 'nestjs-cls';
 import { Salon } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { SalonContext } from '../salon-context/salon-context';
 
 /** `@db.Date` comes back as midnight UTC. */
 const calendarDay = (date: Date) => date.toISOString().slice(0, 10);
 /** `@db.Time` comes back as 1970-01-01 in UTC. */
 const clockTime = (date: Date) => date.toISOString().slice(11, 16);
+
+const BY_SORT_ORDER = [
+  { sortOrder: 'asc' },
+  { createdAt: 'asc' },
+] as const satisfies object[];
 
 /** Only the known sections, as booleans; a missing one is on, like for a new Salon. */
 function pageSections(stored: unknown): PageSections {
@@ -26,64 +33,75 @@ function pageSections(stored: unknown): PageSections {
 }
 
 /**
- * The Wizytówka of one Salon. Runs across Salons (`@AdminScope()`), so every query
- * filters by `salonId` itself, and every field is picked by name: the reply is public.
+ * The Wizytówka of one Salon, with every field picked by name: the reply is public.
+ * The route reads across Salons to find the Salon; the page itself is read in that
+ * Salon's context, so the isolation extension filters it like any panel query (ADR 0001).
  */
 @Injectable()
 export class PublicPagesService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(ClsService) private readonly cls: ClsService<SalonContext>,
+  ) {}
 
   async page(salon: Salon, now = new Date()): Promise<PublicPage> {
-    const salonId = salon.id;
+    const today = warsawDate(now);
+    // Prisma queries are lazy: they run on `then`, so await inside the context.
     const [categories, announcements, staff, gallery, openingHours] =
-      await Promise.all([
-        this.prisma.serviceCategory.findMany({
-          where: { salonId },
-          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-          select: {
-            name: true,
-            services: {
-              where: { salonId, hidden: false, archivedAt: null },
-              orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      await this.cls.runWith(
+        { salonId: salon.id },
+        async () =>
+          await Promise.all([
+            this.prisma.serviceCategory.findMany({
+              orderBy: BY_SORT_ORDER,
               select: {
                 name: true,
-                description: true,
-                priceGrosze: true,
-                priceType: true,
-                durationMin: true,
+                services: {
+                  where: { hidden: false, archivedAt: null },
+                  orderBy: BY_SORT_ORDER,
+                  select: {
+                    name: true,
+                    description: true,
+                    priceGrosze: true,
+                    priceType: true,
+                    durationMin: true,
+                  },
+                },
               },
-            },
-          },
-        }),
-        this.prisma.announcement.findMany({
-          where: { salonId },
-          orderBy: [{ showFrom: 'desc' }, { createdAt: 'desc' }],
-          select: {
-            title: true,
-            body: true,
-            photoId: true,
-            showFrom: true,
-            showUntil: true,
-          },
-        }),
-        this.prisma.staffMember.findMany({
-          where: { salonId, showOnPage: true, deletedAt: null },
-          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-          select: { displayName: true, bio: true, photoId: true },
-        }),
-        this.prisma.galleryItem.findMany({
-          where: { salonId },
-          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-          select: { photoId: true },
-        }),
-        this.prisma.openingHours.findMany({
-          where: { salonId },
-          orderBy: { weekday: 'asc' },
-          select: { weekday: true, opensAt: true, closesAt: true },
-        }),
-      ]);
+            }),
+            this.prisma.announcement.findMany({
+              // Past ones stay out of the query; `isAnnouncementVisible` has the final say.
+              where: {
+                OR: [
+                  { showUntil: null },
+                  { showUntil: { gte: new Date(today) } },
+                ],
+              },
+              orderBy: [{ showFrom: 'desc' }, { createdAt: 'desc' }],
+              select: {
+                title: true,
+                body: true,
+                photoId: true,
+                showFrom: true,
+                showUntil: true,
+              },
+            }),
+            this.prisma.staffMember.findMany({
+              where: { showOnPage: true, deletedAt: null },
+              orderBy: BY_SORT_ORDER,
+              select: { displayName: true, bio: true, photoId: true },
+            }),
+            this.prisma.galleryItem.findMany({
+              orderBy: BY_SORT_ORDER,
+              select: { photoId: true },
+            }),
+            this.prisma.openingHours.findMany({
+              orderBy: { weekday: 'asc' },
+              select: { weekday: true, opensAt: true, closesAt: true },
+            }),
+          ]),
+      );
 
-    const today = warsawDate(now);
     return {
       salon: {
         name: salon.name,

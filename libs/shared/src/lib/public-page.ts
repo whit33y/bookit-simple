@@ -1,4 +1,4 @@
-import { CalendarDay } from './announcements';
+import { CalendarDay } from './calendar-day';
 import { PageSections } from './salon-page';
 
 export type PriceType = 'FIXED' | 'FROM';

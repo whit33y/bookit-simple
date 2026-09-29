@@ -43,13 +43,16 @@ export class SalonContextGuard implements CanActivate {
       ADMIN_SCOPE,
       targets,
     );
-    const access = this.reflector.getAllAndOverride<Access | undefined>(
-      ACCESS,
-      targets,
-    );
 
-    if (adminScope && access === 'public') {
-      // A public read across Salons, e.g. the Wizytówka: the route itself filters by Salon.
+    // A public read across Salons, e.g. the Wizytówka. Both decorators must sit on the
+    // same handler or class, so a `@Public()` handler of an Administrator controller
+    // does not open every Salon to anyone.
+    const publicAcrossSalons = targets.some(
+      (target) =>
+        this.reflector.get<boolean | undefined>(ADMIN_SCOPE, target) &&
+        this.reflector.get<Access | undefined>(ACCESS, target) === 'public',
+    );
+    if (publicAcrossSalons) {
       this.cls.set('adminScope', true);
       return true;
     }

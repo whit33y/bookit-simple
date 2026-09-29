@@ -72,6 +72,12 @@ class AdminProbeController {
   get() {
     return { adminScope: this.cls.get('adminScope') };
   }
+
+  @Get('public')
+  @Public()
+  publicHandler() {
+    return { adminScope: this.cls.get('adminScope') };
+  }
 }
 
 @Module({
@@ -165,6 +171,13 @@ describe('SalonContextGuard', () => {
       await request(app.getHttpServer())
         .get('/public-read')
         .expect(200, { adminScope: true });
+    });
+
+    it('needs both decorators on the same target', async () => {
+      // `@Public()` on a handler of an `@AdminScope()` controller stays Administrator-only.
+      await request(app.getHttpServer())
+        .get('/admin-controller/public')
+        .expect(401);
     });
 
     it('does not tie the Personel to their own Salon', async () => {
