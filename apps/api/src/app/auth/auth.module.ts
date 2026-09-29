@@ -19,6 +19,9 @@ import { SessionService } from './session.service';
  * Login with e-mail and password, sessions in Postgres (ADR 0005).
  * Its middleware runs before every guard, so `req.user` is set for `AccessGuard` (roles,
  * docs/mvp.md section 2) and `SalonContextGuard`.
+ * Routes that must run without a Salon context skip `CurrentUserMiddleware`: login and
+ * logout, and the invitation routes (`InvitationsModule`), where a session of someone
+ * from another Salon would hide the invitation behind the Salon filter.
  */
 @Module({
   imports: [ThrottlerModule.forRoot([LOGIN_THROTTLE])],
@@ -29,7 +32,7 @@ import { SessionService } from './session.service';
     SessionService,
     { provide: APP_GUARD, useClass: AccessGuard },
   ],
-  exports: [SessionService],
+  exports: [AuthService, SessionService],
 })
 export class AuthModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
@@ -39,6 +42,8 @@ export class AuthModule implements NestModule {
       .exclude(
         { path: 'auth/login', method: RequestMethod.POST },
         { path: 'auth/logout', method: RequestMethod.POST },
+        { path: 'auth/invitations/:token', method: RequestMethod.GET },
+        { path: 'auth/accept-invitation', method: RequestMethod.POST },
       )
       .forRoutes('{*path}');
   }

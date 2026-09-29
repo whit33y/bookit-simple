@@ -11,3 +11,18 @@ export interface MeResponse {
   salon: { id: string; name: string; slug: string } | null;
   role: 'OWNER' | 'EMPLOYEE' | null;
 }
+
+/** Minimum password length, for setting it from an invitation or a reset. */
+export const MIN_PASSWORD_LENGTH = 10;
+
+/** `GET /api/auth/invitations/:token`: what the screen for setting the password shows. */
+export interface InvitationResponse {
+  salonName: string;
+  displayName: string;
+}
+
+/** `POST /api/auth/accept-invitation` body. Replies with `MeResponse`, like login. */
+export interface AcceptInvitationRequest {
+  token: string;
+  password: string;
+}

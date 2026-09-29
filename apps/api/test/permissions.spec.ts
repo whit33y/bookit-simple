@@ -77,6 +77,10 @@ const MATRIX: Row[] = [
   ['POST', '/api/auth/login', PUBLIC],
   ['GET', '/api/auth/me', ['ADMINISTRATOR', 'OWNER', 'EMPLOYEE']],
 
+  // T07: invitations and setting the password
+  ['GET', '/api/auth/invitations/not-a-token', PUBLIC],
+  ['POST', '/api/auth/accept-invitation', PUBLIC],
+
   // Health check for the hosting
   ['GET', '/api/health', PUBLIC],
 ];
