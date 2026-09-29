@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ClsService } from 'nestjs-cls';
@@ -42,9 +43,10 @@ export class SalonContextGuard implements CanActivate {
     );
 
     if (adminScope) {
-      if (!user?.isAdministrator) {
-        throw new ForbiddenException();
-      }
+      // Same answers as `AccessGuard` for `@AdminOnly()`, whichever guard runs first;
+      // checked here too because the Salon filter goes off.
+      if (!user) throw new UnauthorizedException();
+      if (!user.isAdministrator) throw new ForbiddenException();
       this.cls.set('isAdministrator', true);
       this.cls.set('adminScope', true);
       return true;

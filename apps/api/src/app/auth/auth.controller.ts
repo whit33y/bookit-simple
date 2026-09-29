@@ -15,8 +15,8 @@ import { LoginRequest, MeResponse } from '@bookit/shared';
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { AuthenticatedUser } from '../salon-context/salon-context.guard';
+import { AnyRole, Public } from './access.decorators';
 import { AuthService } from './auth.service';
-import { AuthenticatedGuard } from './authenticated.guard';
 import { LoginThrottlerGuard } from './login-throttler.guard';
 import { destroySession, startSession } from './session-helpers';
 import { SESSION_COOKIE } from './session.middleware';
@@ -31,6 +31,7 @@ export class AuthController {
   constructor(@Inject(AuthService) private readonly auth: AuthService) {}
 
   @Post('login')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @UseGuards(LoginThrottlerGuard)
   async login(@Body() body: unknown, @Req() req: Request): Promise<MeResponse> {
@@ -45,6 +46,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @Public()
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(
     @Req() req: Request,
@@ -55,7 +57,7 @@ export class AuthController {
   }
 
   @Get('me')
-  @UseGuards(AuthenticatedGuard)
+  @AnyRole()
   me(@Req() req: Request & { user: AuthenticatedUser }): Promise<MeResponse> {
     return this.auth.me({
       userId: req.user.userId,

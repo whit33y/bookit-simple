@@ -18,6 +18,7 @@ import {
 } from '@bookit/shared';
 import { Request } from 'express';
 import { z } from 'zod';
+import { Public } from '../auth/access.decorators';
 import { AuthService } from '../auth/auth.service';
 import { startSession } from '../auth/session-helpers';
 import { InvitationService } from './invitation.service';
@@ -31,6 +32,7 @@ const acceptSchema = z.object({
 
 /** Public: the invited person has no session yet. */
 @Controller('auth')
+@Public()
 export class InvitationController {
   constructor(
     @Inject(InvitationService) private readonly invitations: InvitationService,
