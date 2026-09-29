@@ -85,4 +85,23 @@ describe('AuthService', () => {
     expect(auth.homeUrl(OWNER)).toBe('/panel');
     expect(auth.homeUrl({ ...OWNER, role: 'EMPLOYEE' })).toBe('/panel');
   });
+
+  it('keeps someone outside any Personel on the login page, so guards do not loop', () => {
+    expect(
+      auth.homeUrl({ ...OWNER, staffMember: null, salon: null, role: null }),
+    ).toBe('/logowanie');
+  });
+
+  it('forgets who even when logging out fails', async () => {
+    const login = auth.login('anna@studiokora.pl', 'secret-pass');
+    http.expectOne('/api/auth/login').flush(OWNER);
+    await login;
+
+    const logout = auth.logout();
+    http
+      .expectOne('/api/auth/logout')
+      .flush(null, { status: 500, statusText: 'Server Error' });
+    await expect(logout).rejects.toBeTruthy();
+    expect(auth.me()).toBeNull();
+  });
 });

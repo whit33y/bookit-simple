@@ -94,6 +94,12 @@ describe('auth guards', () => {
       expect(await redirect(run(guestGuard, null))).toBe(true);
     });
 
+    it('shows the page to someone with nowhere to go, instead of looping', async () => {
+      const nobody = { ...OWNER, staffMember: null, salon: null, role: null };
+      expect(await redirect(run(guestGuard, nobody))).toBe(true);
+      expect(await redirect(run(roleGuard('OWNER'), nobody))).toBe('/logowanie');
+    });
+
     it('sends a logged-in person to their panel', async () => {
       expect(await redirect(run(guestGuard, ADMINISTRATOR))).toBe('/admin');
       expect(await redirect(run(guestGuard, EMPLOYEE))).toBe('/panel');

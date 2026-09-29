@@ -178,7 +178,10 @@ export class AppShell {
   readonly nav = input.required<NavItem[]>();
 
   protected async logout(): Promise<void> {
-    await this.auth.logout();
-    await this.router.navigateByUrl('/logowanie');
+    try {
+      await this.auth.logout();
+    } finally {
+      await this.router.navigateByUrl('/logowanie');
+    }
   }
 }

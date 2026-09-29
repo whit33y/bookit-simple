@@ -63,7 +63,11 @@ describe('LoginPage', () => {
   it('shows the error from the API in Polish', async () => {
     const { el, navigate, logIn, settle } = await setup();
     (await logIn()).flush(
-      { statusCode: 401, message: 'Nieprawidłowy e-mail lub hasło' },
+      {
+        statusCode: 401,
+        message: 'Nieprawidłowy e-mail lub hasło',
+        error: 'Unauthorized',
+      },
       { status: 401, statusText: 'Unauthorized' },
     );
     await settle();

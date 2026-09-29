@@ -43,6 +43,8 @@ import { AuthService } from './auth.service';
             <input matInput type="email" formControlName="email" autocomplete="email" />
             @if (form.controls.email.hasError('required')) {
               <mat-error>Wpisz e-mail</mat-error>
+            } @else if (form.controls.email.hasError('email')) {
+              <mat-error>Wpisz poprawny adres e-mail</mat-error>
             }
           </mat-form-field>
           @if (error()) {
@@ -66,7 +68,7 @@ export class PasswordResetRequestPage {
   protected readonly form = new FormGroup({
     email: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required],
+      validators: [Validators.required, Validators.email],
     }),
   });
   protected readonly pending = signal(false);

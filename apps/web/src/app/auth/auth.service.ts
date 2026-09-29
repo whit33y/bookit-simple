@@ -45,9 +45,13 @@ export class AuthService {
     );
   }
 
+  /** Forgets the person here even if the request fails, so the browser never looks logged in. */
   async logout(): Promise<void> {
-    await firstValueFrom(this.http.post<void>('/api/auth/logout', null));
-    this.loading = Promise.resolve(this.setMe(null));
+    try {
+      await firstValueFrom(this.http.post<void>('/api/auth/logout', null));
+    } finally {
+      this.loading = Promise.resolve(this.setMe(null));
+    }
   }
 
   describeInvitation(token: string): Promise<InvitationResponse> {
@@ -83,9 +87,13 @@ export class AuthService {
     );
   }
 
-  /** Where a person lands after logging in. */
+  /**
+   * Where a person lands after logging in. Someone who is neither the Administrator nor
+   * in a Personel has nowhere to go and stays on the login page.
+   */
   homeUrl(me: MeResponse): string {
-    return me.user.isAdministrator ? '/admin' : '/panel';
+    if (me.user.isAdministrator) return '/admin';
+    return me.role ? '/panel' : '/logowanie';
   }
 
   private loggedIn(me: MeResponse): MeResponse {

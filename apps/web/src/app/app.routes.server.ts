@@ -4,7 +4,7 @@ import { RenderMode, ServerRoute } from '@angular/ssr';
  * Only the Wizytówka is rendered on the server. The panels and the pages for logging in
  * need the session, so they are rendered in the browser.
  */
-export const CLIENT_ROUTES = [
+const CLIENT_ROUTES = [
   'panel',
   'panel/**',
   'admin',
