@@ -262,6 +262,7 @@ GET    /visits/:id/changes      GET /visit-changes?day=&staffId=&clientId=
 POST   /absences                PATCH | DELETE /absences/:id
 
 GET    /public/pages/:slug      dane Wizytówki (bez autoryzacji)
+GET    /public/photos/:id       plik WebP zdjęcia (bez autoryzacji, cache na rok)
 ```
 
 ## 8. Zadania

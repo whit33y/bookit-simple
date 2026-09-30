@@ -118,6 +118,11 @@ const MATRIX: Row[] = [
   ['DELETE', `/api/service-categories/${UNKNOWN_ID}`, ['OWNER']],
   ['PUT', '/api/service-categories/order', ['OWNER']],
 
+  // T19: Photos (no file and an unknown id, so nothing changes)
+  ['POST', '/api/photos', ['OWNER']],
+  ['DELETE', `/api/photos/${UNKNOWN_ID}`, ['OWNER']],
+  ['GET', `/api/public/photos/${UNKNOWN_ID}`, PUBLIC],
+
   // T34: the Wizytówka (unknown address, so 404)
   ['GET', '/api/public/pages/nieznany-salon', PUBLIC],
 

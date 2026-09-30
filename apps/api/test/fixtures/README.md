@@ -1,0 +1,12 @@
+# Pliki testowe
+
+Używa ich `apps/api/src/app/photos/photos.controller.spec.ts`.
+
+| Plik                 | Co to jest                                                                                                                                                                  | Źródło                                                                                                                                                                 |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `iphone.heic`        | HEIF 1280×854, 718 KB                                                                                                                                                       | `examples/example.heic` z [strukturag/libheif](https://github.com/strukturag/libheif/blob/master/examples/example.heic), gałąź `master`, pobrany 2026-09-30 (LGPL-3.0) |
+| `rotated-exif-6.jpg` | JPEG zapisany jako 40×20 (lewa połowa czerwona, prawa niebieska) z EXIF Orientation 6, więc wyprostowany ma 20×40 z czerwienią na górze. W EXIF także `Make`, `Model` i GPS | `generate.mjs`                                                                                                                                                         |
+| `transparent.png`    | PNG 40×20, lewa połowa przezroczysta, prawa zielona                                                                                                                         | `generate.mjs`                                                                                                                                                         |
+| `document-pdf.jpg`   | Jednostronicowy PDF z rozszerzeniem `.jpg`                                                                                                                                  | `generate.mjs`                                                                                                                                                         |
+
+Pliki z `generate.mjs` odtworzysz poleceniem `node apps/api/test/fixtures/generate.mjs` z katalogu głównego repozytorium.
