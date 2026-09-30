@@ -62,7 +62,8 @@ export type UpdateVisitRequest = Partial<CreateVisitRequest>;
 
 /**
  * `POST /api/visits/:id/cancel`, `/no-show` and `/restore` reply with the `VisitView`,
- * or `422` when the Stan Wizyty does not allow it. `/restore` checks Kolizje; its body
+ * or `422` when the Stan Wizyty does not allow it. `/restore` also answers `422` for a
+ * deleted person or Klient, and checks Kolizje; its body
  * may carry `acceptCollisions`. `DELETE /api/visits/:id` replies `204`.
  */
 export interface RestoreVisitRequest {

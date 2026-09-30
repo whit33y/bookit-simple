@@ -739,6 +739,38 @@ describe('Wizyty', () => {
       },
     );
 
+    it('/restore answers 422 for a Wizyta of a deleted person', async () => {
+      const s = await salonWithStaff();
+      const visit = await createVisit(s);
+      await s.asEmployee.post(`${URL}/${visit.id}/cancel`).expect(200);
+      await raw.staffMember.update({
+        where: { id: s.person.id },
+        data: { deletedAt: new Date() },
+      });
+
+      const res = await s.asOwner
+        .post(`${URL}/${visit.id}/restore`)
+        .expect(422);
+
+      expect(res.body.message).toBe(VISIT_STAFF_UNAVAILABLE);
+    });
+
+    it('/restore answers 422 for a Wizyta of a deleted Klient', async () => {
+      const s = await salonWithStaff();
+      const visit = await createVisit(s);
+      await s.asEmployee.post(`${URL}/${visit.id}/no-show`).expect(200);
+      await raw.client.update({
+        where: { id: s.client.id },
+        data: { deletedAt: new Date(), name: 'Klient usunięty' },
+      });
+
+      const res = await s.asOwner
+        .post(`${URL}/${visit.id}/restore`)
+        .expect(422);
+
+      expect(res.body.message).toBe(VISIT_CLIENT_UNAVAILABLE);
+    });
+
     it('/restore answers 422 for a scheduled Wizyta', async () => {
       const s = await salonWithStaff();
       const visit = await createVisit(s);

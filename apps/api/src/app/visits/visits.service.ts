@@ -27,7 +27,13 @@ import { ClsService } from 'nestjs-cls';
 import { Prisma, Service } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SalonContext } from '../salon-context/salon-context';
-import { findCollisions, Interval, visitInterval } from './find-collisions';
+import {
+  findCollisions,
+  Interval,
+  MINUTE_MS,
+  sameInterval,
+  visitInterval,
+} from './find-collisions';
 import type { VisitChanges, VisitFields } from './visits.schemas';
 
 type Db = Pick<
@@ -44,7 +50,7 @@ type VisitWithServices = Prisma.VisitGetPayload<{
 }>;
 
 /** The longest a Wizyta can take up, to find the ones that started before an interval. */
-const LONGEST_VISIT_MS = (SERVICE_DURATION_MAX + SERVICE_BREAK_MAX) * 60_000;
+const LONGEST_VISIT_MS = (SERVICE_DURATION_MAX + SERVICE_BREAK_MAX) * MINUTE_MS;
 
 const toView = (visit: VisitWithServices): VisitView => ({
   id: visit.id,
@@ -168,12 +174,8 @@ export class VisitsService {
         rest.description !== undefined ? rest.description : current.description,
       );
 
-      const before = visitInterval(current);
       const after = visitInterval({ ...current, ...rest });
-      const moved =
-        after.staffMemberId !== before.staffMemberId ||
-        after.startsAt.getTime() !== before.startsAt.getTime() ||
-        after.endsAt.getTime() !== before.endsAt.getTime();
+      const moved = !sameInterval(after, visitInterval(current));
       if (moved && current.state === 'SCHEDULED' && !acceptCollisions) {
         await this.checkCollisions(tx, after, id);
       }
@@ -196,7 +198,8 @@ export class VisitsService {
 
   /**
    * Moves the Wizyta to `state`, or `422` when its Stan Wizyty does not allow it.
-   * Restoring checks Kolizje: the time may have been taken meanwhile.
+   * Restoring checks the person, the Klient and Kolizje, as for a new Wizyta: the time
+   * may have been taken meanwhile.
    */
   async changeState(
     id: string,
@@ -209,8 +212,13 @@ export class VisitsService {
       if (!from.includes(current.state)) {
         throw new UnprocessableEntityException(VISIT_STATE_CHANGE_INVALID);
       }
-      if (state === 'SCHEDULED' && !acceptCollisions) {
-        await this.checkCollisions(tx, visitInterval(current), id);
+      if (state === 'SCHEDULED') {
+        // Like a new Wizyta: a deleted person or Klient has no scheduled Wizyty.
+        await this.checkStaffMember(tx, current.staffMemberId);
+        await this.checkClient(tx, current.clientId);
+        if (!acceptCollisions) {
+          await this.checkCollisions(tx, visitInterval(current), id);
+        }
       }
       const visit = await tx.visit.update({
         where: { id },
@@ -330,7 +338,9 @@ export class VisitsService {
   /** The person making the change: `createdById` and `updatedById`. */
   private staffMemberId(): string {
     const staffMemberId = this.cls.get('staffMemberId');
-    if (!staffMemberId) throw new Error('VisitsService needs a Salon context');
+    if (!staffMemberId) {
+      throw new Error('VisitsService needs a person in the Salon context');
+    }
     return staffMemberId;
   }
 }

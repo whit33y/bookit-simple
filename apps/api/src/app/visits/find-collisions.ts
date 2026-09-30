@@ -1,6 +1,6 @@
 import { VisitState } from '@bookit/shared';
 
-const MINUTE_MS = 60_000;
+export const MINUTE_MS = 60_000;
 
 /** The time a Wizyta takes up in one person's calendar: `[startsAt, endsAt)`. */
 export interface Interval {
@@ -51,6 +51,12 @@ export function visitInterval(visit: {
     ),
   };
 }
+
+/** The same person and the same time. */
+export const sameInterval = (a: Interval, b: Interval) =>
+  a.staffMemberId === b.staffMemberId &&
+  a.startsAt.getTime() === b.startsAt.getTime() &&
+  a.endsAt.getTime() === b.endsAt.getTime();
 
 /** Half-open intervals: one ending when the other starts do not overlap. */
 const overlaps = (a: Interval, b: Interval) =>
