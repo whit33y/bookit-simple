@@ -1,3 +1,4 @@
+export * from './lib/absences';
 export * from './lib/admin-salons';
 export * from './lib/announcements';
 export * from './lib/auth';
