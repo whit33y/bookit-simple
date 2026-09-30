@@ -8,13 +8,12 @@ import {
 } from '@bookit/shared';
 import { ClsService } from 'nestjs-cls';
 import { Salon } from '../../generated/prisma/client';
+import { toClockTime } from '../opening-hours/clock-time';
 import { PrismaService } from '../prisma/prisma.service';
 import { SalonContext } from '../salon-context/salon-context';
 
 /** `@db.Date` comes back as midnight UTC. */
 const calendarDay = (date: Date) => date.toISOString().slice(0, 10);
-/** `@db.Time` comes back as 1970-01-01 in UTC. */
-const clockTime = (date: Date) => date.toISOString().slice(11, 16);
 
 const BY_SORT_ORDER = [
   { sortOrder: 'asc' },
@@ -149,8 +148,8 @@ export class PublicPagesService {
       gallery: gallery.map((item) => ({ photoId: item.photoId })),
       openingHours: openingHours.map((hours) => ({
         weekday: hours.weekday,
-        opensAt: clockTime(hours.opensAt),
-        closesAt: clockTime(hours.closesAt),
+        opensAt: toClockTime(hours.opensAt),
+        closesAt: toClockTime(hours.closesAt),
       })),
       privacyNotice: salon.privacyNotice,
     };

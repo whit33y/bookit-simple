@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env';
 import { HealthModule } from './health/health.module';
 import { InvitationsModule } from './invitations/invitations.module';
+import { OpeningHoursModule } from './opening-hours/opening-hours.module';
 import { PasswordResetModule } from './password-reset/password-reset.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PublicPagesModule } from './public-pages/public-pages.module';
@@ -26,6 +27,7 @@ import { StaffModule } from './staff/staff.module';
     StaffModule,
     ServiceCategoriesModule,
     ServicesModule,
+    OpeningHoursModule,
     HealthModule.register(),
   ],
 })

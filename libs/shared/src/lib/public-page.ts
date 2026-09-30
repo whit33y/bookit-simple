@@ -1,4 +1,5 @@
 import { CalendarDay } from './calendar-day';
+import { OpeningHoursDay } from './opening-hours';
 import { PageSections } from './salon-page';
 
 export type PriceType = 'FIXED' | 'FROM';
@@ -40,14 +41,7 @@ export interface PublicGalleryItem {
 }
 
 /** Godziny otwarcia of one weekday; a missing weekday is closed. */
-export interface PublicOpeningHours {
-  /** 1 = Monday ... 7 = Sunday */
-  weekday: number;
-  /** `HH:MM` */
-  opensAt: string;
-  /** `HH:MM` */
-  closesAt: string;
-}
+export type PublicOpeningHours = OpeningHoursDay;
 
 /** `GET /api/public/pages/:slug`: everything the Wizytówka shows, and nothing more. */
 export interface PublicPage {
