@@ -13,6 +13,24 @@ export function warsawDate(instant: Date): CalendarDay {
   return WARSAW_DAY.format(instant);
 }
 
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * The instant `day` starts in Europe/Warsaw. The clocks change at 2:00 or 3:00, so the
+ * offset at 00:00 UTC of that day is the one of its midnight.
+ */
+export function warsawDayStart(day: CalendarDay): Date {
+  const utcMidnight = new Date(`${day}T00:00:00Z`);
+  const warsawHour = Number(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Warsaw',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).format(utcMidnight),
+  );
+  return new Date(utcMidnight.getTime() - warsawHour * HOUR_MS);
+}
+
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** `YYYY-MM-DD` naming a day that exists: `2026-02-29` does not. */

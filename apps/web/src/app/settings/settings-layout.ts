@@ -9,6 +9,7 @@ const TABS = [
   { label: 'Ogłoszenia', link: 'ogloszenia' },
   { label: 'Galeria', link: 'galeria' },
   { label: 'Wizytówka', link: 'wizytowka' },
+  { label: 'Historia zmian', link: 'historia' },
 ];
 
 /** `/panel/ustawienia/**`: tabs between the settings screens of the Właściciel. */

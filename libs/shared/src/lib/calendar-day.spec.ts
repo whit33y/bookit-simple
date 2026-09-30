@@ -1,4 +1,4 @@
-import { isCalendarDay, warsawDate } from './calendar-day';
+import { isCalendarDay, warsawDate, warsawDayStart } from './calendar-day';
 
 describe('isCalendarDay', () => {
   it.each([
@@ -25,5 +25,19 @@ describe('warsawDate', () => {
     ['2026-07-31T21:59:00Z', '2026-07-31'],
   ])('%s is %s in Warsaw', (instant, day) => {
     expect(warsawDate(new Date(instant))).toBe(day);
+  });
+});
+
+describe('warsawDayStart', () => {
+  it.each([
+    ['2026-01-15', '2026-01-14T23:00:00.000Z'],
+    ['2026-09-30', '2026-09-29T22:00:00.000Z'],
+    // The days the clocks change: midnight is still before the switch.
+    ['2026-03-29', '2026-03-28T23:00:00.000Z'],
+    ['2026-03-30', '2026-03-29T22:00:00.000Z'],
+    ['2026-10-25', '2026-10-24T22:00:00.000Z'],
+    ['2026-10-26', '2026-10-25T23:00:00.000Z'],
+  ])('%s starts at %s', (day, instant) => {
+    expect(warsawDayStart(day).toISOString()).toBe(instant);
   });
 });

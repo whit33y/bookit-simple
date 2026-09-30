@@ -107,6 +107,14 @@ export const appRoutes: Route[] = [
                 (m) => m.PageSettingsPage,
               ),
           },
+          {
+            path: 'historia',
+            title: 'Historia zmian · Bookit',
+            loadComponent: () =>
+              import('./settings/visit-changes-page').then(
+                (m) => m.VisitChangesPage,
+              ),
+          },
         ],
       },
     ],
