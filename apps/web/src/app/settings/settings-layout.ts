@@ -5,6 +5,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 const TABS = [
   { label: 'Personel', link: 'personel' },
   { label: 'Cennik', link: 'cennik' },
+  { label: 'Godziny otwarcia', link: 'godziny' },
 ];
 
 /** `/panel/ustawienia/**`: tabs between the settings screens of the Właściciel. */

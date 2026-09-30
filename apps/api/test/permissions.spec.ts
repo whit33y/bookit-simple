@@ -118,6 +118,10 @@ const MATRIX: Row[] = [
   ['DELETE', `/api/service-categories/${UNKNOWN_ID}`, ['OWNER']],
   ['PUT', '/api/service-categories/order', ['OWNER']],
 
+  // T18: Godziny otwarcia (no body, so 400 for the Właściciel)
+  ['GET', '/api/opening-hours', ['OWNER']],
+  ['PUT', '/api/opening-hours', ['OWNER']],
+
   // T34: the Wizytówka (unknown address, so 404)
   ['GET', '/api/public/pages/nieznany-salon', PUBLIC],
 
