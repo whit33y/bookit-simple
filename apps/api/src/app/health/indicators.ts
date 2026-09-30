@@ -3,6 +3,7 @@ import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createTransport, Transporter } from 'nodemailer';
 import { Env } from '../config/env';
+import { createS3Client } from '../config/s3-client';
 import { PrismaService } from '../prisma/prisma.service';
 
 /** Resolves when the service is reachable, rejects otherwise. */
@@ -26,16 +27,7 @@ export class S3HealthIndicator implements HealthIndicator, OnModuleDestroy {
 
   constructor(config: ConfigService<Env, true>) {
     this.bucket = config.get('S3_BUCKET', { infer: true });
-    this.client = new S3Client({
-      endpoint: config.get('S3_ENDPOINT', { infer: true }),
-      region: 'us-east-1',
-      forcePathStyle: true,
-      maxAttempts: 1,
-      credentials: {
-        accessKeyId: config.get('S3_ACCESS_KEY', { infer: true }),
-        secretAccessKey: config.get('S3_SECRET_KEY', { infer: true }),
-      },
-    });
+    this.client = createS3Client(config, { maxAttempts: 1 });
   }
 
   async check(): Promise<void> {

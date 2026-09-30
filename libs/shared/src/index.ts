@@ -4,6 +4,7 @@ export * from './lib/auth';
 export * from './lib/calendar-day';
 export * from './lib/opening-hours';
 export * from './lib/phone';
+export * from './lib/photos';
 export * from './lib/public-page';
 export * from './lib/reserved-slugs';
 export * from './lib/salon-page';
