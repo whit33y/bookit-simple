@@ -55,8 +55,8 @@ export const appRoutes: Route[] = [
       {
         path: 'klienci',
         title: 'Klienci · Bookit',
-        data: { heading: 'Klienci' },
-        loadComponent: placeholder,
+        loadComponent: () =>
+          import('./clients/clients-page').then((m) => m.ClientsPage),
       },
       {
         path: 'ustawienia',

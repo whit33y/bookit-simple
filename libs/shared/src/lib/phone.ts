@@ -16,3 +16,8 @@ export function parsePhone(raw: string): Phone | null {
   if (!phone?.isValid()) return null;
   return { e164: phone.number, international: phone.formatInternational() };
 }
+
+/** A stored E.164 number as people read it, e.g. `+48 600 123 456`. */
+export function formatPhone(e164: string): string {
+  return parsePhone(e164)?.international ?? e164;
+}

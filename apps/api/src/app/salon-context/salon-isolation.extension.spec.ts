@@ -62,7 +62,7 @@ describe('Salon isolation Prisma extension', () => {
       data: { salonId, role: 'OWNER', displayName: 'Anna' },
     });
     const client = await raw.client.create({
-      data: { salonId, name: 'Klient' },
+      data: { salonId, name: 'Klient', nameNormalized: 'klient' },
     });
     const category = await raw.serviceCategory.create({
       data: { salonId, name: 'Strzyżenie' },
@@ -341,7 +341,10 @@ describe('Salon isolation Prisma extension', () => {
     it('takes salonId from the context when none is given', async () => {
       const client = await inSalon(a.salonId, () =>
         prisma.client.create({
-          data: { name: 'Nowy' } as Prisma.ClientUncheckedCreateInput,
+          data: {
+            name: 'Nowy',
+            nameNormalized: 'nowy',
+          } as Prisma.ClientUncheckedCreateInput,
         }),
       );
 
@@ -352,7 +355,10 @@ describe('Salon isolation Prisma extension', () => {
       const name = `many-${randomUUID()}`;
       await inSalon(a.salonId, () =>
         prisma.client.createMany({
-          data: [{ name }, { name }] as Prisma.ClientCreateManyInput[],
+          data: [
+            { name, nameNormalized: name },
+            { name, nameNormalized: name },
+          ] as Prisma.ClientCreateManyInput[],
         }),
       );
 
@@ -365,7 +371,11 @@ describe('Salon isolation Prisma extension', () => {
       const client = await inSalon(a.salonId, () =>
         prisma.client.upsert({
           where: { id },
-          create: { id, name: 'Upsert' } as Prisma.ClientUncheckedCreateInput,
+          create: {
+            id,
+            name: 'Upsert',
+            nameNormalized: 'upsert',
+          } as Prisma.ClientUncheckedCreateInput,
           update: {},
         }),
       );
@@ -376,7 +386,9 @@ describe('Salon isolation Prisma extension', () => {
     it('refuses a salonId of another Salon', async () => {
       await expect(
         inSalon(a.salonId, () =>
-          prisma.client.create({ data: { name: 'Obcy', salonId: b.salonId } }),
+          prisma.client.create({
+            data: { name: 'Obcy', nameNormalized: 'obcy', salonId: b.salonId },
+          }),
         ),
       ).rejects.toThrow(SalonIsolationError);
     });
@@ -385,7 +397,11 @@ describe('Salon isolation Prisma extension', () => {
       await expect(
         inSalon(a.salonId, () =>
           prisma.client.create({
-            data: { name: 'Obcy', salon: { connect: { id: b.salonId } } },
+            data: {
+              name: 'Obcy',
+              nameNormalized: 'obcy',
+              salon: { connect: { id: b.salonId } },
+            },
           }),
         ),
       ).rejects.toThrow(SalonIsolationError);

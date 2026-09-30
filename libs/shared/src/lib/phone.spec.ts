@@ -1,4 +1,4 @@
-import { parsePhone } from './phone';
+import { formatPhone, parsePhone } from './phone';
 
 describe('parsePhone', () => {
   it.each([
@@ -13,5 +13,11 @@ describe('parsePhone', () => {
 
   it.each(['123', '600 123 45', 'abc', ''])('rejects %j', (raw) => {
     expect(parsePhone(raw)).toBeNull();
+  });
+});
+
+describe('formatPhone', () => {
+  it('shows a stored number in groups', () => {
+    expect(formatPhone('+48600100200')).toBe('+48 600 100 200');
   });
 });
