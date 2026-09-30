@@ -115,5 +115,3 @@ export const VISIT_STATE_CHANGE_INVALID =
   'Tej zmiany nie można zrobić w obecnym Stanie Wizyty';
 /** `409` message; the body also lists the Kolizje. */
 export const VISIT_COLLISION = 'Wizyta nachodzi na inne wpisy tej osoby';
-/** Label of a Nieobecność without a reason in the Kolizje. */
-export const ABSENCE_DEFAULT_LABEL = 'Nieobecność';

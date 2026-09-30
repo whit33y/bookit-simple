@@ -39,3 +39,19 @@ export function isCalendarDay(text: string): boolean {
   const date = new Date(`${text}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(text);
 }
+
+/**
+ * The start and end of `day` in Europe/Warsaw, e.g. for a Nieobecność on whole days:
+ * from midnight to the next midnight, so a day lasts 23 or 25 hours when the clocks change.
+ */
+export function warsawDayBounds(day: CalendarDay): {
+  startsAt: Date;
+  endsAt: Date;
+} {
+  const next = new Date(`${day}T00:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + 1);
+  return {
+    startsAt: warsawDayStart(day),
+    endsAt: warsawDayStart(next.toISOString().slice(0, 10)),
+  };
+}

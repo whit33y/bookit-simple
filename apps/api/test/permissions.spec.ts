@@ -174,6 +174,11 @@ const MATRIX: Row[] = [
   ['GET', `/api/visits/${UNKNOWN_ID}/changes`, ['OWNER']],
   ['GET', '/api/visit-changes', ['OWNER']],
 
+  // T26: Nieobecności (empty bodies and an unknown id, so nothing changes)
+  ['POST', '/api/absences', ['OWNER', 'EMPLOYEE']],
+  ['PATCH', `/api/absences/${UNKNOWN_ID}`, ['OWNER', 'EMPLOYEE']],
+  ['DELETE', `/api/absences/${UNKNOWN_ID}`, ['OWNER', 'EMPLOYEE']],
+
   // T34: the Wizytówka (unknown address, so 404)
   ['GET', '/api/public/pages/nieznany-salon', PUBLIC],
 

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { AbsencesModule } from './absences/absences.module';
 import { AdminSalonsModule } from './admin-salons/admin-salons.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { AuthModule } from './auth/auth.module';
@@ -40,6 +41,7 @@ import { VisitsModule } from './visits/visits.module';
     SalonPageModule,
     ClientsModule,
     VisitsModule,
+    AbsencesModule,
     HealthModule.register(),
   ],
 })

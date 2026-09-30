@@ -1,4 +1,9 @@
-import { isCalendarDay, warsawDate, warsawDayStart } from './calendar-day';
+import {
+  isCalendarDay,
+  warsawDate,
+  warsawDayBounds,
+  warsawDayStart,
+} from './calendar-day';
 
 describe('isCalendarDay', () => {
   it.each([
@@ -39,5 +44,46 @@ describe('warsawDayStart', () => {
     ['2026-10-26', '2026-10-25T23:00:00.000Z'],
   ])('%s starts at %s', (day, instant) => {
     expect(warsawDayStart(day).toISOString()).toBe(instant);
+  });
+});
+
+describe('warsawDayBounds', () => {
+  const HOUR_MS = 60 * 60 * 1000;
+  const iso = (bounds: { startsAt: Date; endsAt: Date }) => ({
+    startsAt: bounds.startsAt.toISOString(),
+    endsAt: bounds.endsAt.toISOString(),
+  });
+
+  it.each([
+    // Winter, UTC+1.
+    ['2026-01-15', '2026-01-14T23:00:00.000Z', '2026-01-15T23:00:00.000Z'],
+    // Summer, UTC+2.
+    ['2026-09-30', '2026-09-29T22:00:00.000Z', '2026-09-30T22:00:00.000Z'],
+  ])('%s runs from %s to %s', (day, startsAt, endsAt) => {
+    expect(iso(warsawDayBounds(day))).toEqual({ startsAt, endsAt });
+  });
+
+  it.each([
+    // The clocks go forward at 2:00.
+    ['2026-03-29', 23],
+    // The clocks go back at 3:00.
+    ['2026-10-25', 25],
+    ['2026-10-24', 24],
+    ['2026-10-26', 24],
+  ])('%s lasts %i hours', (day, hours) => {
+    const { startsAt, endsAt } = warsawDayBounds(day);
+    expect(endsAt.getTime() - startsAt.getTime()).toBe(hours * HOUR_MS);
+  });
+
+  it('gives a Nieobecność from 24 to 26 October 2026 its bounds in UTC', () => {
+    expect({
+      startsAt: warsawDayBounds('2026-10-24').startsAt.toISOString(),
+      endsAt: warsawDayBounds('2026-10-26').endsAt.toISOString(),
+    }).toEqual({
+      // Still summer time, UTC+2.
+      startsAt: '2026-10-23T22:00:00.000Z',
+      // Winter time since the 25th, UTC+1.
+      endsAt: '2026-10-26T23:00:00.000Z',
+    });
   });
 });
