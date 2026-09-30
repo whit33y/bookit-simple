@@ -21,6 +21,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import {
   SERVICE_CATEGORY_NAME_MAX_LENGTH,
+  SERVICE_CATEGORY_NAME_REQUIRED,
+  SERVICE_CATEGORY_NAME_TOO_LONG,
   ServiceCategoryView,
 } from '@bookit/shared';
 import { errorMessage } from '../shared/error-message';
@@ -80,7 +82,7 @@ const nameForm = () =>
           @if (addForm.controls.name.hasError('maxlength')) {
             <mat-error>{{ tooLong }}</mat-error>
           } @else if (addForm.controls.name.invalid) {
-            <mat-error>Wpisz nazwę</mat-error>
+            <mat-error>{{ nameRequired }}</mat-error>
           }
         </mat-form-field>
         <button mat-flat-button type="submit" [disabled]="adding()">
@@ -104,7 +106,7 @@ const nameForm = () =>
         <ul
           class="list"
           cdkDropList
-          [cdkDropListDisabled]="busy() || editingId() !== null"
+          [cdkDropListDisabled]="busy() || adding() || editingId() !== null"
           (cdkDropListDropped)="drop($event)"
           aria-label="Kategorie Usług"
         >
@@ -138,7 +140,7 @@ const nameForm = () =>
                     @if (renameForm.controls.name.hasError('maxlength')) {
                       <mat-error>{{ tooLong }}</mat-error>
                     } @else if (renameForm.controls.name.invalid) {
-                      <mat-error>Wpisz nazwę</mat-error>
+                      <mat-error>{{ nameRequired }}</mat-error>
                     }
                   </mat-form-field>
                   <button
@@ -283,7 +285,8 @@ const nameForm = () =>
 export class PricingPage implements OnInit {
   private readonly api = inject(ServiceCategoriesService);
 
-  protected readonly tooLong = `Nazwa może mieć najwyżej ${SERVICE_CATEGORY_NAME_MAX_LENGTH} znaków`;
+  protected readonly nameRequired = SERVICE_CATEGORY_NAME_REQUIRED;
+  protected readonly tooLong = SERVICE_CATEGORY_NAME_TOO_LONG;
   protected readonly addForm = nameForm();
   protected readonly renameForm = nameForm();
 

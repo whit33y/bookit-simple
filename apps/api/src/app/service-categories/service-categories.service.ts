@@ -97,8 +97,22 @@ export class ServiceCategoriesService {
     }
   }
 
-  /** `ids` must name every Kategoria of the Salon exactly once, else `400`. */
+  /**
+   * `ids` must name every Kategoria of the Salon exactly once, else `400`, also when
+   * one is deleted while the order is being saved.
+   */
   async reorder(ids: string[]): Promise<void> {
+    try {
+      await this.saveOrder(ids);
+    } catch (error) {
+      if (isPrismaError(error, 'P2025')) {
+        throw new BadRequestException(SERVICE_CATEGORY_ORDER_MISMATCH);
+      }
+      throw error;
+    }
+  }
+
+  private async saveOrder(ids: string[]): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const categories = await tx.serviceCategory.findMany({
         select: { id: true },

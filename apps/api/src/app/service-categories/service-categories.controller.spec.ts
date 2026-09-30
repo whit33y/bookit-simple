@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto';
 import {
   SERVICE_CATEGORY_HAS_SERVICES,
   SERVICE_CATEGORY_NAME_MAX_LENGTH,
+  SERVICE_CATEGORY_NAME_REQUIRED,
+  SERVICE_CATEGORY_NAME_TOO_LONG,
   SERVICE_CATEGORY_ORDER_MISMATCH,
   ServiceCategoryView,
 } from '@bookit/shared';
@@ -132,12 +134,12 @@ describe('Kategorie Usług', () => {
     });
 
     it.each([
-      ['an empty name', { name: '  ' }, 'Wpisz nazwę'],
-      ['no name', {}, 'Wpisz nazwę'],
+      ['an empty name', { name: '  ' }, SERVICE_CATEGORY_NAME_REQUIRED],
+      ['no name', {}, SERVICE_CATEGORY_NAME_REQUIRED],
       [
         'a too long name',
         { name: 'x'.repeat(SERVICE_CATEGORY_NAME_MAX_LENGTH + 1) },
-        `Nazwa może mieć najwyżej ${SERVICE_CATEGORY_NAME_MAX_LENGTH} znaków`,
+        SERVICE_CATEGORY_NAME_TOO_LONG,
       ],
     ])('answers 400 for %s', async (_, body, message) => {
       const { asOwner } = await salonWithStaff();

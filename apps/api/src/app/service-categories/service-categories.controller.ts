@@ -16,6 +16,8 @@ import {
 import {
   CreateServiceCategoryRequest,
   SERVICE_CATEGORY_NAME_MAX_LENGTH,
+  SERVICE_CATEGORY_NAME_REQUIRED,
+  SERVICE_CATEGORY_NAME_TOO_LONG,
   ServiceCategoryOrderRequest,
   ServiceCategoryView,
   UpdateServiceCategoryRequest,
@@ -26,13 +28,10 @@ import { ServiceCategoriesService } from './service-categories.service';
 
 const nameSchema = z.object({
   name: z
-    .string({ error: 'Wpisz nazwę' })
+    .string({ error: SERVICE_CATEGORY_NAME_REQUIRED })
     .trim()
-    .min(1, 'Wpisz nazwę')
-    .max(
-      SERVICE_CATEGORY_NAME_MAX_LENGTH,
-      `Nazwa może mieć najwyżej ${SERVICE_CATEGORY_NAME_MAX_LENGTH} znaków`,
-    ),
+    .min(1, SERVICE_CATEGORY_NAME_REQUIRED)
+    .max(SERVICE_CATEGORY_NAME_MAX_LENGTH, SERVICE_CATEGORY_NAME_TOO_LONG),
 }) satisfies z.ZodType<
   CreateServiceCategoryRequest & UpdateServiceCategoryRequest
 >;
