@@ -67,3 +67,19 @@ export const STAFF_ORDER_MISMATCH =
   'Lista musi zawierać każdą osobę z Personelu dokładnie raz';
 /** `400` from `PATCH` for a `photoId` the Salon does not have. */
 export const STAFF_PHOTO_NOT_FOUND = 'Nie ma takiego zdjęcia';
+
+/**
+ * `GET /api/staff/:id/deletion-preview`: what removing the person touches, for the
+ * question "Zachować Wizyty?". Past means started before now, in any Stan Wizyty.
+ */
+export interface StaffDeletionPreview {
+  pastVisits: number;
+  futureVisits: number;
+  /** Start of the last `SCHEDULED` Wizyta; the calendar keeps the column until that day. */
+  lastScheduledVisitAt: string | null;
+}
+
+/** `422` from `DELETE /api/staff/:id` for the Właściciel's own row. */
+export const STAFF_DELETE_SELF = 'Nie możesz usunąć samego siebie';
+/** `400` from `DELETE /api/staff/:id` without `keepVisits=true|false`. */
+export const STAFF_KEEP_VISITS_REQUIRED = 'Zdecyduj, czy zachować Wizyty';

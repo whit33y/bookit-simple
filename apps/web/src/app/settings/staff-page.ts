@@ -6,7 +6,7 @@ import {
   moveItemInArray,
 } from '@angular/cdk/drag-drop';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import {
   FormControl,
   FormGroup,
@@ -34,6 +34,7 @@ import {
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { errorMessage } from '../shared/error-message';
+import { DeleteStaffDialog } from './delete-staff-dialog';
 import { EditStaffDialog } from './edit-staff-dialog';
 import { StaffService } from './staff.service';
 
@@ -45,7 +46,7 @@ const INVITATION_LABELS: Record<InvitationStatus, string> = {
 
 /**
  * `/panel/ustawienia/personel`: the Właściciel invites people, edits them in a dialog
- * and sets their order by dragging.
+ * sets their order by dragging and removes them (not themselves).
  */
 @Component({
   selector: 'app-staff-page',
@@ -176,6 +177,16 @@ const INVITATION_LABELS: Record<InvitationStatus, string> = {
               >
                 <mat-icon>edit</mat-icon>
               </button>
+              @if (member.id !== ownStaffMemberId()) {
+                <button
+                  mat-icon-button
+                  (click)="remove(member)"
+                  [attr.aria-label]="'Usuń z Personelu: ' + member.displayName"
+                  matTooltip="Usuń z Personelu"
+                >
+                  <mat-icon>person_remove</mat-icon>
+                </button>
+              }
             </div>
           </li>
         }
@@ -314,6 +325,10 @@ export class StaffPage implements OnInit {
   protected readonly roleLabels = STAFF_ROLE_LABELS;
   protected readonly invitationLabels = INVITATION_LABELS;
   protected readonly emailTaken = STAFF_EMAIL_TAKEN;
+  /** The Właściciel cannot remove themselves. */
+  protected readonly ownStaffMemberId = computed(
+    () => this.auth.me()?.staffMember?.id,
+  );
 
   protected readonly form = new FormGroup({
     displayName: new FormControl('', {
@@ -427,6 +442,24 @@ export class StaffPage implements OnInit {
       await this.auth.refresh();
       await this.router.navigateByUrl('/panel');
     }
+  }
+
+  /** The dialog shows her Wizyty, asks whether they stay and removes her. */
+  protected async remove(member: StaffMemberView): Promise<void> {
+    const removed = await firstValueFrom(
+      this.dialog
+        .open<DeleteStaffDialog, StaffMemberView, boolean>(DeleteStaffDialog, {
+          data: member,
+          autoFocus: 'dialog',
+        })
+        .afterClosed(),
+    );
+    if (!removed) return;
+    this.clearMessages();
+    this.staff.update(
+      (staff) => staff?.filter((m) => m.id !== member.id) ?? null,
+    );
+    this.notice.set(`${member.displayName} nie jest już w Personelu.`);
   }
 
   private async run(action: () => Promise<void>): Promise<void> {

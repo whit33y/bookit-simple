@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { loggedInOwner, PASSWORD } from './support/invited-owner';
 import { linkSentTo } from './support/mailpit';
 
-test('the Właściciel invites a Pracownik, who accepts the invitation and does not see the settings', async ({
+test('the Właściciel invites a Pracownik, who accepts the invitation, does not see the settings and is logged out once removed', async ({
   page,
   browser,
 }) => {
@@ -48,4 +48,18 @@ test('the Właściciel invites a Pracownik, who accepts the invitation and does 
 
   await page.reload();
   await expect(row).toContainText('Przyjęte');
+
+  // The Właściciel removes her; she has no Wizyty, so there is nothing to decide.
+  await row.getByRole('button', { name: 'Usuń z Personelu: Kasia' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Kasia nie ma żadnych Wizyt.');
+  await dialog.getByRole('button', { name: 'Usuń', exact: true }).click();
+  await expect(page.getByRole('status')).toHaveText(
+    'Kasia nie jest już w Personelu.',
+  );
+  await expect(row).toHaveCount(0);
+
+  // Her session is gone with the account.
+  await employee.reload();
+  await expect(employee).toHaveURL(/\/logowanie/);
 });

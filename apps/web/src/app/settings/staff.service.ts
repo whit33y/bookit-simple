@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import {
   InviteStaffRequest,
+  StaffDeletionPreview,
   StaffMemberView,
   StaffOrderRequest,
   UpdateStaffRequest,
@@ -33,6 +34,21 @@ export class StaffService {
   reorder(ids: string[]): Promise<void> {
     const body: StaffOrderRequest = { ids };
     return firstValueFrom(this.http.put<void>('/api/staff/order', body));
+  }
+
+  deletionPreview(id: string): Promise<StaffDeletionPreview> {
+    return firstValueFrom(
+      this.http.get<StaffDeletionPreview>(`/api/staff/${id}/deletion-preview`),
+    );
+  }
+
+  /** With `keepVisits`, her Wizyty stay under her name. */
+  remove(id: string, keepVisits: boolean): Promise<void> {
+    return firstValueFrom(
+      this.http.delete<void>(`/api/staff/${id}`, {
+        params: { keepVisits },
+      }),
+    );
   }
 
   resendInvitation(id: string): Promise<void> {
