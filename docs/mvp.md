@@ -152,7 +152,9 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 
 ### Historia zmian
 
-- Interceptor w `api` zapisuje `VisitChange` przy każdej zmianie Wizyty, w tej samej transakcji.
+- `VisitsService` zapisuje `VisitChange` przy każdej zmianie Wizyty przez `VisitChangeRecorder.record(tx, ...)`, w tej samej transakcji: błąd zapisu wpisu wycofuje zmianę. Interceptor nie ma dostępu do transakcji.
+- `before` i `after` to Wizyta z Usługami (snapshoty), `displayName` osoby i imię Klienta z chwili zmiany. Przy `CREATED` `before` jest `null`, przy `DELETED` `after` jest `null`.
+- Po usunięciu Klienta (RODO) jego imię w Historii zmian też zmienia się na "Klient usunięty".
 - Widok dla Właściciela: lista z filtrem po dniu, osobie i Kliencie, oraz historia jednej Wizyty z jej karty.
 
 ### Usunięcie osoby z Personelu
@@ -385,7 +387,7 @@ Create, update, cancel, no-show, restore, delete. Snapshot Usług. Kolizje z `40
 - [ ] Wizyta bez Usług i bez opisu zwraca `422`
 
 **T25. Historia zmian Wizyt** `api` `web` · zależy od T24
-Interceptor, widok listy i historia w karcie Wizyty, tylko dla Właściciela.
+Zapis w `VisitsService`, widok listy i historia w karcie Wizyty, tylko dla Właściciela.
 - [ ] każda akcja z T24 tworzy dokładnie jeden wpis w tej samej transakcji
 - [ ] Pracownik dostaje `403`
 

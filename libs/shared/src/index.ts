@@ -15,3 +15,4 @@ export * from './lib/services';
 export * from './lib/slug';
 export * from './lib/staff';
 export * from './lib/visits';
+export * from './lib/visit-changes';

@@ -119,5 +119,5 @@ Osoba umawiająca się na Wizytę w Salonie, zapisana w kartotece tego Salonu z 
 _Avoid_: klientka, użytkownik, gość
 
 **Usunięty Klient**:
-Klient usunięty przez Właściciela na swoje żądanie (RODO). Nie ma już imienia, telefonu ani uwag, a jego przeszłe Wizyty pokazują "Klient usunięty". Zaplanowane Wizyty od chwili usunięcia znikają, odwołane i nieodbyte zostają w historii. Nie ma go w wyszukiwaniu ani w kartotece.
+Klient usunięty przez Właściciela na swoje żądanie (RODO). Nie ma już imienia, telefonu ani uwag, a jego przeszłe Wizyty pokazują "Klient usunięty". Zaplanowane Wizyty od chwili usunięcia znikają, odwołane i nieodbyte zostają w historii. Nie ma go w wyszukiwaniu ani w kartotece, a Historia zmian też pokazuje "Klient usunięty".
 _Avoid_: zanonimizowany, archiwalny, nieaktywny

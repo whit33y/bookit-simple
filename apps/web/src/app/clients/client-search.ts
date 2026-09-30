@@ -70,13 +70,15 @@ const newClientFrom = (query: string): ClientDialogData =>
         @if (error(); as message) {
           <mat-option disabled>{{ message }}</mat-option>
         }
-        <mat-option [value]="addNew">
-          <mat-icon>person_add</mat-icon>
-          Dodaj nowego Klienta
-          @if (query()) {
-            „{{ query() }}”
-          }
-        </mat-option>
+        @if (canAddNew()) {
+          <mat-option [value]="addNew">
+            <mat-icon>person_add</mat-icon>
+            Dodaj nowego Klienta
+            @if (query()) {
+              „{{ query() }}”
+            }
+          </mat-option>
+        }
       </mat-autocomplete>
     </mat-form-field>
   `,
@@ -96,6 +98,8 @@ export class ClientSearch {
 
   readonly client = model<ClientView | null>(null);
   readonly label = input('Klient');
+  /** Off where the Klient only filters, e.g. in the Historia zmian. */
+  readonly canAddNew = input(true);
 
   protected readonly addNew = ADD_NEW;
   protected readonly formatPhone = formatPhone;
