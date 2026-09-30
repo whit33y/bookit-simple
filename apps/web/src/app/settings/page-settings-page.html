@@ -1,0 +1,220 @@
+<header class="top">
+  <div>
+    <h1>Wizytówka</h1>
+    <p class="hint">Co Klienci widzą na publicznej stronie Salonu.</p>
+  </div>
+  @if (salon(); as salon) {
+  <a
+    mat-stroked-button
+    [href]="'/' + salon.slug"
+    target="_blank"
+    rel="noopener"
+  >
+    <mat-icon>open_in_new</mat-icon>
+    Otwórz Wizytówkę
+  </a>
+  }
+</header>
+
+@if (salon()) {
+<form aria-label="Wizytówka" [formGroup]="form" (ngSubmit)="save()">
+  <mat-tab-group mat-stretch-tabs="false">
+    <mat-tab label="Dane">
+      <div class="tab" formGroupName="details">
+        <mat-form-field appearance="outline">
+          <mat-label>O nas</mat-label>
+          <textarea
+            matInput
+            formControlName="about"
+            rows="5"
+            [maxlength]="limits.about"
+          ></textarea>
+          <mat-hint align="end"
+            >{{ form.controls.details.controls.about.value.length }} / {{
+            limits.about }}</mat-hint
+          >
+        </mat-form-field>
+
+        <div class="row">
+          <mat-form-field appearance="outline">
+            <mat-label>Telefon</mat-label>
+            <input matInput type="tel" formControlName="phone" />
+            @if (form.controls.details.controls.phone.hasError('phone')) {
+            <mat-error>{{ messages.phone }}</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>E-mail</mat-label>
+            <input matInput type="email" formControlName="email" />
+            @if (form.controls.details.controls.email.hasError('email')) {
+            <mat-error>{{ messages.email }}</mat-error>
+            }
+          </mat-form-field>
+        </div>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Ulica i numer</mat-label>
+          <input matInput formControlName="street" [maxlength]="limits.text" />
+        </mat-form-field>
+        <div class="row postal">
+          <mat-form-field appearance="outline">
+            <mat-label>Kod pocztowy</mat-label>
+            <input
+              matInput
+              formControlName="postalCode"
+              inputmode="numeric"
+              placeholder="00-000"
+            />
+            @if ( form.controls.details.controls.postalCode.hasError('pattern')
+            ) {
+            <mat-error>{{ messages.postalCode }}</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Miasto</mat-label>
+            <input matInput formControlName="city" [maxlength]="limits.text" />
+          </mat-form-field>
+        </div>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Link do mapy</mat-label>
+          <input
+            matInput
+            type="url"
+            formControlName="mapUrl"
+            placeholder="https://maps.app.goo.gl/…"
+          />
+          @if (form.controls.details.controls.mapUrl.hasError('mapUrl')) {
+          <mat-error>{{ messages.mapUrl }}</mat-error>
+          } @else {
+          <mat-hint>Skopiuj link „Udostępnij” z Map Google</mat-hint>
+          }
+        </mat-form-field>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="Wygląd">
+      <div class="tab" formGroupName="appearance">
+        <h2>Kolor</h2>
+        <div class="color">
+          <input
+            class="swatch"
+            type="color"
+            aria-label="Wybierz kolor"
+            [value]="form.controls.appearance.controls.accentColor.value"
+            (input)="pickColor($any($event.target).value)"
+          />
+          <mat-form-field appearance="outline">
+            <mat-label>Kolor akcentu</mat-label>
+            <input matInput formControlName="accentColor" />
+            @if (form.controls.appearance.controls.accentColor.invalid) {
+            <mat-error>{{ messages.color }}</mat-error>
+            }
+          </mat-form-field>
+        </div>
+
+        <h2>Logo</h2>
+        <div class="photo">
+          <app-photo-upload
+            label="Dodaj logo"
+            [current]="
+                photoSrc(form.controls.appearance.controls.logoPhotoId.value)
+              "
+            (uploaded)="setPhoto('logoPhotoId', $event)"
+          />
+          @if (form.controls.appearance.controls.logoPhotoId.value) {
+          <button
+            mat-button
+            type="button"
+            (click)="setPhoto('logoPhotoId', null)"
+          >
+            Usuń logo
+          </button>
+          }
+        </div>
+
+        <h2>Zdjęcie nagłówka</h2>
+        <div class="photo">
+          <app-photo-upload
+            label="Dodaj zdjęcie nagłówka"
+            [current]="
+                photoSrc(form.controls.appearance.controls.heroPhotoId.value)
+              "
+            (uploaded)="setPhoto('heroPhotoId', $event)"
+          />
+          @if (form.controls.appearance.controls.heroPhotoId.value) {
+          <button
+            mat-button
+            type="button"
+            (click)="setPhoto('heroPhotoId', null)"
+          >
+            Usuń zdjęcie
+          </button>
+          }
+        </div>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="Sekcje">
+      <div class="tab" formGroupName="sections">
+        <p class="hint">
+          Wyłączona sekcja znika z Wizytówki. Jej treść zostaje zapisana.
+        </p>
+        <ul class="sections">
+          @for (section of sectionList; track section.key) {
+          <li>
+            <mat-slide-toggle [formControlName]="section.key"
+              >{{ section.label }}</mat-slide-toggle
+            >
+          </li>
+          }
+        </ul>
+      </div>
+    </mat-tab>
+
+    <mat-tab label="Prywatność">
+      <div class="tab" formGroupName="privacy">
+        <p class="hint">
+          Klauzula informacyjna RODO dla Klientów, w stopce Wizytówki. Sprawdź
+          ją przed publikacją i uzupełnij miejsca oznaczone [uzupełnij].
+        </p>
+        <mat-form-field appearance="outline">
+          <mat-label>Klauzula informacyjna</mat-label>
+          <textarea
+            matInput
+            formControlName="privacyNotice"
+            rows="14"
+            [maxlength]="limits.privacy"
+          ></textarea>
+        </mat-form-field>
+        <div>
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="fillPrivacyTemplate()"
+          >
+            <mat-icon>restart_alt</mat-icon>
+            Wstaw szablon
+          </button>
+          <span class="hint inline"
+            >Zastąpi tekst szablonem z danymi z zakładki Dane.</span
+          >
+        </div>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+
+  <div class="actions">
+    <button mat-flat-button type="submit" [disabled]="saving()">Zapisz</button>
+    @if (notice(); as notice) {
+    <p class="info" role="status">{{ notice }}</p>
+    } @if (actionError(); as message) {
+    <p class="error" role="alert">{{ message }}</p>
+    }
+  </div>
+</form>
+} @else if (loadError(); as message) {
+<p class="error" role="alert">{{ message }}</p>
+} @else {
+<mat-spinner diameter="32" aria-label="Wczytywanie" />
+}

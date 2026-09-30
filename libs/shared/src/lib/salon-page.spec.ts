@@ -1,5 +1,6 @@
 import {
   addressLine,
+  isSafeMapUrl,
   PRIVACY_NOTICE_BLANK,
   privacyNoticeTemplate,
 } from './salon-page';
@@ -48,5 +49,21 @@ describe('privacyNoticeTemplate', () => {
 
     expect(text).not.toMatch(/[<>]/);
     expect(text.split('\n\n').length).toBeGreaterThan(3);
+  });
+});
+
+describe('isSafeMapUrl', () => {
+  it.each([
+    ['https://maps.app.goo.gl/abc123', true],
+    ['https://www.google.com/maps/place/Studio+Kora', true],
+    ['http://maps.google.com', false],
+    ['javascript:alert(1)', false],
+    ['JavaScript://https://example.com', false],
+    ['data:text/html,hi', false],
+    ['maps.google.com', false],
+    ['https://', false],
+    ['', false],
+  ])('%j → %j', (url, safe) => {
+    expect(isSafeMapUrl(url)).toBe(safe);
   });
 });

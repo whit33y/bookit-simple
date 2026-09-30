@@ -10,6 +10,7 @@ import { PasswordResetModule } from './password-reset/password-reset.module';
 import { PhotosModule } from './photos/photos.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PublicPagesModule } from './public-pages/public-pages.module';
+import { SalonPageModule } from './salon-page/salon-page.module';
 import { SalonContextModule } from './salon-context/salon-context.module';
 import { ServiceCategoriesModule } from './service-categories/service-categories.module';
 import { ServicesModule } from './services/services.module';
@@ -30,6 +31,7 @@ import { StaffModule } from './staff/staff.module';
     ServicesModule,
     OpeningHoursModule,
     PhotosModule,
+    SalonPageModule,
     HealthModule.register(),
   ],
 })

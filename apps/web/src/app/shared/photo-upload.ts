@@ -4,6 +4,7 @@ import {
   computed,
   inject,
   input,
+  linkedSignal,
   output,
   signal,
 } from '@angular/core';
@@ -121,7 +122,11 @@ export class PhotoUpload {
   /** Share of the upload sent, from 0 to 1; `null` while nothing uploads. */
   protected readonly progress = signal<number | null>(null);
   protected readonly error = signal<string | null>(null);
-  private readonly picked = signal<string | null>(null);
+  /** The file being sent or just saved; a new `current`, e.g. a removed photo, replaces it. */
+  private readonly picked = linkedSignal<string | null, string | null>({
+    source: this.current,
+    computation: () => null,
+  });
   protected readonly preview = computed(() => this.picked() ?? this.current());
   protected readonly percent = computed(() => {
     const progress = this.progress();

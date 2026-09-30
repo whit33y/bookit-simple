@@ -85,6 +85,14 @@ export const appRoutes: Route[] = [
                 (m) => m.OpeningHoursPage,
               ),
           },
+          {
+            path: 'wizytowka',
+            title: 'Wizytówka · Bookit',
+            loadComponent: () =>
+              import('./settings/page-settings-page').then(
+                (m) => m.PageSettingsPage,
+              ),
+          },
         ],
       },
     ],

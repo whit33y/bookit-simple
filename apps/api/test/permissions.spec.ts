@@ -135,6 +135,10 @@ const MATRIX: Row[] = [
   ['DELETE', `/api/photos/${UNKNOWN_ID}`, ['OWNER']],
   ['GET', `/api/public/photos/${UNKNOWN_ID}`, PUBLIC],
 
+  // T20: the content of the Wizytówka (an empty body changes nothing)
+  ['GET', '/api/salon/page', ['OWNER']],
+  ['PATCH', '/api/salon/page', ['OWNER']],
+
   // T34: the Wizytówka (unknown address, so 404)
   ['GET', '/api/public/pages/nieznany-salon', PUBLIC],
 

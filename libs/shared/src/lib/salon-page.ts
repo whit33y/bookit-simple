@@ -20,6 +20,19 @@ export const ALL_PAGE_SECTIONS: PageSections = {
   contact: true,
 };
 
+/** `Salon.sections` as stored: only the known sections, as booleans; a missing one is on. */
+export function pageSections(stored: unknown): PageSections {
+  const saved = (stored && typeof stored === 'object' ? stored : {}) as Partial<
+    Record<string, unknown>
+  >;
+  const sections = { ...ALL_PAGE_SECTIONS };
+  for (const key of Object.keys(sections) as (keyof PageSections)[]) {
+    const value = saved[key];
+    if (typeof value === 'boolean') sections[key] = value;
+  }
+  return sections;
+}
+
 /** Accent colour of a new Salon's Wizytówka, the violet of the panel. */
 export const DEFAULT_ACCENT_COLOR = '#6750a4';
 
@@ -70,3 +83,67 @@ export function privacyNoticeTemplate({
     'Podanie danych jest dobrowolne, ale bez nich nie umówimy Wizyty.',
   ].join('\n\n');
 }
+
+/** `GET /api/salon/page`, also the reply to `PATCH`: the Wizytówka as the Właściciel edits it. */
+export interface SalonPageSettings {
+  /** Read only here; the Administrator names the Salon. */
+  name: string;
+  /** Adres wizytówki, read only here; for "Otwórz Wizytówkę". */
+  slug: string;
+  about: string | null;
+  street: string | null;
+  postalCode: string | null;
+  city: string | null;
+  /** E.164, e.g. `+48600123456` */
+  phone: string | null;
+  email: string | null;
+  /** Always `https://` */
+  mapUrl: string | null;
+  /** `#rrggbb`, lowercase */
+  accentColor: string;
+  logoPhotoId: string | null;
+  heroPhotoId: string | null;
+  sections: PageSections;
+  privacyNotice: string | null;
+}
+
+/**
+ * `PATCH /api/salon/page` body. Fields left out stay as they are; `null` or a blank text
+ * clears one. `phone` in any common format, stored in E.164. `sections` may name only
+ * the sections that change. Every invalid value answers `422` with the message below.
+ */
+export type UpdateSalonPageRequest = Partial<
+  Omit<SalonPageSettings, 'name' | 'slug' | 'accentColor' | 'sections'>
+> & {
+  accentColor?: string;
+  sections?: Partial<PageSections>;
+};
+
+export const SALON_TEXT_MAX_LENGTH = 200;
+export const SALON_ABOUT_MAX_LENGTH = 2000;
+export const PRIVACY_NOTICE_MAX_LENGTH = 10000;
+/** A full Google Maps link is longer than other texts. */
+export const MAP_URL_MAX_LENGTH = 2000;
+
+export const ACCENT_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
+
+/** Only `https://` links, so a `javascript:` one never ends up on the Wizytówka. */
+export function isSafeMapUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'https:' && url.hostname !== '';
+  } catch {
+    return false;
+  }
+}
+
+export const SALON_TEXT_TOO_LONG = `Tekst może mieć najwyżej ${SALON_TEXT_MAX_LENGTH} znaków`;
+export const SALON_ABOUT_TOO_LONG = `Opis może mieć najwyżej ${SALON_ABOUT_MAX_LENGTH} znaków`;
+export const PRIVACY_NOTICE_TOO_LONG = `Klauzula może mieć najwyżej ${PRIVACY_NOTICE_MAX_LENGTH} znaków`;
+export const SALON_EMAIL_INVALID = 'Nieprawidłowy e-mail';
+export const MAP_URL_TOO_LONG = `Link może mieć najwyżej ${MAP_URL_MAX_LENGTH} znaków`;
+export const MAP_URL_INVALID = 'Link do mapy musi zaczynać się od https://';
+export const ACCENT_COLOR_INVALID = 'Kolor wpisz jako #rrggbb, np. #c0392b';
+/** `422` for a `logoPhotoId` or `heroPhotoId` that is not a Photo of the Salon. */
+export const SALON_PHOTO_NOT_FOUND = 'Nie ma takiego zdjęcia';
+export const SALON_SECTIONS_INVALID = 'Nieprawidłowe sekcje Wizytówki';

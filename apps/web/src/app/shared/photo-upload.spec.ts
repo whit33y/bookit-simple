@@ -150,4 +150,19 @@ describe('PhotoUpload', () => {
     expect(bar()).toBeNull();
     expect(fixture.componentInstance.uploaded).toEqual([]);
   });
+
+  it('follows the parent once it saved the upload, e.g. to no photo', async () => {
+    const { http, fixture, choose, settle, image } = await setup();
+
+    await choose(photoFile());
+    http.expectOne('/api/photos').flush(PHOTO);
+    await settle();
+    fixture.componentInstance.current.set(PHOTO.url);
+    await settle();
+    expect(image()).toBe(PHOTO.url);
+    fixture.componentInstance.current.set(null);
+    await settle();
+
+    expect(image()).toBeNull();
+  });
 });

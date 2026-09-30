@@ -1,8 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
-  ALL_PAGE_SECTIONS,
   isAnnouncementVisible,
-  PageSections,
+  pageSections,
   PublicPage,
   warsawDate,
 } from '@bookit/shared';
@@ -19,17 +18,6 @@ const BY_SORT_ORDER = [
   { sortOrder: 'asc' },
   { createdAt: 'asc' },
 ] as const satisfies object[];
-
-/** Only the known sections, as booleans; a missing one is on, like for a new Salon. */
-function pageSections(stored: unknown): PageSections {
-  const saved = (stored ?? {}) as Partial<Record<string, unknown>>;
-  const sections = { ...ALL_PAGE_SECTIONS };
-  for (const key of Object.keys(sections) as (keyof PageSections)[]) {
-    const value = saved[key];
-    if (typeof value === 'boolean') sections[key] = value;
-  }
-  return sections;
-}
 
 /**
  * The Wizytówka of one Salon, with every field picked by name: the reply is public.
