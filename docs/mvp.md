@@ -245,7 +245,7 @@ GET    /staff                   POST /staff/invite
 PATCH  /staff/:id               DELETE /staff/:id?keepVisits=true|false
 
 GET    /service-categories      POST | PATCH /:id | DELETE /:id | PUT /order
-GET    /services                POST | PATCH /:id | POST /:id/archive
+GET    /services?includeArchived=true  POST | PATCH /:id | POST /:id/archive | /unarchive | PUT /order
 PUT    /opening-hours
 GET    /announcements           POST | PATCH /:id | DELETE /:id
 POST   /photos                  DELETE /photos/:id
