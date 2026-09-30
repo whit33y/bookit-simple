@@ -6,7 +6,8 @@ import {
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { OWNER_EMAIL_TAKEN, SLUG_ERROR_MESSAGES } from '@bookit/shared';
-import { NewSalonPage, SLUG_CHECK_DEBOUNCE_MS } from './new-salon-page';
+import { NewSalonPage } from './new-salon-page';
+import { SLUG_CHECK_DEBOUNCE_MS } from './slug-validators';
 
 const SLUG_URL = '/api/admin/salons/slug-available';
 

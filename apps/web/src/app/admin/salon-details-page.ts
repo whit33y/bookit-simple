@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   computed,
@@ -8,13 +9,23 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
-import { addressLine, AdminSalonDetails, parsePhone } from '@bookit/shared';
-import { firstValueFrom } from 'rxjs';
+import {
+  addressLine,
+  AdminSalonDetails,
+  parsePhone,
+  SLUG_ERROR_MESSAGES,
+  SlugUnavailableReason,
+} from '@bookit/shared';
+import { firstValueFrom, startWith } from 'rxjs';
 import { errorMessage } from '../shared/error-message';
 import { AdminSalonsService } from './admin-salons.service';
 import { InvitationStatusBadge, SalonStatusBadge } from './salon-status';
@@ -22,16 +33,20 @@ import {
   SuspendSalonDialog,
   SuspendSalonDialogData,
 } from './suspend-salon-dialog';
+import { slugFormat, slugFree, slugReason } from './slug-validators';
 
-/** `/admin/salony/:id`: the Salon, its Właściciel, and suspending it. */
+/** `/admin/salony/:id`: the Salon, its Właściciel, its Adres wizytówki, and suspending it. */
 @Component({
   selector: 'app-salon-details-page',
   imports: [
     DatePipe,
     InvitationStatusBadge,
     MatButtonModule,
+    MatFormFieldModule,
     MatIconModule,
+    MatInputModule,
     MatProgressSpinnerModule,
+    ReactiveFormsModule,
     RouterLink,
     SalonStatusBadge,
   ],
@@ -70,6 +85,48 @@ import {
               <p class="muted">Salon nie ma Właściciela.</p>
             }
           </section>
+          <section class="card" aria-labelledby="slug-heading">
+            <h2 id="slug-heading"><mat-icon>link</mat-icon>Adres wizytówki</h2>
+            <form class="slug" (submit)="changeSlug($event)">
+              <mat-form-field appearance="outline">
+                <mat-label>Adres wizytówki</mat-label>
+                <span matTextPrefix>{{ origin }}/</span>
+                <input
+                  matInput
+                  name="slug"
+                  [formControl]="slug"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  (input)="slug.markAsTouched()"
+                />
+                @if (slugStatus() === 'INVALID') {
+                  <mat-error>{{ messages[slugReason()] }}</mat-error>
+                } @else if (slugStatus() === 'PENDING') {
+                  <mat-hint>Sprawdzam, czy adres jest wolny…</mat-hint>
+                }
+              </mat-form-field>
+              @if (slugChanged()) {
+                <p class="warning" role="note">
+                  <mat-icon>warning</mat-icon>
+                  <span>
+                    Linki do {{ pageUrl() }} będą przekierowywane na nowy adres,
+                    także te z ulotek i z Google. Inny Salon nie dostanie
+                    starego adresu.
+                  </span>
+                </p>
+              }
+              <button
+                mat-flat-button
+                type="submit"
+                [disabled]="
+                  busy() || !slugChanged() || slugStatus() !== 'VALID'
+                "
+              >
+                Zmień adres
+              </button>
+            </form>
+          </section>
           <section class="card" aria-labelledby="contact-heading">
             <h2 id="contact-heading"><mat-icon>call</mat-icon>Kontakt</h2>
             <dl>
@@ -80,7 +137,9 @@ import {
               <dt>Adres</dt>
               <dd>{{ address() || '—' }}</dd>
               <dt>Założony</dt>
-              <dd>{{ salon.createdAt | date: 'd.MM.yyyy' : 'Europe/Warsaw' }}</dd>
+              <dd>
+                {{ salon.createdAt | date: 'd.MM.yyyy' : 'Europe/Warsaw' }}
+              </dd>
             </dl>
           </section>
         </div>
@@ -126,11 +185,7 @@ import {
               <p class="muted">
                 Personel nie może się zalogować, Wizytówka jest ukryta.
               </p>
-              <button
-                mat-flat-button
-                [disabled]="busy()"
-                (click)="resume()"
-              >
+              <button mat-flat-button [disabled]="busy()" (click)="resume()">
                 <mat-icon>play_arrow</mat-icon>
                 Odwieś Salon
               </button>
@@ -149,7 +204,7 @@ import {
 export class SalonDetailsPage implements OnInit {
   private readonly api = inject(AdminSalonsService);
   private readonly dialog = inject(MatDialog);
-  private readonly origin = inject(DOCUMENT).location.origin;
+  protected readonly origin = inject(DOCUMENT).location.origin;
 
   readonly id = input.required<string>();
 
@@ -163,6 +218,27 @@ export class SalonDetailsPage implements OnInit {
   protected readonly pageUrl = computed(
     () => `${this.origin}/${this.salon()?.slug ?? ''}`,
   );
+
+  protected readonly messages = SLUG_ERROR_MESSAGES;
+  /** The Salon's own current and old addresses are free to it. */
+  protected readonly slug = new FormControl('', {
+    nonNullable: true,
+    validators: slugFormat,
+    asyncValidators: slugFree(this.api, {
+      id: () => this.id(),
+      current: () => this.salon()?.slug,
+    }),
+  });
+  private readonly slugValue = toSignal(this.slug.valueChanges, {
+    initialValue: this.slug.value,
+  });
+  protected readonly slugStatus = toSignal(
+    this.slug.statusChanges.pipe(startWith(this.slug.status)),
+    { requireSync: true },
+  );
+  protected readonly slugChanged = computed(
+    () => !!this.salon() && this.slugValue() !== this.salon()?.slug,
+  );
   protected readonly address = computed(() => {
     const salon = this.salon();
     return salon ? addressLine(salon) : '';
@@ -174,7 +250,7 @@ export class SalonDetailsPage implements OnInit {
 
   async ngOnInit(): Promise<void> {
     try {
-      this.salon.set(await this.api.details(this.id()));
+      this.show(await this.api.details(this.id()));
     } catch (error) {
       this.loadError.set(errorMessage(error));
     }
@@ -216,10 +292,47 @@ export class SalonDetailsPage implements OnInit {
     );
   }
 
-  /** Runs one action at a time; one that returns the Salon updates the page. */
+  protected async changeSlug(event: Event): Promise<void> {
+    event.preventDefault();
+    const salon = this.salon();
+    const slug = this.slug.value;
+    if (!salon || !this.slugChanged() || this.slug.status !== 'VALID') return;
+    await this.run(
+      () => this.api.changeSlug(salon.id, slug),
+      `Adres wizytówki to teraz ${this.origin}/${slug}. Stary adres przekierowuje na nowy.`,
+      (error) => {
+        // Another Salon took it after the check: the field says so.
+        if (
+          error instanceof HttpErrorResponse &&
+          error.status === 409 &&
+          errorMessage(error) === SLUG_ERROR_MESSAGES.TAKEN
+        ) {
+          this.slug.setErrors({ slug: 'TAKEN' });
+          return true;
+        }
+        return false;
+      },
+    );
+  }
+
+  protected slugReason(): SlugUnavailableReason {
+    return slugReason(this.slug);
+  }
+
+  /** The address field follows the Salon, e.g. after a change. */
+  private show(salon: AdminSalonDetails): void {
+    this.salon.set(salon);
+    this.slug.setValue(salon.slug);
+  }
+
+  /**
+   * Runs one action at a time; one that returns the Salon updates the page.
+   * `handled` may show an error in place, instead of above the cards.
+   */
   private async run(
     call: () => Promise<AdminSalonDetails | void>,
     notice: string,
+    handled: (error: unknown) => boolean = () => false,
   ): Promise<void> {
     if (this.busy()) return;
     this.busy.set(true);
@@ -227,10 +340,10 @@ export class SalonDetailsPage implements OnInit {
     this.actionError.set(null);
     try {
       const salon = await call();
-      if (salon) this.salon.set(salon);
+      if (salon) this.show(salon);
       this.notice.set(notice);
     } catch (error) {
-      this.actionError.set(errorMessage(error));
+      if (!handled(error)) this.actionError.set(errorMessage(error));
     } finally {
       this.busy.set(false);
     }

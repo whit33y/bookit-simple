@@ -7,6 +7,7 @@ import {
 import express from 'express';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { currentSlugFromApi, movedPath } from './slug-redirect';
 
 const serverDistFolder = dirname(fileURLToPath(import.meta.url));
 const browserDistFolder = resolve(serverDistFolder, '../browser');
@@ -14,17 +15,9 @@ const browserDistFolder = resolve(serverDistFolder, '../browser');
 const app = express();
 const angularApp = new AngularNodeAppEngine();
 
-/**
- * Example Express Rest API endpoints can be defined here.
- * Uncomment and define endpoints as necessary.
- *
- * Example:
- * ```ts
- * app.get('/api/**', (req, res) => {
- *   // Handle API request
- * });
- * ```
- */
+/** The api as the server reaches it; the browser goes through `/api`. */
+const apiUrl = process.env['API_INTERNAL_URL'] || 'http://localhost:3000';
+const currentSlug = currentSlugFromApi(apiUrl);
 
 /**
  * Serve static files from /browser
@@ -36,6 +29,22 @@ app.use(
     redirect: false,
   }),
 );
+
+/**
+ * An old Adres wizytówki (on flyers, in Google) answers `301` with the new one, also
+ * for its subpages. Short caching like the api's, so going back to an old address
+ * does not leave browsers with a cached redirect loop.
+ */
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  movedPath(req.originalUrl, currentSlug)
+    .then((moved) => {
+      if (!moved) return next();
+      res.setHeader('Cache-Control', 'public, max-age=60');
+      res.redirect(301, moved);
+    })
+    .catch(next);
+});
 
 /**
  * Handle all other requests by rendering the Angular application.

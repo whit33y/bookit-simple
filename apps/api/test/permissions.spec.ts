@@ -101,6 +101,9 @@ const MATRIX: Row[] = [
     ['ADMINISTRATOR'],
   ],
 
+  // T13: changing the Adres wizytówki (no body, so 400 for the Administrator)
+  ['PATCH', `/api/admin/salons/${UNKNOWN_ID}`, ['ADMINISTRATOR']],
+
   // T14: the Personel (empty bodies and an unknown id, so nothing changes)
   ['GET', '/api/staff', ['OWNER', 'EMPLOYEE']],
   ['POST', '/api/staff/invite', ['OWNER']],

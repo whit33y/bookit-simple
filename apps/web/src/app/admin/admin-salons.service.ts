@@ -6,6 +6,7 @@ import {
   CreateSalonRequest,
   CreateSalonResponse,
   SlugAvailabilityResponse,
+  ChangeSlugRequest,
 } from '@bookit/shared';
 import { firstValueFrom, Observable } from 'rxjs';
 
@@ -14,10 +15,14 @@ import { firstValueFrom, Observable } from 'rxjs';
 export class AdminSalonsService {
   private readonly http = inject(HttpClient);
 
-  slugAvailability(slug: string): Observable<SlugAvailabilityResponse> {
+  /** With `salonId`, that Salon's own current and old addresses are available. */
+  slugAvailability(
+    slug: string,
+    salonId?: string,
+  ): Observable<SlugAvailabilityResponse> {
     return this.http.get<SlugAvailabilityResponse>(
       '/api/admin/salons/slug-available',
-      { params: { slug } },
+      { params: salonId ? { slug, salonId } : { slug } },
     );
   }
 
@@ -36,6 +41,14 @@ export class AdminSalonsService {
   details(id: string): Promise<AdminSalonDetails> {
     return firstValueFrom(
       this.http.get<AdminSalonDetails>(`/api/admin/salons/${id}`),
+    );
+  }
+
+  /** The old Adres wizytówki keeps redirecting to the new one. */
+  changeSlug(id: string, slug: string): Promise<AdminSalonDetails> {
+    const body: ChangeSlugRequest = { slug };
+    return firstValueFrom(
+      this.http.patch<AdminSalonDetails>(`/api/admin/salons/${id}`, body),
     );
   }
 

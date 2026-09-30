@@ -80,6 +80,12 @@ function toDetails(salon: SalonWithOwner): AdminSalonDetails {
   };
 }
 
+/** The client `slugTaken` reads: `PrismaService` or a transaction on it. */
+type SlugDb = Pick<PrismaService, 'salon' | 'salonSlugRedirect'>;
+
+/** `pg_advisory_xact_lock` key that serializes giving out Adresy wizytówki. */
+const SLUG_LOCK_KEY = 1_300_013;
+
 /** Sending the invitation happens inside the transaction, and SMTP can be slow. */
 const CREATE_TIMEOUT_MS = 15_000;
 
@@ -169,11 +175,46 @@ export class AdminSalonsService {
     }
   }
 
-  /** Checks the form of the address, then whether a Salon has it now or had it before. */
-  async slugAvailability(slug: string): Promise<SlugAvailabilityResponse> {
+  /**
+   * Checks the form of the address, then whether a Salon has it now or had it before.
+   * The Salon `salonId`, if given, may take its own addresses.
+   */
+  async slugAvailability(
+    slug: string,
+    salonId?: string,
+  ): Promise<SlugAvailabilityResponse> {
     const reason =
-      validateSlug(slug) ?? ((await this.slugTaken(slug)) ? 'TAKEN' : null);
+      validateSlug(slug) ??
+      ((await this.slugTaken(slug, salonId)) ? 'TAKEN' : null);
     return { available: reason === null, reason };
+  }
+
+  /**
+   * The old address goes to the redirects, so links on flyers and in Google keep
+   * working. Going back to one of the Salon's own old addresses removes its redirect,
+   * and every other old address points at the current one through `salonId`.
+   * `409` for an address another Salon has or had.
+   */
+  async changeSlug(id: string, slug: string): Promise<AdminSalonDetails> {
+    const salon = await this.prisma.$transaction(async (tx) => {
+      await this.claimSlug(tx, slug, id);
+      const current = await tx.salon.findUnique({ where: { id } });
+      if (!current) throw new NotFoundException();
+      if (current.slug !== slug) {
+        await tx.salonSlugRedirect.deleteMany({
+          where: { oldSlug: slug, salonId: id },
+        });
+        await tx.salonSlugRedirect.create({
+          data: { oldSlug: current.slug, salonId: id },
+        });
+      }
+      return tx.salon.update({
+        where: { id },
+        data: { slug },
+        include: withOwner,
+      });
+    });
+    return toDetails(salon);
   }
 
   /**
@@ -186,6 +227,7 @@ export class AdminSalonsService {
     try {
       return await this.prisma.$transaction(
         async (tx) => {
+          await this.claimSlug(tx, input.slug);
           const salon = await tx.salon.create({
             data: {
               name: input.name,
@@ -244,11 +286,37 @@ export class AdminSalonsService {
     if (user) throw new ConflictException(OWNER_EMAIL_TAKEN);
   }
 
-  /** An old address keeps redirecting to its Salon (#13), so no one else can take it. */
-  private async slugTaken(slug: string): Promise<boolean> {
+  /**
+   * `409` unless `slug` is free, checked inside `tx` after taking a lock that every
+   * change of an Adres wizytówki takes. `Salon.slug` and `SalonSlugRedirect.oldSlug`
+   * are unique each in its own table, so without the lock two requests could each
+   * pass the check and give one address to two Salons.
+   */
+  private async claimSlug(
+    tx: SlugDb & Pick<PrismaService, '$executeRaw'>,
+    slug: string,
+    exceptSalonId?: string,
+  ): Promise<void> {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${SLUG_LOCK_KEY})`;
+    if (await this.slugTaken(slug, exceptSalonId, tx)) {
+      throw new ConflictException(SLUG_ERROR_MESSAGES.TAKEN);
+    }
+  }
+
+  /**
+   * An old address keeps redirecting to its Salon, so no one else can take it.
+   * Addresses of `exceptSalonId` do not count.
+   */
+  private async slugTaken(
+    slug: string,
+    exceptSalonId?: string,
+    db: SlugDb = this.prisma,
+  ): Promise<boolean> {
     const [salons, redirects] = await Promise.all([
-      this.prisma.salon.count({ where: { slug } }),
-      this.prisma.salonSlugRedirect.count({ where: { oldSlug: slug } }),
+      db.salon.count({ where: { slug, id: { not: exceptSalonId } } }),
+      db.salonSlugRedirect.count({
+        where: { oldSlug: slug, salonId: { not: exceptSalonId } },
+      }),
     ]);
     return salons + redirects > 0;
   }
