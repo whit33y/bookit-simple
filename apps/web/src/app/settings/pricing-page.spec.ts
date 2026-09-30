@@ -30,6 +30,10 @@ describe('PricingPage', () => {
       fixture.detectChanges();
     };
     await settle();
+    if (categories.length > 0) {
+      http.expectOne('/api/services?includeArchived=true').flush([]);
+      await settle();
+    }
     const page = fixture.componentInstance as unknown as {
       drop(event: Partial<CdkDragDrop<unknown>>): Promise<void>;
     };

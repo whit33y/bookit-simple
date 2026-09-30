@@ -245,7 +245,7 @@ GET    /staff                   POST /staff/invite
 PATCH  /staff/:id               DELETE /staff/:id?keepVisits=true|false
 
 GET    /service-categories      POST | PATCH /:id | DELETE /:id | PUT /order
-GET    /services                POST | PATCH /:id | POST /:id/archive
+GET    /services?includeArchived=true  POST | PATCH /:id | POST /:id/archive | /unarchive | PUT /order
 PUT    /opening-hours
 GET    /announcements           POST | PATCH /:id | DELETE /:id
 POST   /photos                  DELETE /photos/:id
@@ -351,7 +351,7 @@ CRUD i kolejność przeciąganiem. Usunięcie Kategorii z Usługami jest zabloko
 
 **T17. Usługi** `api` `web` · zależy od T16
 Nazwa, opis, Cena (stała lub "od"), czas, domyślna Przerwa, ukryta, archiwizacja.
-- [ ] zarchiwizowana Usługa nie pojawia się w formularzu Wizyty ani na Wizytówce, a stare Wizyty ją pokazują
+- [x] zarchiwizowana Usługa nie pojawia się w formularzu Wizyty ani na Wizytówce, a stare Wizyty ją pokazują
 
 **T18. Godziny otwarcia** `api` `web` · zależy od T09
 - [ ] `closesAt` musi być po `opensAt`
