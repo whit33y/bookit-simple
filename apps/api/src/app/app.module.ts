@@ -18,6 +18,7 @@ import { SalonContextModule } from './salon-context/salon-context.module';
 import { ServiceCategoriesModule } from './service-categories/service-categories.module';
 import { ServicesModule } from './services/services.module';
 import { StaffModule } from './staff/staff.module';
+import { VisitsModule } from './visits/visits.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { StaffModule } from './staff/staff.module';
     GalleryModule,
     SalonPageModule,
     ClientsModule,
+    VisitsModule,
     HealthModule.register(),
   ],
 })
