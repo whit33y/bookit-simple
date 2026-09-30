@@ -4,6 +4,7 @@ import { AdminSalonsModule } from './admin-salons/admin-salons.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env';
+import { GalleryModule } from './gallery/gallery.module';
 import { HealthModule } from './health/health.module';
 import { InvitationsModule } from './invitations/invitations.module';
 import { OpeningHoursModule } from './opening-hours/opening-hours.module';
@@ -32,6 +33,7 @@ import { StaffModule } from './staff/staff.module';
     OpeningHoursModule,
     PhotosModule,
     AnnouncementsModule,
+    GalleryModule,
     HealthModule.register(),
   ],
 })

@@ -3,7 +3,6 @@ import { Test } from '@nestjs/testing';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Readable } from 'node:stream';
 import {
   PHOTO_FILE_REQUIRED,
   PHOTO_TOO_LARGE,
@@ -16,29 +15,12 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import { configureApp } from '../configure-app';
 import { createPrismaClient } from '../prisma/prisma.service';
+import { InMemoryPhotoStorage } from '../../../test/in-memory-photo-storage';
 import { PhotoStorage } from './photo-storage';
 
 const PASSWORD = 'correct horse battery staple';
 const FIXTURES = join(__dirname, '../../../test/fixtures');
 const fixture = (name: string) => readFileSync(join(FIXTURES, name));
-
-/** Keeps files in memory, so the tests run without MinIO, like CI. */
-class InMemoryPhotoStorage extends PhotoStorage {
-  readonly files = new Map<string, { body: Buffer; contentType: string }>();
-
-  async put(key: string, body: Buffer, contentType: string): Promise<void> {
-    this.files.set(key, { body, contentType });
-  }
-
-  async get(key: string): Promise<Readable | null> {
-    const file = this.files.get(key);
-    return file ? Readable.from(file.body) : null;
-  }
-
-  async delete(key: string): Promise<void> {
-    this.files.delete(key);
-  }
-}
 
 describe('Photos', () => {
   const raw = createPrismaClient(process.env.DATABASE_URL ?? '');

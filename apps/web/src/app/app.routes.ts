@@ -93,6 +93,12 @@ export const appRoutes: Route[] = [
                 (m) => m.AnnouncementsPage,
               ),
           },
+          {
+            path: 'galeria',
+            title: 'Galeria · Bookit',
+            loadComponent: () =>
+              import('./settings/gallery-page').then((m) => m.GalleryPage),
+          },
         ],
       },
     ],

@@ -7,6 +7,7 @@ const TABS = [
   { label: 'Cennik', link: 'cennik' },
   { label: 'Godziny otwarcia', link: 'godziny' },
   { label: 'Ogłoszenia', link: 'ogloszenia' },
+  { label: 'Galeria', link: 'galeria' },
 ];
 
 /** `/panel/ustawienia/**`: tabs between the settings screens of the Właściciel. */

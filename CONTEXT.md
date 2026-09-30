@@ -48,6 +48,10 @@ _Avoid_: strona salonu, landing, profil
 Krótka informacja na Wizytówce (promocja, zamknięcie, nowość), pokazywana tylko między datą "od" i "do".
 _Avoid_: aktualność, post, news
 
+**Galeria**:
+Do 30 zdjęć Salonu na Wizytówce, w kolejności ustawionej przez Właściciela. Zdjęcie usunięte z Galerii jest usuwane na dobre, razem z plikiem.
+_Avoid_: album, portfolio, zdjęcia prac
+
 **Adres wizytówki**:
 Krótka nazwa Salonu w adresie URL, pod którą Klient znajduje Wizytówkę, np. `studio-anna`.
 _Avoid_: slug (w rozmowie z Właścicielem), link
