@@ -6,7 +6,12 @@ export interface Holiday {
   name: string;
 }
 
-const FIXED: { month: number; day: number; name: string; since?: number }[] = [
+const FIXED_HOLIDAYS: {
+  month: number;
+  day: number;
+  name: string;
+  since?: number;
+}[] = [
   { month: 1, day: 1, name: 'Nowy Rok' },
   { month: 1, day: 6, name: 'Trzech Króli' },
   { month: 5, day: 1, name: 'Święto Pracy' },
@@ -20,7 +25,7 @@ const FIXED: { month: number; day: number; name: string; since?: number }[] = [
 ];
 
 /** Days after Wielkanoc. */
-const MOVABLE: { offset: number; name: string }[] = [
+const EASTER_OFFSETS: { offset: number; name: string }[] = [
   { offset: 0, name: 'Wielkanoc' },
   { offset: 1, name: 'Poniedziałek Wielkanocny' },
   { offset: 49, name: 'Zielone Świątki' },
@@ -53,14 +58,14 @@ const calendarDay = (date: Date): CalendarDay =>
 
 /** The Święta of `year`, in date order. */
 export function polishHolidays(year: number): Holiday[] {
-  const fixed = FIXED.filter(
+  const fixed = FIXED_HOLIDAYS.filter(
     (holiday) => !holiday.since || year >= holiday.since,
   ).map(({ month, day, name }) => ({
     date: calendarDay(new Date(Date.UTC(year, month - 1, day))),
     name,
   }));
   const easterTime = easter(year).getTime();
-  const movable = MOVABLE.map(({ offset, name }) => ({
+  const movable = EASTER_OFFSETS.map(({ offset, name }) => ({
     date: calendarDay(new Date(easterTime + offset * DAY_MS)),
     name,
   }));
