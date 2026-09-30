@@ -20,6 +20,7 @@ import { ClsService } from 'nestjs-cls';
 import { Client, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SalonContext } from '../salon-context/salon-context';
+import { VisitChangeRecorder } from '../visit-changes/visit-change-recorder';
 import type { ClientChanges, ClientFields } from './clients.controller';
 
 type Db = Pick<PrismaService, 'client'>;
@@ -54,6 +55,8 @@ export class ClientsService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(ClsService) private readonly cls: ClsService<SalonContext>,
+    @Inject(VisitChangeRecorder)
+    private readonly changes: VisitChangeRecorder,
   ) {}
 
   /** By name; `q` matches a part of the name or of the phone's digits. */
@@ -130,6 +133,7 @@ export class ClientsService {
   /**
    * An RODO request: the Klient keeps only "Klient usunięty", so past Wizyty show that.
    * Scheduled Wizyty from now on are deleted; cancelled ones stay in the history.
+   * The Historia zmian keeps no name of theirs either.
    */
   async remove(id: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
@@ -138,6 +142,7 @@ export class ClientsService {
       await tx.visit.deleteMany({
         where: { clientId: id, state: 'SCHEDULED', startsAt: { gte: now } },
       });
+      await this.changes.forgetClient(tx, id);
       await tx.client.update({
         where: { id },
         data: {

@@ -170,6 +170,10 @@ const MATRIX: Row[] = [
   ['POST', `/api/visits/${UNKNOWN_ID}/restore`, ['OWNER', 'EMPLOYEE']],
   ['DELETE', `/api/visits/${UNKNOWN_ID}`, ['OWNER', 'EMPLOYEE']],
 
+  // T25: Historia zmian
+  ['GET', `/api/visits/${UNKNOWN_ID}/changes`, ['OWNER']],
+  ['GET', '/api/visit-changes', ['OWNER']],
+
   // T26: Nieobecności (empty bodies and an unknown id, so nothing changes)
   ['POST', '/api/absences', ['OWNER', 'EMPLOYEE']],
   ['PATCH', `/api/absences/${UNKNOWN_ID}`, ['OWNER', 'EMPLOYEE']],

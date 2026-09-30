@@ -19,14 +19,20 @@ import {
   VISIT_SERVICE_UNAVAILABLE,
   VISIT_STAFF_UNAVAILABLE,
   VISIT_STATE_CHANGE_INVALID,
+  VisitChangeAction,
   VisitCollisionResponse,
   VisitState,
   VisitView,
 } from '@bookit/shared';
 import { ClsService } from 'nestjs-cls';
-import { Prisma, Service } from '../../generated/prisma/client';
+import { Service } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SalonContext } from '../salon-context/salon-context';
+import {
+  VisitChangeRecorder,
+  VisitWithDetails,
+  visitDetailsInclude,
+} from '../visit-changes/visit-change-recorder';
 import {
   findCollisions,
   Interval,
@@ -38,21 +44,19 @@ import type { VisitChanges, VisitFields } from './visits.schemas';
 
 type Db = Pick<
   PrismaService,
-  'visit' | 'visitService' | 'staffMember' | 'client' | 'service' | 'absence'
+  | 'visit'
+  | 'visitService'
+  | 'staffMember'
+  | 'client'
+  | 'service'
+  | 'absence'
+  | 'visitChange'
 >;
-
-const withServices = {
-  services: { orderBy: [{ createdAt: 'asc' }, { nameSnapshot: 'asc' }] },
-} satisfies Prisma.VisitInclude;
-
-type VisitWithServices = Prisma.VisitGetPayload<{
-  include: typeof withServices;
-}>;
 
 /** The longest a Wizyta can take up, to find the ones that started before an interval. */
 const LONGEST_VISIT_MS = (SERVICE_DURATION_MAX + SERVICE_BREAK_MAX) * MINUTE_MS;
 
-const toView = (visit: VisitWithServices): VisitView => ({
+const toView = (visit: VisitWithDetails): VisitView => ({
   id: visit.id,
   staffMemberId: visit.staffMemberId,
   clientId: visit.clientId,
@@ -103,16 +107,26 @@ const TRANSITIONS = {
   SCHEDULED: ['CANCELLED', 'NO_SHOW'],
 } satisfies Record<VisitState, VisitState[]>;
 
+/** The Historia zmian entry of each move. */
+const ACTIONS = {
+  CANCELLED: 'CANCELLED',
+  NO_SHOW: 'NO_SHOW',
+  SCHEDULED: 'RESTORED',
+} satisfies Record<VisitState, VisitChangeAction>;
+
 /**
  * The Wizyty of the Salon from the context (#24). Queries are limited to that Salon by
  * the Prisma extension, so a person, Klient, Usługa or Wizyta of another Salon is not
- * found. A Kolizja warns with `409` unless the request accepts it.
+ * found. A Kolizja warns with `409` unless the request accepts it. Each change writes
+ * its Historia zmian entry in the same transaction (#25).
  */
 @Injectable()
 export class VisitsService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(ClsService) private readonly cls: ClsService<SalonContext>,
+    @Inject(VisitChangeRecorder)
+    private readonly changes: VisitChangeRecorder,
   ) {}
 
   async create(fields: VisitFields): Promise<VisitView> {
@@ -136,8 +150,9 @@ export class VisitsService {
           updatedById: me,
           services: { create: services.map(snapshot) },
         },
-        include: withServices,
+        include: visitDetailsInclude,
       });
+      await this.changes.record(tx, visit.id, 'CREATED', null, visit);
       return toView(visit);
     });
   }
@@ -190,8 +205,9 @@ export class VisitsService {
           updatedById: this.staffMemberId(),
           services: { create: added.map(snapshot) },
         },
-        include: withServices,
+        include: visitDetailsInclude,
       });
+      await this.changes.record(tx, id, 'UPDATED', current, visit);
       return toView(visit);
     });
   }
@@ -223,8 +239,9 @@ export class VisitsService {
       const visit = await tx.visit.update({
         where: { id },
         data: { state, updatedById: this.staffMemberId() },
-        include: withServices,
+        include: visitDetailsInclude,
       });
+      await this.changes.record(tx, id, ACTIONS[state], current, visit);
       return toView(visit);
     });
   }
@@ -232,16 +249,17 @@ export class VisitsService {
   /** A mistake when entering: the Wizyta goes for good, with its Usługi. */
   async remove(id: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      await this.find(tx, id);
+      const current = await this.find(tx, id);
       await tx.visit.delete({ where: { id } });
+      await this.changes.record(tx, id, 'DELETED', current, null);
     });
   }
 
   /** `404` for a Wizyta of another Salon. */
-  private async find(db: Db, id: string): Promise<VisitWithServices> {
+  private async find(db: Db, id: string): Promise<VisitWithDetails> {
     const visit = await db.visit.findFirst({
       where: { id },
-      include: withServices,
+      include: visitDetailsInclude,
     });
     if (!visit) throw new NotFoundException();
     return visit;
