@@ -6,6 +6,7 @@ const TABS = [
   { label: 'Personel', link: 'personel' },
   { label: 'Cennik', link: 'cennik' },
   { label: 'Godziny otwarcia', link: 'godziny' },
+  { label: 'Ogłoszenia', link: 'ogloszenia' },
   { label: 'Galeria', link: 'galeria' },
 ];
 
