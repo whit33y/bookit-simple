@@ -111,6 +111,13 @@ const MATRIX: Row[] = [
   ['PUT', '/api/staff/order', ['OWNER']],
   ['POST', `/api/staff/${UNKNOWN_ID}/resend-invitation`, ['OWNER']],
 
+  // T16: Kategorie Usług (empty bodies and an unknown id, so nothing changes)
+  ['GET', '/api/service-categories', ['OWNER', 'EMPLOYEE']],
+  ['POST', '/api/service-categories', ['OWNER']],
+  ['PATCH', `/api/service-categories/${UNKNOWN_ID}`, ['OWNER']],
+  ['DELETE', `/api/service-categories/${UNKNOWN_ID}`, ['OWNER']],
+  ['PUT', '/api/service-categories/order', ['OWNER']],
+
   // T34: the Wizytówka (unknown address, so 404)
   ['GET', '/api/public/pages/nieznany-salon', PUBLIC],
 

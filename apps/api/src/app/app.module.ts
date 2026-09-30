@@ -9,6 +9,7 @@ import { PasswordResetModule } from './password-reset/password-reset.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PublicPagesModule } from './public-pages/public-pages.module';
 import { SalonContextModule } from './salon-context/salon-context.module';
+import { ServiceCategoriesModule } from './service-categories/service-categories.module';
 import { StaffModule } from './staff/staff.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { StaffModule } from './staff/staff.module';
     PasswordResetModule,
     PublicPagesModule,
     StaffModule,
+    ServiceCategoriesModule,
     HealthModule.register(),
   ],
 })

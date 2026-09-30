@@ -61,14 +61,21 @@ export const appRoutes: Route[] = [
       {
         path: 'ustawienia',
         canActivate: [roleGuard('OWNER')],
+        loadComponent: () =>
+          import('./settings/settings-layout').then((m) => m.SettingsLayout),
         children: [
-          // Personel is the only settings screen so far.
           { path: '', pathMatch: 'full', redirectTo: 'personel' },
           {
             path: 'personel',
             title: 'Personel · Bookit',
             loadComponent: () =>
               import('./settings/staff-page').then((m) => m.StaffPage),
+          },
+          {
+            path: 'cennik',
+            title: 'Cennik · Bookit',
+            loadComponent: () =>
+              import('./settings/pricing-page').then((m) => m.PricingPage),
           },
         ],
       },
