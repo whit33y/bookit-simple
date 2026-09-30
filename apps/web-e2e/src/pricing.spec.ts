@@ -32,7 +32,7 @@ test('the Właściciel adds Kategorie Usług, and their dragged order stays afte
   const names = list.locator('.name');
   for (const name of ['Strzyżenie', 'Koloryzacja', 'Paznokcie']) {
     await page.getByLabel('Nazwa nowej Kategorii').fill(name);
-    await page.getByRole('button', { name: 'Dodaj' }).click();
+    await page.getByRole('button', { name: 'Dodaj', exact: true }).click();
     await expect(names.last()).toHaveText(name);
   }
 

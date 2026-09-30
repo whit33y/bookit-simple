@@ -16,34 +16,34 @@ Cel MVP: salon pilotażowy Studio Kora (patrz sekcja 9) prowadzi cały kalendarz
 
 ### Świadomie poza MVP
 
-| Rzecz                                                              | Dlaczego nie teraz                                                          |
-| ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| Rezerwacja online przez Klienta                                    | Klienci umawiają się telefonicznie lub w salonie.                           |
-| SMS-y i e-maile do Klientów                                        | Koszt i zgody. Telefon trzymamy w E.164, żeby dało się to dodać później.    |
-| Tygodniowy grafik Pracowników                                      | Wystarczą Godziny otwarcia i Nieobecności.                                  |
-| Przypisanie Usług do osób                                          | Personel małego salonu wie, kto co robi.                                    |
-| Płatności, kasa, raporty przychodów                                | Wizyta nie zapisuje płatności.                                              |
-| Informacje o zdrowiu Klienta                                       | [ADR 0003](adr/0003-bez-informacji-o-zdrowiu.md).                           |
-| Kilka lokalizacji jednego Salonu                                   | Jeden Salon to jeden adres.                                                 |
-| Kilka szablonów Wizytówki                                          | Jeden szablon, kolor i logo do ustawienia.                                  |
-| Subdomeny i własne domeny                                          | [ADR 0002](adr/0002-adres-wizytowki-jako-sciezka.md) opisuje, jak je dodać. |
-| Wizyty cykliczne                                                   | Rzadkie w małych salonach.                                                  |
-| Logowanie przez Google, wcielanie się Administratora w Właściciela | Później, to drugie tylko z logiem.                                          |
-| Hosting, backupy, monitoring                                       | Po MVP.                                                                     |
-| Inne języki niż polski, inne strefy czasowe niż Europe/Warsaw      | Rynek polski.                                                               |
+| Rzecz | Dlaczego nie teraz |
+|---|---|
+| Rezerwacja online przez Klienta | Klienci umawiają się telefonicznie lub w salonie. |
+| SMS-y i e-maile do Klientów | Koszt i zgody. Telefon trzymamy w E.164, żeby dało się to dodać później. |
+| Tygodniowy grafik Pracowników | Wystarczą Godziny otwarcia i Nieobecności. |
+| Przypisanie Usług do osób | Personel małego salonu wie, kto co robi. |
+| Płatności, kasa, raporty przychodów | Wizyta nie zapisuje płatności. |
+| Informacje o zdrowiu Klienta | [ADR 0003](adr/0003-bez-informacji-o-zdrowiu.md). |
+| Kilka lokalizacji jednego Salonu | Jeden Salon to jeden adres. |
+| Kilka szablonów Wizytówki | Jeden szablon, kolor i logo do ustawienia. |
+| Subdomeny i własne domeny | [ADR 0002](adr/0002-adres-wizytowki-jako-sciezka.md) opisuje, jak je dodać. |
+| Wizyty cykliczne | Rzadkie w małych salonach. |
+| Logowanie przez Google, wcielanie się Administratora w Właściciela | Później, to drugie tylko z logiem. |
+| Hosting, backupy, monitoring | Po MVP. |
+| Inne języki niż polski, inne strefy czasowe niż Europe/Warsaw | Rynek polski. |
 
 ## 2. Role i uprawnienia
 
-| Akcja                                                          | Administrator | Właściciel | Pracownik |
-| -------------------------------------------------------------- | :-----------: | :--------: | :-------: |
-| Zakładanie, zawieszanie Salonu, zmiana Adresu wizytówki        |       ✓       |            |           |
-| Zapraszanie i usuwanie Personelu                               |               |     ✓      |           |
-| Cennik, Godziny otwarcia, Ogłoszenia, galeria, treść Wizytówki |               |     ✓      |           |
-| Dodawanie, edycja, odwoływanie, usuwanie Wizyt każdej osobie   |               |     ✓      |     ✓     |
-| Nieobecności każdej osoby                                      |               |     ✓      |     ✓     |
-| Kartoteka Klientów: dodawanie i edycja                         |               |     ✓      |     ✓     |
-| Usunięcie Klienta (żądanie RODO)                               |               |     ✓      |           |
-| Historia zmian Wizyt                                           |               |     ✓      |           |
+| Akcja | Administrator | Właściciel | Pracownik |
+|---|:-:|:-:|:-:|
+| Zakładanie, zawieszanie Salonu, zmiana Adresu wizytówki | ✓ | | |
+| Zapraszanie i usuwanie Personelu | | ✓ | |
+| Cennik, Godziny otwarcia, Ogłoszenia, galeria, treść Wizytówki | | ✓ | |
+| Dodawanie, edycja, odwoływanie, usuwanie Wizyt każdej osobie | | ✓ | ✓ |
+| Nieobecności każdej osoby | | ✓ | ✓ |
+| Kartoteka Klientów: dodawanie i edycja | | ✓ | ✓ |
+| Usunięcie Klienta (żądanie RODO) | | ✓ | |
+| Historia zmian Wizyt | | ✓ | |
 
 Administrator nie ma dostępu do kalendarza ani Klientów Salonów.
 
@@ -77,7 +77,6 @@ bookit/
 Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID), `createdAt`, `updatedAt`. Kolumna `salonId` oznacza tabelę objętą izolacją.
 
 **Salon**
-
 - `name`, `slug` (Adres wizytówki, unikalny), `status`: `ACTIVE | SUSPENDED`
 - `about` (O nas), `street`, `postalCode`, `city`, `phone`, `email`, `mapUrl`
 - `accentColor` (hex), `logoPhotoId`, `heroPhotoId`
@@ -89,7 +88,6 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 **User**: `email` (unikalny), `passwordHash` (null do przyjęcia zaproszenia), `isAdministrator`.
 
 **StaffMember** (`salonId`): osoba z Personelu.
-
 - `userId` (null po usunięciu), `role`: `OWNER | EMPLOYEE`
 - `displayName`, `acceptsVisits` (Przyjmuje Wizyty), `showOnPage`, `photoId`, `bio`, `sortOrder`
 - `deletedAt`. Po usunięciu zostaje tylko `displayName`. Resztę danych zerujemy.
@@ -103,7 +101,6 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 **ServiceCategory** (`salonId`): `name`, `sortOrder`.
 
 **Service** (`salonId`): Usługa.
-
 - `categoryId`, `name`, `description`
 - `priceGrosze`, `priceType`: `FIXED | FROM`
 - `durationMin`, `breakMin` (domyślna Przerwa po Wizycie, domyślnie 0)
@@ -120,7 +117,6 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 **Client** (`salonId`): Klient. `name`, `phoneE164` (null), `notes`, `deletedAt`.
 
 **Visit** (`salonId`): Wizyta.
-
 - `staffMemberId`, `clientId`
 - `startsAt`, `durationMin`, `breakMin`, `description`
 - `state`: `SCHEDULED | CANCELLED | NO_SHOW`
@@ -249,7 +245,7 @@ GET    /staff                   POST /staff/invite
 PATCH  /staff/:id               DELETE /staff/:id?keepVisits=true|false
 
 GET    /service-categories      POST | PATCH /:id | DELETE /:id | PUT /order
-GET    /services                POST | PATCH /:id | POST /:id/archive
+GET    /services?includeArchived=true  POST | PATCH /:id | POST /:id/archive | /unarchive | PUT /order
 GET    /opening-hours           PUT /opening-hours
 GET    /announcements           POST | PATCH /:id | DELETE /:id
 POST   /photos                  DELETE /photos/:id
@@ -276,30 +272,25 @@ Każde zadanie to jedno issue. Etykiety: `etap-N`, `api`, `web`, `infra`. "Zale�
 
 **T01. Workspace Nx z aplikacjami `web` i `api`** `infra`
 Utworzyć workspace Nx z `apps/web` (Angular, SSR włączone), `apps/api` (NestJS) i `libs/shared`. Skonfigurować ESLint i Prettier.
-
 - [ ] `npx nx run-many -t lint test build` przechodzi na czystym repo
 - [ ] `apps/web` importuje stałą z `libs/shared`, `apps/api` też
 
 **T02. Docker Compose ze środowiskiem lokalnym** `infra` · zależy od T01
 Postgres 16, MinIO (z bucketem tworzonym przy starcie), Mailpit. Plik `.env.example` z wszystkimi zmiennymi.
-
 - [ ] `docker compose up -d` uruchamia trzy usługi, a `api` łączy się z każdą
 - [ ] README opisuje uruchomienie od zera
 
 **T03. Prisma: schemat, migracje, pusty seed** `api` · zależy od T02
 Schemat z sekcji 4, pierwsza migracja, skrypt `nx run api:seed` (na razie tworzy tylko Administratora z `.env`).
-
 - [ ] `prisma migrate dev` na pustej bazie przechodzi
 - [ ] seed jest idempotentny: drugie uruchomienie niczego nie dubluje
 
 **T04. CI na GitHub Actions** `infra` · zależy od T01
 Lint, testy i build na każdym PR. Postgres jako service container do testów integracyjnych.
-
 - [ ] PR z błędem lintu ma czerwony status
 
 **T05. Izolacja Salonów** `api` · zależy od T03
 `SalonContextGuard` i rozszerzenie Prisma Client dopisujące `salonId` do zapytań (ADR 0001). Dekorator `@AdminScope()` dla ścieżek Administratora.
-
 - [ ] test integracyjny: Personel Salonu A dostaje `404` na każdy zasób Salonu B (Wizyta, Klient, Usługa, Zdjęcie)
 - [ ] test: `create` bez jawnego `salonId` dostaje `salonId` z kontekstu
 - [ ] test: zapytanie poza kontekstem Salonu i bez `@AdminScope()` rzuca wyjątek
@@ -308,43 +299,35 @@ Lint, testy i build na każdym PR. Postgres jako service container do testów in
 
 **T06. Sesje i logowanie** `api` · zależy od T03
 Sesja w Postgresie, ciasteczko `httpOnly`, `argon2`, `/auth/login`, `/auth/logout`, `/auth/me`. Limit prób logowania: 10 na 15 min na e-mail.
-
 - [ ] zła para e-mail/hasło zwraca `401` bez informacji, co jest złe
 - [ ] zawieszenie Salonu i usunięcie osoby unieważnia jej sesje
 
 **T07. Zaproszenia i ustawienie hasła** `api` · zależy od T06
 Token 32 bajty, w bazie tylko hash, ważny 7 dni, jednorazowy. E-mail przez `nodemailer`. Szablon e-maila po polsku.
-
 - [ ] e-mail z linkiem widać w Mailpit
 - [ ] użyty albo przeterminowany token zwraca `410`
 
 **T08. Reset hasła** `api` · zależy od T07
-
 - [ ] odpowiedź jest taka sama dla istniejącego i nieistniejącego e-maila
 
 **T09. Guardy ról** `api` · zależy od T06
 Dekoratory `@Roles('OWNER')`, `@AdminOnly()`. Tabela z sekcji 2 jako test.
-
 - [ ] test na każdy wiersz tabeli uprawnień
 
 **T10. Ekrany logowania, zaproszenia i resetu hasła** `web` · zależy od T06, T07, T08
 Oraz layout panelu: menu boczne na komputerze, dolna nawigacja na telefonie.
-
 - [ ] Playwright: przyjęcie zaproszenia, logowanie, wylogowanie
 
 ### Etap 2. Administrator
 
 **T11. Zakładanie Salonu** `api` `web` · zależy od T07, T09
 Formularz, walidacja Adresu wizytówki (regex, zarezerwowane, unikalność, sprawdzanie na żywo), zaproszenie Właściciela.
-
 - [ ] Playwright: Administrator zakłada Salon, Właściciel przyjmuje zaproszenie i widzi pusty panel
 
 **T12. Lista i szczegóły Salonów, zawieszanie** `api` `web` · zależy od T11
-
 - [ ] zawieszony Salon: Personel nie loguje się, Wizytówka zwraca `404`
 
 **T13. Zmiana Adresu wizytówki z przekierowaniem** `api` `web` · zależy od T11, T34
-
 - [ ] stary adres zwraca `301` na nowy
 - [ ] nowy Salon nie może dostać adresu, który jest w `SalonSlugRedirect`
 
@@ -352,12 +335,10 @@ Formularz, walidacja Adresu wizytówki (regex, zarezerwowane, unikalność, spra
 
 **T14. Lista Personelu i zapraszanie** `api` `web` · zależy od T07, T09
 Przełączniki Przyjmuje Wizyty i pokazuj na Wizytówce, zdjęcie (po T19), opis, kolejność.
-
 - [ ] Właściciel zaprasza Pracownika, Pracownik po zalogowaniu nie widzi ustawień
 
 **T15. Usuwanie osoby z Personelu** `api` `web` · zależy od T14, T24
 Reguła z sekcji 5.
-
 - [ ] nie da się usunąć ostatniego Właściciela ani siebie
 - [ ] "zachowaj": kolumna jest w kalendarzu do dnia ostatniej Wizyty i znika dzień później
 - [ ] "zachowaj": nowej Wizyty nie da się jej przypisać (API zwraca `422`)
@@ -370,16 +351,13 @@ CRUD i kolejność przeciąganiem. Usunięcie Kategorii z Usługami jest zabloko
 
 **T17. Usługi** `api` `web` · zależy od T16
 Nazwa, opis, Cena (stała lub "od"), czas, domyślna Przerwa, ukryta, archiwizacja.
-
-- [ ] zarchiwizowana Usługa nie pojawia się w formularzu Wizyty ani na Wizytówce, a stare Wizyty ją pokazują
+- [x] zarchiwizowana Usługa nie pojawia się w formularzu Wizyty ani na Wizytówce, a stare Wizyty ją pokazują
 
 **T18. Godziny otwarcia** `api` `web` · zależy od T09
-
-- [ ] `closesAt` musi być po `opensAt`
+- [x] `closesAt` musi być po `opensAt`
 
 **T19. Upload zdjęć** `api` · zależy od T02, T05
 Reguły z sekcji 5. Endpoint zwraca `Photo`. Serwowanie przez `api` albo presigned URL z MinIO.
-
 - [ ] test z plikiem HEIC z iPhone'a, JPEG obróconym w EXIF i PNG
 - [ ] plik 11 MB zwraca `413`, plik `.jpg`, który jest PDF-em, zwraca `415`
 - [ ] wynikowy WebP nie ma metadanych GPS
@@ -388,35 +366,29 @@ Reguły z sekcji 5. Endpoint zwraca `Photo`. Serwowanie przez `api` albo presign
 Dane kontaktowe, O nas, link do mapy, kolor, logo, zdjęcie nagłówka, sekcje, klauzula RODO z szablonem.
 
 **T21. Galeria** `api` `web` · zależy od T19
-
 - [ ] 31. zdjęcie zwraca błąd z komunikatem o limicie
 
 **T22. Ogłoszenia** `api` `web` · zależy od T19
-
 - [ ] lista w panelu dzieli Ogłoszenia na aktywne, zaplanowane i minione
 
 ### Etap 5. Kalendarz
 
 **T23. Kartoteka Klientów** `api` `web` · zależy od T05
 Wyszukiwanie po imieniu (bez polskich znaków też: "Łucja" po "lucja") i telefonie, normalizacja E.164, podpowiedź duplikatu, podpowiedź przy Uwagach, usunięcie przez Właściciela.
-
 - [ ] "600 100 200", "+48600100200" i "0048 600-100-200" zapisują się jako ten sam numer
 - [ ] usunięcie Klienta anonimizuje przeszłe Wizyty i usuwa przyszłe
 
 **T24. API Wizyt** `api` · zależy od T17, T23
 Create, update, cancel, no-show, restore, delete. Snapshot Usług. Kolizje z `409`.
-
 - [ ] testy jednostkowe wykrywania Kolizji: styk końca i początku to nie Kolizja, Przerwa się liczy, odwołana Wizyta się nie liczy, Nieobecność się liczy
 - [ ] Wizyta bez Usług i bez opisu zwraca `422`
 
 **T25. Historia zmian Wizyt** `api` `web` · zależy od T24
 Interceptor, widok listy i historia w karcie Wizyty, tylko dla Właściciela.
-
 - [ ] każda akcja z T24 tworzy dokładnie jeden wpis w tej samej transakcji
 - [ ] Pracownik dostaje `403`
 
 **T26. Nieobecności** `api` · zależy od T05
-
 - [ ] Nieobecność przez kilka dni i przez zmianę czasu ma poprawne granice
 
 **T27. Polskie święta** `shared` · zależy od T01
@@ -430,14 +402,12 @@ Siatka, kolumny, Wizyty, Przerwy, Nieobecności, szare tło poza Godzinami otwar
 
 **T30. Formularz Wizyty** `web` · zależy od T29
 Reguły czasu z sekcji 5, wyszukiwanie Klienta, dodanie nowego w miejscu, obsługa `409`.
-
 - [ ] Playwright: dodanie Wizyty z dwiema Usługami, ręczna zmiana czasu na 40 min, zapis mimo Kolizji
 
 **T31. Przeciąganie i zmiana długości** `web` · zależy od T29, T30
 CDK drag-drop, przyciąganie do 15 min, przeniesienie do innej kolumny, `409` pokazuje dialog Kolizji.
 
 **T32. Widok tygodnia i widok na telefon** `web` · zależy od T29
-
 - [ ] Playwright na viewporcie 390×844: zmiana osoby przesunięciem, dodanie Wizyty przyciskiem "+"
 
 **T33. Karta Klienta z historią Wizyt** `web` · zależy od T23, T24
@@ -446,12 +416,10 @@ CDK drag-drop, przyciąganie do 15 min, przeniesienie do innej kolumny, `409` po
 
 **T34. Rozpoznawanie Salonu i endpoint publiczny** `api` · zależy od T05
 Funkcja `(host, ścieżka) -> Salon` z ADR 0002, `GET /public/pages/:slug` z Cennikiem, aktywnymi Ogłoszeniami, osobami z `showOnPage`, galerią i Godzinami otwarcia.
-
 - [ ] odpowiedź nie zawiera e-maili Personelu, Klientów ani ukrytych Usług
 
 **T35. Wizytówka SSR** `web` · zależy od T34, T20, T21, T22
 Sekcje z sekcji 6, kolor przewodni jako zmienna CSS, SEO i JSON-LD.
-
 - [ ] `curl http://localhost:4000/studio-kora` zwraca HTML z nazwą Salonu i Cennikiem
 - [ ] Lighthouse na telefonie: Performance ≥ 90, Accessibility ≥ 90
 
