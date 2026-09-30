@@ -158,6 +158,14 @@ const MATRIX: Row[] = [
   ['PATCH', `/api/clients/${UNKNOWN_ID}`, ['OWNER', 'EMPLOYEE']],
   ['DELETE', `/api/clients/${UNKNOWN_ID}`, ['OWNER']],
 
+  // T24: Wizyty (empty bodies and an unknown id, so nothing changes)
+  ['POST', '/api/visits', ['OWNER', 'EMPLOYEE']],
+  ['PATCH', `/api/visits/${UNKNOWN_ID}`, ['OWNER', 'EMPLOYEE']],
+  ['POST', `/api/visits/${UNKNOWN_ID}/cancel`, ['OWNER', 'EMPLOYEE']],
+  ['POST', `/api/visits/${UNKNOWN_ID}/no-show`, ['OWNER', 'EMPLOYEE']],
+  ['POST', `/api/visits/${UNKNOWN_ID}/restore`, ['OWNER', 'EMPLOYEE']],
+  ['DELETE', `/api/visits/${UNKNOWN_ID}`, ['OWNER', 'EMPLOYEE']],
+
   // T34: the Wizytówka (unknown address, so 404)
   ['GET', '/api/public/pages/nieznany-salon', PUBLIC],
 

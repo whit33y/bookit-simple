@@ -14,3 +14,4 @@ export * from './lib/service-categories';
 export * from './lib/services';
 export * from './lib/slug';
 export * from './lib/staff';
+export * from './lib/visits';
