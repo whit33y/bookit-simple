@@ -120,7 +120,7 @@ describe('PricingServices', () => {
     expect(names('c2')).toEqual(['Manicure']);
     expect(text()).toContain('od 90 zł');
     expect(text()).toContain('79,50 zł');
-    expect(text()).toContain('45 min + 10 min przerwy');
+    expect(text()).toContain('45 min + 10 min Przerwy');
     expect(text()).toContain('Ukryta na Wizytówce');
   });
 
@@ -141,6 +141,14 @@ describe('PricingServices', () => {
     expect(el.querySelector('[data-category="c2"]')?.textContent).toContain(
       'Nie ma jeszcze Usług',
     );
+  });
+
+  it('does not call a Kategoria with only archived Usługi empty', async () => {
+    const { el } = await setup([OLD]);
+
+    const category = el.querySelector('[data-category="c1"]');
+    expect(category?.textContent).not.toContain('Nie ma jeszcze Usług');
+    expect(category?.querySelectorAll('.service')).toHaveLength(0);
   });
 
   it('adds the Usługa saved in the dialog to its Kategoria', async () => {

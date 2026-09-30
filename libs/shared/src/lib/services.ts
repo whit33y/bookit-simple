@@ -64,8 +64,8 @@ export const SERVICE_NAME_TOO_LONG = `Nazwa może mieć najwyżej ${SERVICE_NAME
 export const SERVICE_DESCRIPTION_TOO_LONG = `Opis może mieć najwyżej ${SERVICE_DESCRIPTION_MAX_LENGTH} znaków`;
 /** `400` for no Kategoria, or one that is not in the Salon. */
 export const SERVICE_CATEGORY_REQUIRED = 'Wybierz Kategorię';
-export const SERVICE_PRICE_INVALID = 'Wpisz cenę, np. 80 albo 79,50';
-export const SERVICE_PRICE_TYPE_INVALID = 'Wybierz rodzaj ceny';
+export const SERVICE_PRICE_INVALID = 'Wpisz Cenę, np. 80 albo 79,50';
+export const SERVICE_PRICE_TYPE_INVALID = 'Wybierz rodzaj Ceny';
 export const SERVICE_DURATION_INVALID = `Czas trwania: od ${SERVICE_DURATION_MIN} do ${SERVICE_DURATION_MAX} min, co ${SERVICE_MINUTES_STEP} min`;
 export const SERVICE_BREAK_INVALID = `Przerwa: od 0 do ${SERVICE_BREAK_MAX} min, co ${SERVICE_MINUTES_STEP} min`;
 /** `409`: names are unique in a Kategoria among the Usługi that are not archived. */

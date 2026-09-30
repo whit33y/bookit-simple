@@ -83,7 +83,7 @@ import { ServicesService } from './services.service';
               Dodaj Usługę
             </button>
           </div>
-          @if (group.active.length === 0 && group.archived.length === 0) {
+          @if (group.empty) {
             <p class="empty">Nie ma jeszcze Usług w tej Kategorii.</p>
           }
           <ul
@@ -319,6 +319,8 @@ export class PricingServices implements OnInit {
       const own = services.filter((s) => s.categoryId === category.id);
       return {
         category,
+        /** No Usługa at all, also when archived ones are filtered out. */
+        empty: own.length === 0,
         active: own.filter((s) => !s.archived),
         archived: showArchived ? own.filter((s) => s.archived) : [],
       };
@@ -340,7 +342,7 @@ export class PricingServices implements OnInit {
   protected time(service: ServiceView): string {
     const duration = `${service.durationMin} min`;
     return service.breakMin > 0
-      ? `${duration} + ${service.breakMin} min przerwy`
+      ? `${duration} + ${service.breakMin} min Przerwy`
       : duration;
   }
 

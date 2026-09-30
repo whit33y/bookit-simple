@@ -15,7 +15,7 @@ import { ClsService } from 'nestjs-cls';
 import { Prisma, Service } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SalonContext } from '../salon-context/salon-context';
-import type { ServiceChanges, ServiceFields } from './services.controller';
+import type { ServiceChanges, ServiceFields } from './services.schemas';
 
 type Db = Pick<PrismaService, 'service' | 'serviceCategory'>;
 

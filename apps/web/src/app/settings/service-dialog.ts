@@ -123,7 +123,7 @@ function priceValidator(
           </mat-form-field>
           <mat-button-toggle-group
             formControlName="priceType"
-            aria-label="Rodzaj ceny"
+            aria-label="Rodzaj Ceny"
           >
             <mat-button-toggle value="FIXED">Stała</mat-button-toggle>
             <mat-button-toggle value="FROM">Od</mat-button-toggle>

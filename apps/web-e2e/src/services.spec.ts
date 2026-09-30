@@ -29,7 +29,7 @@ test('the Właściciel adds a Usługa to the Cennik, archives it and brings it b
   const row = category.getByRole('listitem').filter({
     hasText: 'Strzyżenie damskie',
   });
-  await expect(row).toContainText('od 79,50 zł · 45 min + 10 min przerwy');
+  await expect(row).toContainText('od 79,50 zł · 45 min + 10 min Przerwy');
   // The Wizytówka may be cached for a minute; a new query string skips the cache.
   let reads = 0;
   const wizytowka = async () => {
