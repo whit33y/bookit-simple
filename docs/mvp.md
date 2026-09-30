@@ -114,7 +114,7 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 
 **GalleryItem** (`salonId`): `photoId`, `sortOrder`. Maksymalnie 30 na Salon.
 
-**Client** (`salonId`): Klient. `name`, `phoneE164` (null), `notes`, `deletedAt`.
+**Client** (`salonId`): Klient. `name`, `nameNormalized` (`normalizeName(name)` z `libs/shared`, do wyszukiwania), `phoneE164` (null), `notes`, `deletedAt`.
 
 **Visit** (`salonId`): Wizyta.
 - `staffMemberId`, `clientId`
@@ -167,7 +167,7 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 - Wymagane tylko `name`. Telefon opcjonalny, normalizowany do E.164. Numer, którego nie da się sparsować, blokuje zapis z komunikatem.
 - Po wpisaniu telefonu, który już jest w kartotece Salonu, formularz podpowiada istniejącego Klienta. Zapis nowego Klienta z tym samym numerem jest możliwy po potwierdzeniu.
 - Pole "Uwagi" ma stałą podpowiedź: "Nie wpisuj tu informacji o zdrowiu (alergie, choroby, leki)".
-- Usunięcie Klienta (tylko Właściciel): ustawiamy `deletedAt`, zerujemy `name` na "Klient usunięty", `phoneE164` i `notes`. Przyszłe Wizyty tego Klienta usuwamy, przeszłe zostają zanonimizowane.
+- Usunięcie Klienta (tylko Właściciel): ustawiamy `deletedAt`, zerujemy `name` na "Klient usunięty", `phoneE164` i `notes`. Przyszłe Wizyty `SCHEDULED` tego Klienta usuwamy, przeszłe (i odwołane) zostają zanonimizowane.
 
 ### Godziny otwarcia i Święta
 

@@ -151,6 +151,13 @@ const MATRIX: Row[] = [
   ['PATCH', `/api/announcements/${UNKNOWN_ID}`, ['OWNER']],
   ['DELETE', `/api/announcements/${UNKNOWN_ID}`, ['OWNER']],
 
+  // T23: the Kartoteka Klientów (empty bodies and an unknown id, so nothing changes)
+  ['GET', '/api/clients?q=anna', ['OWNER', 'EMPLOYEE']],
+  ['GET', `/api/clients/${UNKNOWN_ID}`, ['OWNER', 'EMPLOYEE']],
+  ['POST', '/api/clients', ['OWNER', 'EMPLOYEE']],
+  ['PATCH', `/api/clients/${UNKNOWN_ID}`, ['OWNER', 'EMPLOYEE']],
+  ['DELETE', `/api/clients/${UNKNOWN_ID}`, ['OWNER']],
+
   // T34: the Wizytówka (unknown address, so 404)
   ['GET', '/api/public/pages/nieznany-salon', PUBLIC],
 

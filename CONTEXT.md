@@ -117,3 +117,7 @@ _Avoid_: oferta, menu
 **Klient**:
 Osoba umawiająca się na Wizytę w Salonie, zapisana w kartotece tego Salonu z imieniem i opcjonalnym telefonem. Nie loguje się do platformy. Ta sama osoba w dwóch Salonach to dwóch różnych Klientów. Kartoteka nie przechowuje informacji o zdrowiu Klienta.
 _Avoid_: klientka, użytkownik, gość
+
+**Usunięty Klient**:
+Klient usunięty przez Właściciela na swoje żądanie (RODO). Nie ma już imienia, telefonu ani uwag, a jego przeszłe Wizyty pokazują "Klient usunięty". Zaplanowane Wizyty od chwili usunięcia znikają, odwołane i nieodbyte zostają w historii. Nie ma go w wyszukiwaniu ani w kartotece.
+_Avoid_: zanonimizowany, archiwalny, nieaktywny

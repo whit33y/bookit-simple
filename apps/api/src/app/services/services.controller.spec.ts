@@ -418,7 +418,7 @@ describe('Usługi', () => {
       const { salon, category, owner, asOwner } = await salonWithStaff();
       const service = await addService(salon.id, category.id, 'Damskie');
       const client = await raw.client.create({
-        data: { salonId: salon.id, name: 'Ola' },
+        data: { salonId: salon.id, name: 'Ola', nameNormalized: 'ola' },
       });
       const visit = await raw.visit.create({
         data: {

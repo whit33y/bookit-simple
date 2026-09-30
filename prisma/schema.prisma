@@ -300,18 +300,21 @@ model GalleryItem {
 
 /// Klient. No health information (ADR 0003).
 model Client {
-  id        String    @id @default(uuid()) @db.Uuid
-  createdAt DateTime  @default(now()) @db.Timestamptz
-  updatedAt DateTime  @updatedAt @db.Timestamptz
-  salonId   String    @db.Uuid
-  name      String
-  phoneE164 String?
-  notes     String?
-  deletedAt DateTime? @db.Timestamptz
+  id             String    @id @default(uuid()) @db.Uuid
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @db.Timestamptz
+  salonId        String    @db.Uuid
+  name           String
+  /// `normalizeName(name)` from libs/shared, set on every save; search compares it
+  nameNormalized String
+  phoneE164      String?
+  notes          String?
+  deletedAt      DateTime? @db.Timestamptz
 
   salon  Salon   @relation(fields: [salonId], references: [id], onDelete: Cascade)
   visits Visit[]
 
+  @@index([salonId, nameNormalized])
   @@index([salonId, phoneE164])
 }
 

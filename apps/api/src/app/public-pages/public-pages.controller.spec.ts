@@ -202,6 +202,7 @@ describe('GET /api/public/pages/:slug', () => {
       data: {
         salonId,
         name: `Klientka ${id}`,
+        nameNormalized: `klientka ${id}`,
         phoneE164: '+48600999888',
         notes: 'Lubi kawę',
       },
