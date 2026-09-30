@@ -8,6 +8,7 @@ import {
   Inject,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -21,6 +22,7 @@ import {
   POSTAL_CODE_PATTERN,
   SLUG_ERROR_MESSAGES,
   SlugAvailabilityResponse,
+  ChangeSlugRequest,
   validateSlug,
 } from '@bookit/shared';
 import { z } from 'zod';
@@ -45,15 +47,18 @@ const optional = z
   .nullish()
   .transform((value) => value || null);
 
+/** Adres wizytówki in its form; whether it is free, the service checks. */
+const slug = z
+  .string({ error: SLUG_ERROR_MESSAGES.TOO_SHORT })
+  .superRefine((slug, ctx) => {
+    const error = validateSlug(slug);
+    if (error)
+      ctx.addIssue({ code: 'custom', message: SLUG_ERROR_MESSAGES[error] });
+  });
+
 const createSchema = z.object({
   name: required('Wpisz nazwę Salonu'),
-  slug: z
-    .string({ error: SLUG_ERROR_MESSAGES.TOO_SHORT })
-    .superRefine((slug, ctx) => {
-      const error = validateSlug(slug);
-      if (error)
-        ctx.addIssue({ code: 'custom', message: SLUG_ERROR_MESSAGES[error] });
-    }),
+  slug,
   ownerName: required('Wpisz imię Właściciela'),
   ownerEmail: z
     .string({ error: 'Nieprawidłowy e-mail' })
@@ -76,6 +81,20 @@ const createSchema = z.object({
   city: optional,
 }) satisfies z.ZodType<NewSalon, unknown>;
 
+const changeSlugSchema = z.object({ slug }) satisfies z.ZodType<
+  ChangeSlugRequest,
+  unknown
+>;
+
+/** Nest's `BadRequestException` with the first issue as the message. */
+function parse<T>(schema: z.ZodType<T, unknown>, body: unknown): T {
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    throw new BadRequestException(parsed.error.issues[0]?.message);
+  }
+  return parsed.data;
+}
+
 @Controller('admin/salons')
 @AdminOnly()
 export class AdminSalonsController {
@@ -88,36 +107,45 @@ export class AdminSalonsController {
     return this.salons.list();
   }
 
-  /** For the live check in the form. A missing `slug` is too short. */
+  /**
+   * For the live check in the forms. A missing `slug` is too short. With `salonId`,
+   * that Salon's own current and old addresses are available to it.
+   */
   @Get('slug-available')
   slugAvailable(
     @Query('slug') slug: unknown,
+    @Query('salonId', new ParseUUIDPipe({ optional: true }))
+    salonId: string | undefined,
   ): Promise<SlugAvailabilityResponse> {
-    return this.salons.slugAvailability(typeof slug === 'string' ? slug : '');
+    return this.salons.slugAvailability(
+      typeof slug === 'string' ? slug : '',
+      salonId,
+    );
   }
 
   @Post()
   create(@Body() body: unknown): Promise<CreateSalonResponse> {
-    const parsed = createSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues[0]?.message);
-    }
-    return this.salons.create(parsed.data);
+    return this.salons.create(parse(createSchema, body));
   }
 
   @Get(':id')
-  details(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<AdminSalonDetails> {
+  details(@Param('id', ParseUUIDPipe) id: string): Promise<AdminSalonDetails> {
     return this.salons.details(id);
+  }
+
+  /** Changes the Adres wizytówki; the old one keeps redirecting to the new one. */
+  @Patch(':id')
+  changeSlug(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ): Promise<AdminSalonDetails> {
+    return this.salons.changeSlug(id, parse(changeSlugSchema, body).slug);
   }
 
   /** Also logs the Personel out. */
   @Post(':id/suspend')
   @HttpCode(HttpStatus.OK)
-  suspend(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<AdminSalonDetails> {
+  suspend(@Param('id', ParseUUIDPipe) id: string): Promise<AdminSalonDetails> {
     return this.salons.suspend(id);
   }
 

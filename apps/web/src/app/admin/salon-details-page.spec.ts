@@ -6,9 +6,14 @@ import {
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
-import { AdminSalonDetails, INVITATION_ALREADY_ACCEPTED } from '@bookit/shared';
+import {
+  AdminSalonDetails,
+  INVITATION_ALREADY_ACCEPTED,
+  SLUG_ERROR_MESSAGES,
+} from '@bookit/shared';
 import { of } from 'rxjs';
 import { SalonDetailsPage } from './salon-details-page';
+import { SLUG_CHECK_DEBOUNCE_MS } from './slug-validators';
 
 const ID = '18f6bc6d-227a-43c4-8dbe-00f355d93e04';
 const URL = `/api/admin/salons/${ID}`;
@@ -63,7 +68,18 @@ describe('SalonDetailsPage', () => {
       await settle();
     };
     const text = () => el.textContent ?? '';
-    return { http, open, click, settle, text };
+    const type = async (value: string) => {
+      const input = el.querySelector<HTMLInputElement>('input[name="slug"]');
+      if (!input) throw new Error('No address field');
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+      await settle();
+    };
+    const button = (label: string) =>
+      [...el.querySelectorAll('button')].find((b) =>
+        b.textContent?.includes(label),
+      );
+    return { http, open, click, settle, text, type, button };
   }
 
   afterEach(() => {
@@ -147,5 +163,77 @@ describe('SalonDetailsPage', () => {
     });
 
     expect(text()).not.toContain('Wyślij zaproszenie ponownie');
+  });
+
+  describe('changing the Adres wizytówki', () => {
+    const check = `/api/admin/salons/slug-available`;
+    const wait = () =>
+      new Promise((r) => setTimeout(r, SLUG_CHECK_DEBOUNCE_MS + 20));
+
+    it('starts with the current address, no warning and nothing to save', async () => {
+      const { http, button, text } = await setup();
+
+      expect(button('Zmień adres')?.disabled).toBe(true);
+      expect(text()).not.toContain('będą przekierowywane');
+      http.expectNone((req) => req.url === check);
+    });
+
+    it('warns that old links redirect, checks the address for this Salon and saves it', async () => {
+      const { http, type, click, settle, button, text } = await setup();
+
+      await type('kora-studio');
+      expect(text()).toContain(
+        `Linki do ${location.origin}/studio-kora będą przekierowywane na nowy adres`,
+      );
+      await wait();
+      const req = http.expectOne((r) => r.url === check);
+      expect(req.request.params.get('slug')).toBe('kora-studio');
+      expect(req.request.params.get('salonId')).toBe(ID);
+      req.flush({ available: true, reason: null });
+      await settle();
+
+      expect(button('Zmień adres')?.disabled).toBe(false);
+      await click('Zmień adres');
+      const save = http.expectOne({ url: URL, method: 'PATCH' });
+      expect(save.request.body).toEqual({ slug: 'kora-studio' });
+      save.flush({ ...SALON, slug: 'kora-studio' });
+      await settle();
+
+      expect(text()).toContain(`${location.origin}/kora-studio`);
+      expect(text()).toContain('Stary adres przekierowuje na nowy');
+      expect(text()).not.toContain('będą przekierowywane');
+    });
+
+    it('shows why an address cannot be used, without asking the API about its form', async () => {
+      const { http, type, button, text } = await setup();
+
+      await type('admin');
+      await wait();
+
+      http.expectNone((r) => r.url === check);
+      expect(text()).toContain(SLUG_ERROR_MESSAGES.RESERVED);
+      expect(button('Zmień adres')?.disabled).toBe(true);
+    });
+
+    it('marks the field when another Salon took the address meanwhile', async () => {
+      const { http, type, click, settle, text } = await setup();
+
+      await type('kora-studio');
+      await wait();
+      http
+        .expectOne((r) => r.url === check)
+        .flush({ available: true, reason: null });
+      await settle();
+      await click('Zmień adres');
+      http
+        .expectOne({ url: URL, method: 'PATCH' })
+        .flush(
+          { message: SLUG_ERROR_MESSAGES.TAKEN, error: 'Conflict' },
+          { status: 409, statusText: 'Conflict' },
+        );
+      await settle();
+
+      expect(text()).toContain(SLUG_ERROR_MESSAGES.TAKEN);
+    });
   });
 });

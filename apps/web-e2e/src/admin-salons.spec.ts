@@ -1,6 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 import {
   ADMINISTRATOR,
+  invitedOwner,
   loggedInOwner,
   newSalonData,
   PASSWORD,
@@ -128,11 +129,46 @@ test('suspending a Salon logs its Personel out until the Administrator resumes i
     await ownerPage.getByRole('button', { name: 'Zaloguj się' }).click();
   };
   await logIn();
-  await expect(ownerPage.getByRole('alert')).toHaveText('Salon jest zawieszony');
+  await expect(ownerPage.getByRole('alert')).toHaveText(
+    'Salon jest zawieszony',
+  );
 
   await page.getByRole('button', { name: 'Odwieś Salon' }).click();
   await expect(page.getByRole('status')).toContainText('znów aktywny');
 
   await logIn();
   await expect(ownerPage).toHaveURL('/panel');
+});
+
+test('changing the Adres wizytówki warns about the redirect, and the old address answers 301', async ({
+  page,
+}) => {
+  const owner = await invitedOwner();
+  const moved = `${owner.slug}-nowy`;
+  await logInAsAdministrator(page);
+  await page.getByLabel('Szukaj po nazwie').fill(owner.salonName);
+  await page.getByRole('link', { name: owner.salonName }).click();
+
+  const field = page.getByRole('textbox', { name: 'Adres wizytówki' });
+  await expect(field).toHaveValue(owner.slug);
+  await field.fill(moved);
+  await expect(page.getByRole('note')).toContainText(
+    `Linki do http://localhost:4200/${owner.slug} będą przekierowywane`,
+  );
+  await page.getByRole('button', { name: 'Zmień adres' }).click();
+  await expect(page.getByRole('status')).toContainText(
+    'Stary adres przekierowuje na nowy',
+  );
+  await expect(
+    page.getByText(`http://localhost:4200/${moved}`).first(),
+  ).toBeVisible();
+
+  for (const [from, to] of [
+    [`/${owner.slug}`, `/${moved}`],
+    [`/${owner.slug}/prywatnosc`, `/${moved}/prywatnosc`],
+  ]) {
+    const res = await page.request.head(from, { maxRedirects: 0 });
+    expect(res.status()).toBe(301);
+    expect(res.headers()['location']).toBe(to);
+  }
 });

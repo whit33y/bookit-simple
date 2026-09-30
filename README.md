@@ -28,6 +28,8 @@ npx nx run-many -t serve -p api web
 - Konsola MinIO: http://localhost:9001 (login i hasło z `S3_ACCESS_KEY` / `S3_SECRET_KEY`)
 - E-maile (zaproszenia, reset hasła): http://localhost:8025
 
+Serwer SSR `web` pyta API o stare Adresy wizytówki (`301` na nowy) pod `API_INTERNAL_URL`, domyślnie `http://localhost:3000`. W produkcji ustaw ją na adres `api` w sieci wewnętrznej.
+
 Kontener `minio-init` tworzy bucket `bookit` i kończy pracę, więc w `docker compose ps -a` ma stan `exited (0)`. Brak zmiennej w `.env` zatrzymuje start `api` z komunikatem, której brakuje.
 
 ## Baza danych

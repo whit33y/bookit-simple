@@ -14,6 +14,8 @@ export const ADMINISTRATOR = {
 export interface InvitedOwner {
   email: string;
   salonName: string;
+  /** Adres wizytówki */
+  slug: string;
 }
 
 /** A unique Salon name, Właściciel e-mail and the address slugified from the name. */
@@ -28,29 +30,43 @@ export function newSalonData() {
 }
 
 /**
+ * The Administrator logged in once per worker. Logins are throttled to 10 per 15 minutes
+ * per e-mail, so logging in for every Salon would soon get `429`.
+ */
+let administrator: Promise<APIRequestContext> | undefined;
+
+function administratorRequest(): Promise<APIRequestContext> {
+  administrator ??= (async () => {
+    const admin = await request.newContext({
+      baseURL: 'http://localhost:4200',
+    });
+    const login = await admin.post('/api/auth/login', { data: ADMINISTRATOR });
+    if (!login.ok()) {
+      await admin.dispose();
+      administrator = undefined;
+      throw new Error(
+        `Administrator login: ${login.status()}. Run \`npx nx run api:seed\`.`,
+      );
+    }
+    return admin;
+  })();
+  return administrator;
+}
+
+/**
  * A new Salon with a Właściciel who got the invitation e-mail but has not set a password,
  * created through the Administrator's API, as the form does.
  */
 export async function invitedOwner(): Promise<InvitedOwner> {
   const { salonName, slug, ownerName, email } = newSalonData();
-  const admin = await request.newContext({ baseURL: 'http://localhost:4200' });
-  try {
-    const login = await admin.post('/api/auth/login', { data: ADMINISTRATOR });
-    if (!login.ok()) {
-      throw new Error(
-        `Administrator login: ${login.status()}. Run \`npx nx run api:seed\`.`,
-      );
-    }
-    const created = await admin.post('/api/admin/salons', {
-      data: { name: salonName, slug, ownerName, ownerEmail: email },
-    });
-    if (!created.ok()) {
-      throw new Error(`POST /api/admin/salons: ${created.status()}`);
-    }
-  } finally {
-    await admin.dispose();
+  const admin = await administratorRequest();
+  const created = await admin.post('/api/admin/salons', {
+    data: { name: salonName, slug, ownerName, ownerEmail: email },
+  });
+  if (!created.ok()) {
+    throw new Error(`POST /api/admin/salons: ${created.status()}`);
   }
-  return { email, salonName };
+  return { email, salonName, slug };
 }
 
 /** A Właściciel who has set `PASSWORD`, logged in on `request` (and so its page). */
