@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -11,11 +12,14 @@ import {
   Patch,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import {
   InviteStaffRequest,
   STAFF_BIO_MAX_LENGTH,
+  STAFF_KEEP_VISITS_REQUIRED,
   STAFF_ROLES,
+  StaffDeletionPreview,
   StaffMemberView,
   StaffOrderRequest,
   UpdateStaffRequest,
@@ -71,6 +75,11 @@ const orderSchema = z.object({
   ids: z.array(z.string()),
 }) satisfies z.ZodType<StaffOrderRequest>;
 
+/** The Właściciel decides explicitly; anything but `true` or `false` is `400`. */
+const keepVisitsSchema = z
+  .enum(['true', 'false'], { error: STAFF_KEEP_VISITS_REQUIRED })
+  .transform((value) => value === 'true');
+
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
@@ -108,6 +117,23 @@ export class StaffController {
     @Body() body: unknown,
   ): Promise<StaffMemberView> {
     return this.staff.update(id, parse(updateSchema, body));
+  }
+
+  @Get(':id/deletion-preview')
+  deletionPreview(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<StaffDeletionPreview> {
+    return this.staff.deletionPreview(id);
+  }
+
+  /** `?keepVisits=true|false`: whether her Wizyty stay in the calendar. */
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('keepVisits') keepVisits: unknown,
+  ): Promise<void> {
+    return this.staff.remove(id, parse(keepVisitsSchema, keepVisits));
   }
 
   @Post(':id/resend-invitation')

@@ -12,7 +12,9 @@ import {
   STAFF_EMAIL_TAKEN,
   STAFF_INVITATION_ACCEPTED,
   STAFF_ORDER_MISMATCH,
+  STAFF_DELETE_SELF,
   STAFF_PHOTO_NOT_FOUND,
+  StaffDeletionPreview,
   StaffMemberView,
 } from '@bookit/shared';
 import { ClsService } from 'nestjs-cls';
@@ -212,6 +214,93 @@ export class StaffService {
       throw new ConflictException(STAFF_INVITATION_ACCEPTED);
     }
     await this.invitations.createFor(member.id);
+  }
+
+  /** What removing the person touches: Wizyty before and from now, and the last scheduled one. */
+  async deletionPreview(id: string): Promise<StaffDeletionPreview> {
+    await this.find(id);
+    const now = new Date();
+    const [pastVisits, futureVisits, last] = await Promise.all([
+      this.prisma.visit.count({
+        where: { staffMemberId: id, startsAt: { lt: now } },
+      }),
+      this.prisma.visit.count({
+        where: { staffMemberId: id, startsAt: { gte: now } },
+      }),
+      this.prisma.visit.findFirst({
+        where: { staffMemberId: id, state: 'SCHEDULED' },
+        orderBy: { startsAt: 'desc' },
+        select: { startsAt: true },
+      }),
+    ]);
+    return {
+      pastVisits,
+      futureVisits,
+      lastScheduledVisitAt: last?.startsAt.toISOString() ?? null,
+    };
+  }
+
+  /**
+   * Makes the person an Usunięta osoba z Personelu: the account goes with its sessions
+   * and invitations, only `displayName` stays. Without `keepVisits` her Wizyty, their
+   * Historia zmian and her Nieobecności go too. `404` for a person outside the
+   * Personel, `422` for the caller or the last Właściciel. Serializable, like `update`.
+   */
+  async remove(id: string, keepVisits: boolean): Promise<void> {
+    if (id === this.cls.get('staffMemberId')) {
+      throw new UnprocessableEntityException(STAFF_DELETE_SELF);
+    }
+    try {
+      await this.prisma.$transaction(
+        async (tx) => {
+          const member = await tx.staffMember.findFirst({
+            where: { id, deletedAt: null },
+          });
+          if (!member) throw new NotFoundException();
+          if (member.role === 'OWNER') {
+            const otherOwners = await tx.staffMember.count({
+              where: { role: 'OWNER', deletedAt: null, id: { not: id } },
+            });
+            if (otherOwners === 0) {
+              throw new UnprocessableEntityException(LAST_OWNER);
+            }
+          }
+          if (!keepVisits) {
+            const visits = await tx.visit.findMany({
+              where: { staffMemberId: id },
+              select: { id: true },
+            });
+            const visitIds = visits.map((visit) => visit.id);
+            await tx.visitChange.deleteMany({
+              where: { visitId: { in: visitIds } },
+            });
+            await tx.visit.deleteMany({ where: { id: { in: visitIds } } });
+            await tx.absence.deleteMany({ where: { staffMemberId: id } });
+          }
+          await tx.invitation.deleteMany({ where: { staffMemberId: id } });
+          await tx.staffMember.update({
+            where: { id },
+            data: {
+              deletedAt: new Date(),
+              userId: null,
+              photoId: null,
+              bio: null,
+              showOnPage: false,
+            },
+          });
+          // Sessions and password resets go with the account.
+          if (member.userId) {
+            await tx.user.delete({ where: { id: member.userId } });
+          }
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (isPrismaError(error, 'P2034')) {
+        throw new ConflictException(STAFF_CHANGE_CONFLICT);
+      }
+      throw error;
+    }
   }
 
   private async find(id: string): Promise<StaffMemberWithInvitation> {

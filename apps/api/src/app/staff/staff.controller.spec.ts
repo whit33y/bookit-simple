@@ -6,8 +6,12 @@ import {
   STAFF_EMAIL_TAKEN,
   STAFF_INVITATION_ACCEPTED,
   STAFF_ORDER_MISMATCH,
+  STAFF_DELETE_SELF,
+  STAFF_KEEP_VISITS_REQUIRED,
   STAFF_PHOTO_NOT_FOUND,
+  StaffDeletionPreview,
   StaffMemberView,
+  VISIT_STAFF_UNAVAILABLE,
 } from '@bookit/shared';
 import { hash } from 'argon2';
 import request from 'supertest';
@@ -490,6 +494,319 @@ describe('Personel managed by the Właściciel', () => {
     });
   });
 
+  describe('removing a person from the Personel', () => {
+    const DAY_MS = 24 * 60 * 60 * 1000;
+
+    /** A Klient with Wizyty of `staffMemberId`, entered by `createdById`, days from now. */
+    async function addVisits(
+      salonId: string,
+      staffMemberId: string,
+      createdById: string,
+      days: { in: number; state?: 'SCHEDULED' | 'CANCELLED' | 'NO_SHOW' }[],
+    ) {
+      const client = await raw.client.create({
+        data: { salonId, name: 'Łucja', nameNormalized: 'lucja' },
+      });
+      const visits = [];
+      for (const day of days) {
+        visits.push(
+          await raw.visit.create({
+            data: {
+              salonId,
+              staffMemberId,
+              clientId: client.id,
+              startsAt: new Date(Date.now() + day.in * DAY_MS),
+              durationMin: 60,
+              description: 'Strzyżenie',
+              state: day.state ?? 'SCHEDULED',
+              createdById,
+              updatedById: createdById,
+            },
+          }),
+        );
+      }
+      return { client, visits };
+    }
+
+    describe('GET /api/staff/:id/deletion-preview', () => {
+      it('counts past and future Wizyty and gives the last scheduled one', async () => {
+        const { salon, owner, employee, asOwner } = await salonWithStaff();
+        const { visits } = await addVisits(salon.id, employee.id, owner.id, [
+          { in: -10 },
+          { in: -3, state: 'NO_SHOW' },
+          { in: 2 },
+          { in: 5 },
+          { in: 9, state: 'CANCELLED' },
+        ]);
+        await addVisits(salon.id, owner.id, owner.id, [{ in: 1 }]);
+
+        const res = await asOwner
+          .get(`/api/staff/${employee.id}/deletion-preview`)
+          .expect(200);
+
+        expect(res.body).toEqual({
+          pastVisits: 2,
+          futureVisits: 3,
+          lastScheduledVisitAt: visits[3].startsAt.toISOString(),
+        } satisfies StaffDeletionPreview);
+      });
+
+      it('gives no last Wizyta to a person without scheduled ones, and 404 for another Salon', async () => {
+        const { employee, asOwner } = await salonWithStaff();
+        const other = await salonWithStaff();
+
+        const res = await asOwner
+          .get(`/api/staff/${employee.id}/deletion-preview`)
+          .expect(200);
+
+        expect(res.body).toEqual({
+          pastVisits: 0,
+          futureVisits: 0,
+          lastScheduledVisitAt: null,
+        });
+        await asOwner
+          .get(`/api/staff/${other.employee.id}/deletion-preview`)
+          .expect(404);
+      });
+    });
+
+    describe('DELETE /api/staff/:id', () => {
+      it('with keepVisits=true drops the account, sessions and invitations, and keeps the name on the Wizyty', async () => {
+        const { salon, owner, asOwner } = await salonWithStaff();
+        const photo = await raw.photo.create({
+          data: {
+            salonId: salon.id,
+            storageKey: `test/${randomUUID()}`,
+            width: 1,
+            height: 1,
+            bytes: 1,
+          },
+        });
+        const ola = await addStaffMember(salon.id, 'EMPLOYEE', {
+          displayName: 'Ola',
+        });
+        await raw.staffMember.update({
+          where: { id: ola.id },
+          data: { photoId: photo.id, bio: 'Koloryzacja' },
+        });
+        await raw.invitation.create({
+          data: {
+            staffMemberId: ola.id,
+            tokenHash: randomUUID(),
+            expiresAt: new Date(Date.now() + 60_000),
+          },
+        });
+        await raw.absence.create({
+          data: {
+            salonId: salon.id,
+            staffMemberId: ola.id,
+            startsAt: new Date(Date.now() + DAY_MS),
+            endsAt: new Date(Date.now() + 2 * DAY_MS),
+          },
+        });
+        const { client, visits } = await addVisits(salon.id, ola.id, owner.id, [
+          { in: -5 },
+          { in: 3 },
+        ]);
+        const asOla = await logIn(ola.email);
+
+        await asOwner
+          .delete(`/api/staff/${ola.id}?keepVisits=true`)
+          .expect(204);
+
+        expect(
+          await raw.staffMember.findUniqueOrThrow({ where: { id: ola.id } }),
+        ).toMatchObject({
+          displayName: 'Ola',
+          deletedAt: expect.any(Date),
+          userId: null,
+          photoId: null,
+          bio: null,
+          showOnPage: false,
+        });
+        const userId = ola.userId ?? '';
+        expect(await raw.user.count({ where: { id: userId } })).toBe(0);
+        expect(await raw.session.count({ where: { userId } })).toBe(0);
+        expect(
+          await raw.invitation.count({ where: { staffMemberId: ola.id } }),
+        ).toBe(0);
+        await asOla.get('/api/staff').expect(401);
+        // The Klient's past Wizyta still names her.
+        const past = await raw.visit.findUniqueOrThrow({
+          where: { id: visits[0].id },
+          include: { staffMember: { select: { displayName: true } } },
+        });
+        expect(past).toMatchObject({
+          clientId: client.id,
+          staffMember: { displayName: 'Ola' },
+        });
+        expect(
+          await raw.visit.count({ where: { staffMemberId: ola.id } }),
+        ).toBe(2);
+        expect(
+          await raw.absence.count({ where: { staffMemberId: ola.id } }),
+        ).toBe(1);
+        const list = await asOwner.get('/api/staff').expect(200);
+        expect(list.body.map((m: StaffMemberView) => m.id)).not.toContain(
+          ola.id,
+        );
+      });
+
+      it('with keepVisits=true lets no new Wizyta be entered for her, but moves an existing one to another person', async () => {
+        const { salon, owner, employee, asOwner } = await salonWithStaff();
+        const { client, visits } = await addVisits(
+          salon.id,
+          employee.id,
+          owner.id,
+          [{ in: 3 }],
+        );
+
+        await asOwner
+          .delete(`/api/staff/${employee.id}?keepVisits=true`)
+          .expect(204);
+
+        const res = await asOwner
+          .post('/api/visits')
+          .send({
+            staffMemberId: employee.id,
+            clientId: client.id,
+            startsAt: new Date(Date.now() + 4 * DAY_MS).toISOString(),
+            durationMin: 60,
+            breakMin: 0,
+            description: 'Strzyżenie',
+            serviceIds: [],
+          })
+          .expect(422);
+        expect(res.body.message).toBe(VISIT_STAFF_UNAVAILABLE);
+        await asOwner
+          .patch(`/api/visits/${visits[0].id}`)
+          .send({ description: 'Farbowanie' })
+          .expect(200);
+        await asOwner
+          .patch(`/api/visits/${visits[0].id}`)
+          .send({ staffMemberId: owner.id })
+          .expect(200);
+        const moved = await raw.visit.findUniqueOrThrow({
+          where: { id: visits[0].id },
+        });
+        expect(moved.staffMemberId).toBe(owner.id);
+        await asOwner
+          .patch(`/api/visits/${visits[0].id}`)
+          .send({ staffMemberId: employee.id })
+          .expect(422);
+      });
+
+      it('with keepVisits=false also deletes her Wizyty, Nieobecności and their Historia zmian', async () => {
+        const { salon, owner, employee, asOwner } = await salonWithStaff();
+        const hers = await addVisits(salon.id, employee.id, owner.id, [
+          { in: -5 },
+          { in: 3, state: 'CANCELLED' },
+        ]);
+        // A Wizyta she entered for someone else stays.
+        const others = await addVisits(salon.id, owner.id, employee.id, [
+          { in: 1 },
+        ]);
+        await raw.absence.create({
+          data: {
+            salonId: salon.id,
+            staffMemberId: employee.id,
+            startsAt: new Date(Date.now() + DAY_MS),
+            endsAt: new Date(Date.now() + 2 * DAY_MS),
+          },
+        });
+        for (const visit of [...hers.visits, ...others.visits]) {
+          await raw.visitChange.create({
+            data: {
+              salonId: salon.id,
+              visitId: visit.id,
+              staffMemberId: owner.id,
+              action: 'CREATED',
+            },
+          });
+        }
+
+        await asOwner
+          .delete(`/api/staff/${employee.id}?keepVisits=false`)
+          .expect(204);
+
+        const herIds = hers.visits.map((v) => v.id);
+        expect(
+          await raw.visit.count({ where: { staffMemberId: employee.id } }),
+        ).toBe(0);
+        expect(
+          await raw.absence.count({ where: { staffMemberId: employee.id } }),
+        ).toBe(0);
+        expect(
+          await raw.visitChange.count({ where: { visitId: { in: herIds } } }),
+        ).toBe(0);
+        expect(
+          await raw.visitChange.count({
+            where: { visitId: others.visits[0].id },
+          }),
+        ).toBe(1);
+        expect(
+          await raw.visit.count({ where: { id: others.visits[0].id } }),
+        ).toBe(1);
+        expect(
+          await raw.staffMember.findUniqueOrThrow({
+            where: { id: employee.id },
+          }),
+        ).toMatchObject({ displayName: 'Ola', deletedAt: expect.any(Date) });
+      });
+
+      it('answers 422 for the Właściciel removing themselves, and lets them remove another Właściciel', async () => {
+        const { salon, owner, asOwner } = await salonWithStaff();
+
+        const self = await asOwner
+          .delete(`/api/staff/${owner.id}?keepVisits=true`)
+          .expect(422);
+        expect(self.body.message).toBe(STAFF_DELETE_SELF);
+
+        // With the caller a Właściciel, another Właściciel is never the last one.
+        const ewa = await addStaffMember(salon.id, 'OWNER', {
+          displayName: 'Ewa',
+        });
+        await asOwner
+          .delete(`/api/staff/${ewa.id}?keepVisits=true`)
+          .expect(204);
+        expect(
+          await raw.staffMember.count({
+            where: { salonId: salon.id, role: 'OWNER', deletedAt: null },
+          }),
+        ).toBe(1);
+      });
+
+      it('answers 400 without keepVisits and 404 for another Salon or a removed person', async () => {
+        const { employee, asOwner } = await salonWithStaff();
+        const other = await salonWithStaff();
+
+        for (const query of ['', '?keepVisits=yes']) {
+          const res = await asOwner
+            .delete(`/api/staff/${employee.id}${query}`)
+            .expect(400);
+          expect(res.body.message).toBe(STAFF_KEEP_VISITS_REQUIRED);
+        }
+        await asOwner
+          .delete(`/api/staff/${other.employee.id}?keepVisits=true`)
+          .expect(404);
+        await asOwner
+          .delete(`/api/staff/${employee.id}?keepVisits=true`)
+          .expect(204);
+        await asOwner
+          .delete(`/api/staff/${employee.id}?keepVisits=true`)
+          .expect(404);
+        await asOwner
+          .get(`/api/staff/${employee.id}/deletion-preview`)
+          .expect(404);
+        expect(
+          await raw.staffMember.count({
+            where: { id: other.employee.id, deletedAt: null },
+          }),
+        ).toBe(1);
+      });
+    });
+  });
+
   describe('a Pracownik', () => {
     it('gets 403 on every /api/staff endpoint but GET, and changes nothing', async () => {
       const { owner, employee, asEmployee } = await salonWithStaff();
@@ -510,11 +827,20 @@ describe('Personel managed by the Właściciel', () => {
       await asEmployee
         .post(`/api/staff/${employee.id}/resend-invitation`)
         .expect(403);
+      await asEmployee
+        .get(`/api/staff/${owner.id}/deletion-preview`)
+        .expect(403);
+      await asEmployee
+        .delete(`/api/staff/${owner.id}?keepVisits=false`)
+        .expect(403);
 
       expect(await raw.user.count({ where: { email } })).toBe(0);
       expect(
         await raw.staffMember.findUniqueOrThrow({ where: { id: employee.id } }),
       ).toMatchObject({ role: 'EMPLOYEE', sortOrder: 1 });
+      expect(
+        await raw.staffMember.findUniqueOrThrow({ where: { id: owner.id } }),
+      ).toMatchObject({ deletedAt: null });
     });
   });
 });

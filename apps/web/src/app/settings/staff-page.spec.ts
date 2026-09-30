@@ -37,7 +37,7 @@ const OLA: StaffMemberView = {
 describe('StaffPage', () => {
   async function setup(
     staff: StaffMemberView[] = [ANNA, OLA],
-    saved?: StaffMemberView,
+    saved?: StaffMemberView | boolean,
   ) {
     const open = vi.fn(() => ({ afterClosed: () => of(saved) }));
     TestBed.configureTestingModule({
@@ -211,11 +211,43 @@ describe('StaffPage', () => {
 
     button('Edytuj: Anna').click();
     await settle();
-    http
-      .expectOne('/api/auth/me')
-      .flush({ ...OWNER, role: 'EMPLOYEE' });
+    http.expectOne('/api/auth/me').flush({ ...OWNER, role: 'EMPLOYEE' });
     await settle();
 
     expect(navigate).toHaveBeenCalledWith('/panel');
+  });
+
+  it('offers to remove everyone but the Właściciel themselves', async () => {
+    const { el } = await setup();
+
+    expect(
+      el.querySelector('button[aria-label="Usuń z Personelu: Ola"]'),
+    ).not.toBeNull();
+    expect(
+      el.querySelector('button[aria-label="Usuń z Personelu: Anna"]'),
+    ).toBeNull();
+  });
+
+  it('drops the person from the list once the delete dialog removed her', async () => {
+    const { button, open, settle, names, text } = await setup(undefined, true);
+
+    button('Usuń z Personelu: Ola').click();
+    await settle();
+
+    expect(open).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ data: OLA }),
+    );
+    expect(names()).toEqual(['Anna']);
+    expect(text()).toContain('Ola nie jest już w Personelu.');
+  });
+
+  it('keeps the person when the delete dialog was cancelled', async () => {
+    const { button, settle, names } = await setup(undefined, false);
+
+    button('Usuń z Personelu: Ola').click();
+    await settle();
+
+    expect(names()).toEqual(['Anna', 'Ola']);
   });
 });
