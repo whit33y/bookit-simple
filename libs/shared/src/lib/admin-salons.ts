@@ -22,7 +22,13 @@ export interface CreateSalonResponse {
   slug: string;
 }
 
-/** `GET /api/admin/salons/slug-available?slug=` */
+/** `PATCH /api/admin/salons/:id` body. The old address goes to the redirects. */
+export interface ChangeSlugRequest {
+  /** Adres wizytówki */
+  slug: string;
+}
+
+/** `GET /api/admin/salons/slug-available?slug=&salonId=` */
 export interface SlugAvailabilityResponse {
   available: boolean;
   /** Why not; `null` when available. */
@@ -67,8 +73,7 @@ export interface AdminSalonDetails extends AdminSalonSummary {
 }
 
 /** `409` from `resend-invitation`. */
-export const INVITATION_ALREADY_ACCEPTED =
-  'Właściciel już przyjął zaproszenie';
+export const INVITATION_ALREADY_ACCEPTED = 'Właściciel już przyjął zaproszenie';
 /** `409` from `resend-invitation`: a suspended Salon's invitation cannot be accepted. */
 export const RESEND_SALON_SUSPENDED =
   'Salon jest zawieszony. Odwieś go, zanim wyślesz zaproszenie';

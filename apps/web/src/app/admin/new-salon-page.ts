@@ -2,12 +2,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DOCUMENT, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
-  AbstractControl,
-  AsyncValidatorFn,
   FormControl,
   FormGroup,
   ReactiveFormsModule,
-  ValidationErrors,
   ValidatorFn,
   Validators,
 } from '@angular/forms';
@@ -27,46 +24,15 @@ import {
   SLUG_ERROR_MESSAGES,
   SlugUnavailableReason,
   slugify,
-  validateSlug,
 } from '@bookit/shared';
-import {
-  catchError,
-  filter,
-  firstValueFrom,
-  map,
-  of,
-  startWith,
-  switchMap,
-  timer,
-} from 'rxjs';
+import { filter, firstValueFrom, map, startWith } from 'rxjs';
 import { errorMessage } from '../shared/error-message';
 import { AdminSalonsService } from './admin-salons.service';
-
-/** Pause after the last keystroke before asking the API whether the address is free. */
-export const SLUG_CHECK_DEBOUNCE_MS = 300;
+import { slugFormat, slugFree, slugReason } from './slug-validators';
 
 /** What the Salons page shows after a Salon was created (router state). */
 export interface SalonCreatedState {
   created: { name: string; ownerEmail: string };
-}
-
-/** `{ slug: reason }` for an address in the wrong form. */
-const slugFormat: ValidatorFn = (control) => {
-  const reason = validateSlug(control.value as string);
-  return reason ? { slug: reason } : null;
-};
-
-/** `{ slug: 'TAKEN' }`; a failed check lets the API decide on submit. */
-function slugFree(api: AdminSalonsService): AsyncValidatorFn {
-  return (control: AbstractControl) =>
-    // A new value unsubscribes the previous check, so the timer is the debounce.
-    timer(SLUG_CHECK_DEBOUNCE_MS).pipe(
-      switchMap(() => api.slugAvailability(control.value as string)),
-      map((res): ValidationErrors | null =>
-        res.available ? null : { slug: res.reason },
-      ),
-      catchError(() => of(null)),
-    );
 }
 
 const phone: ValidatorFn = (control) => {
@@ -170,9 +136,7 @@ export class NewSalonPage {
   }
 
   protected slugReason(): SlugUnavailableReason {
-    const reason = this.form.controls.slug.errors?.['slug'] as
-      SlugUnavailableReason | undefined;
-    return reason ?? 'INVALID';
+    return slugReason(this.form.controls.slug);
   }
 
   protected async submit(): Promise<void> {
