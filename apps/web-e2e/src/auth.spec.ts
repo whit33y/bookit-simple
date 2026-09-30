@@ -1,9 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
-import {
-  invitedOwner,
-  loggedInOwner,
-  PASSWORD,
-} from './support/invited-owner';
+import { invitedOwner, loggedInOwner, PASSWORD } from './support/invited-owner';
 import { linkSentTo } from './support/mailpit';
 
 async function logIn(page: Page, email: string, password: string) {
@@ -88,9 +84,7 @@ test('entering /panel without a session redirects to /logowanie', async ({
 }) => {
   await page.goto('/panel');
   await expect(page).toHaveURL('/logowanie');
-  await expect(
-    page.getByRole('button', { name: 'Zaloguj się' }),
-  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zaloguj się' })).toBeVisible();
 });
 
 test.describe('panel navigation', () => {
@@ -118,6 +112,6 @@ test.describe('panel navigation', () => {
     await expect(sideMenu(page)).toBeVisible();
     await expect(bottomNav(page)).toBeHidden();
     await sideMenu(page).getByRole('link', { name: 'Ustawienia' }).click();
-    await expect(page).toHaveURL('/panel/ustawienia');
+    await expect(page).toHaveURL('/panel/ustawienia/personel');
   });
 });

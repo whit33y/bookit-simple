@@ -6,6 +6,7 @@ import {
   newSalonData,
   PASSWORD,
 } from './support/invited-owner';
+import { BASE_URL } from './support/base-url';
 import { linkSentTo } from './support/mailpit';
 
 async function logInAsAdministrator(page: Page) {
@@ -32,7 +33,7 @@ test('the Administrator creates a Salon, and its Właściciel accepts the invita
   await expect(page.getByLabel('Adres wizytówki')).toHaveValue(salon.slug);
   await expect(summary(page).getByRole('status')).toContainText('Adres wolny');
   await expect(summary(page)).toContainText(
-    `http://localhost:4200/${salon.slug}`,
+    `${new URL(page.url()).origin}/${salon.slug}`,
   );
   await page.getByLabel('Telefon').fill('600 123 456');
   await expect(summary(page)).toContainText('+48 600 123 456');
@@ -153,15 +154,13 @@ test('changing the Adres wizytówki warns about the redirect, and the old addres
   await expect(field).toHaveValue(owner.slug);
   await field.fill(moved);
   await expect(page.getByRole('note')).toContainText(
-    `Linki do http://localhost:4200/${owner.slug} będą przekierowywane`,
+    `Linki do ${BASE_URL}/${owner.slug} będą przekierowywane`,
   );
   await page.getByRole('button', { name: 'Zmień adres' }).click();
   await expect(page.getByRole('status')).toContainText(
     'Stary adres przekierowuje na nowy',
   );
-  await expect(
-    page.getByText(`http://localhost:4200/${moved}`).first(),
-  ).toBeVisible();
+  await expect(page.getByText(`${BASE_URL}/${moved}`).first()).toBeVisible();
 
   for (const [from, to] of [
     [`/${owner.slug}`, `/${moved}`],

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { APIRequestContext, request } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
+import { BASE_URL } from './base-url';
 import { linkSentTo } from './mailpit';
 
 export const PASSWORD = 'haslo-do-testow-e2e';
@@ -37,9 +38,7 @@ let administrator: Promise<APIRequestContext> | undefined;
 
 function administratorRequest(): Promise<APIRequestContext> {
   administrator ??= (async () => {
-    const admin = await request.newContext({
-      baseURL: 'http://localhost:4200',
-    });
+    const admin = await request.newContext({ baseURL: BASE_URL });
     const login = await admin.post('/api/auth/login', { data: ADMINISTRATOR });
     if (!login.ok()) {
       await admin.dispose();

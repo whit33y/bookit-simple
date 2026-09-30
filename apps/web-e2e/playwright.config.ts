@@ -1,8 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 import { resolve } from 'node:path';
+import { BASE_URL } from './src/support/base-url';
 
 export const WORKSPACE_ROOT = resolve(__dirname, '../..');
-const baseURL = 'http://localhost:4200';
+const baseURL = BASE_URL;
 
 /**
  * End-to-end tests of the whole app: `web` with `api` behind the proxy, on the Postgres
@@ -11,7 +12,16 @@ const baseURL = 'http://localhost:4200';
 export default defineConfig({
   testDir: './src',
   outputDir: '../../dist/.playwright/apps/web-e2e/test-output',
-  reporter: [['list'], ['html', { outputFolder: '../../dist/.playwright/apps/web-e2e/report', open: 'never' }]],
+  reporter: [
+    ['list'],
+    [
+      'html',
+      {
+        outputFolder: '../../dist/.playwright/apps/web-e2e/report',
+        open: 'never',
+      },
+    ],
+  ],
   fullyParallel: true,
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 2 : 0,

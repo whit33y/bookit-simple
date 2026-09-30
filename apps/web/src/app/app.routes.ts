@@ -60,10 +60,17 @@ export const appRoutes: Route[] = [
       },
       {
         path: 'ustawienia',
-        title: 'Ustawienia · Bookit',
         canActivate: [roleGuard('OWNER')],
-        data: { heading: 'Ustawienia' },
-        loadComponent: placeholder,
+        children: [
+          // Personel is the only settings screen so far.
+          { path: '', pathMatch: 'full', redirectTo: 'personel' },
+          {
+            path: 'personel',
+            title: 'Personel · Bookit',
+            loadComponent: () =>
+              import('./settings/staff-page').then((m) => m.StaffPage),
+          },
+        ],
       },
     ],
   },
