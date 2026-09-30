@@ -95,8 +95,12 @@ Grupa Usług w Cenniku, np. "Strzyżenie" albo "Paznokcie".
 _Avoid_: dział, sekcja
 
 **Usługa**:
-Pozycja z Cennika Salonu, z nazwą, opisem, ceną, domyślnym czasem trwania i opcjonalną domyślną Przerwą po Wizycie.
+Pozycja z Cennika Salonu, z nazwą, opisem, ceną, domyślnym czasem trwania i opcjonalną domyślną Przerwą po Wizycie. Nazwa jest unikalna w Kategorii (bez względu na wielkość liter) wśród Usług, które nie są zarchiwizowane. Ukryta Usługa nie jest na Wizytówce, ale Personel nadal wybiera ją przy Wizycie.
 _Avoid_: zabieg, pozycja cennika, oferta
+
+**Zarchiwizowana Usługa**:
+Usługa zdjęta z Cennika: nie ma jej na Wizytówce ani w wyborze Usług przy Wizycie, ale Wizyty, które już ją mają, nadal ją pokazują. Usługi się nie usuwa, tylko archiwizuje. Przywrócona wraca na koniec swojej Kategorii.
+_Avoid_: usunięta, nieaktywna
 
 **Cena**:
 Kwota Usługi podana jako stała ("80 zł") albo minimalna ("od 80 zł"). Od czego zależy cena, Właściciel opisuje w opisie Usługi.

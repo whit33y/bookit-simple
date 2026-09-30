@@ -5,12 +5,14 @@ import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env';
 import { HealthModule } from './health/health.module';
 import { InvitationsModule } from './invitations/invitations.module';
+import { OpeningHoursModule } from './opening-hours/opening-hours.module';
 import { PasswordResetModule } from './password-reset/password-reset.module';
 import { PhotosModule } from './photos/photos.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PublicPagesModule } from './public-pages/public-pages.module';
 import { SalonContextModule } from './salon-context/salon-context.module';
 import { ServiceCategoriesModule } from './service-categories/service-categories.module';
+import { ServicesModule } from './services/services.module';
 import { StaffModule } from './staff/staff.module';
 
 @Module({
@@ -25,6 +27,8 @@ import { StaffModule } from './staff/staff.module';
     PublicPagesModule,
     StaffModule,
     ServiceCategoriesModule,
+    ServicesModule,
+    OpeningHoursModule,
     PhotosModule,
     HealthModule.register(),
   ],

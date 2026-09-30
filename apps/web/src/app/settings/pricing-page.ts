@@ -26,6 +26,7 @@ import {
   ServiceCategoryView,
 } from '@bookit/shared';
 import { errorMessage } from '../shared/error-message';
+import { PricingServices } from './pricing-services';
 import { ServiceCategoriesService } from './service-categories.service';
 
 const nameForm = () =>
@@ -42,7 +43,7 @@ const nameForm = () =>
 
 /**
  * `/panel/ustawienia/cennik`: the Właściciel adds, renames and deletes Kategorie Usług
- * and sets their order by dragging. Usługi come to this screen in #17.
+ * and sets their order by dragging. Below them, the Usługi of every Kategoria (#17).
  */
 @Component({
   selector: 'app-pricing-page',
@@ -56,6 +57,7 @@ const nameForm = () =>
     MatInputModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
+    PricingServices,
     ReactiveFormsModule,
   ],
   template: `
@@ -188,6 +190,10 @@ const nameForm = () =>
             </li>
           }
         </ul>
+
+        <section class="card services">
+          <app-pricing-services [categories]="categories" />
+        </section>
       }
     } @else if (loadError(); as message) {
       <p class="error" role="alert">{{ message }}</p>
@@ -269,6 +275,9 @@ const nameForm = () =>
     .rename mat-form-field {
       flex: 1;
       min-width: 0;
+    }
+    .services {
+      margin-top: 16px;
     }
     .cdk-drag-preview {
       box-shadow: var(--mat-sys-level3);

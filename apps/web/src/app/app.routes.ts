@@ -77,6 +77,14 @@ export const appRoutes: Route[] = [
             loadComponent: () =>
               import('./settings/pricing-page').then((m) => m.PricingPage),
           },
+          {
+            path: 'godziny',
+            title: 'Godziny otwarcia · Bookit',
+            loadComponent: () =>
+              import('./settings/opening-hours-page').then(
+                (m) => m.OpeningHoursPage,
+              ),
+          },
         ],
       },
     ],
