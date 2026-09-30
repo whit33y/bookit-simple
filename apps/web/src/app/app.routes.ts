@@ -86,6 +86,20 @@ export const appRoutes: Route[] = [
               ),
           },
           {
+            path: 'ogloszenia',
+            title: 'Ogłoszenia · Bookit',
+            loadComponent: () =>
+              import('./settings/announcements-page').then(
+                (m) => m.AnnouncementsPage,
+              ),
+          },
+          {
+            path: 'galeria',
+            title: 'Galeria · Bookit',
+            loadComponent: () =>
+              import('./settings/gallery-page').then((m) => m.GalleryPage),
+          },
+          {
             path: 'wizytowka',
             title: 'Wizytówka · Bookit',
             loadComponent: () =>

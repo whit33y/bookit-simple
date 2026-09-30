@@ -7,6 +7,7 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import { configureApp } from '../configure-app';
 import { createPrismaClient } from '../prisma/prisma.service';
+import { PublicPagesService } from './public-pages.service';
 
 /** Every key in `value`, as paths like `categories[].services[].name`. */
 function keyPaths(value: unknown, prefix = ''): string[] {
@@ -443,5 +444,31 @@ describe('GET /api/public/pages/:slug', () => {
     const res = await agent.get(`/api/public/pages/${salon.slug}`).expect(200);
 
     expect((res.body as PublicPage).salon.name).toBe(salon.name);
+  });
+
+  it('shows an Ogłoszenie ending today until 23:59 Polish time', async () => {
+    const salon = await raw.salon.create({
+      data: { name: `Studio ${unique()}`, slug: `studio-${unique()}` },
+    });
+    await raw.announcement.create({
+      data: {
+        salonId: salon.id,
+        title: 'Ostatni dzień promocji',
+        body: 'Tylko dziś',
+        showFrom: day('2026-09-01'),
+        showUntil: day('2026-09-30'),
+      },
+    });
+    const pages = app.get(PublicPagesService);
+    const titles = async (now: string) =>
+      (await pages.page(salon, new Date(now))).announcements.map(
+        (a) => a.title,
+      );
+
+    // 30 September is summer time, UTC+2.
+    expect(await titles('2026-09-30T21:59:59Z')).toEqual([
+      'Ostatni dzień promocji',
+    ]);
+    expect(await titles('2026-09-30T22:00:00Z')).toEqual([]);
   });
 });

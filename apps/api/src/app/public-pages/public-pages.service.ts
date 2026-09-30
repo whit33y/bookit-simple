@@ -7,12 +7,13 @@ import {
 } from '@bookit/shared';
 import { ClsService } from 'nestjs-cls';
 import { Salon } from '../../generated/prisma/client';
+import {
+  fromCalendarDay,
+  toCalendarDay,
+} from '../announcements/calendar-day-column';
 import { toClockTime } from '../opening-hours/clock-time';
 import { PrismaService } from '../prisma/prisma.service';
 import { SalonContext } from '../salon-context/salon-context';
-
-/** `@db.Date` comes back as midnight UTC. */
-const calendarDay = (date: Date) => date.toISOString().slice(0, 10);
 
 const BY_SORT_ORDER = [
   { sortOrder: 'asc' },
@@ -61,7 +62,7 @@ export class PublicPagesService {
               where: {
                 OR: [
                   { showUntil: null },
-                  { showUntil: { gte: new Date(today) } },
+                  { showUntil: { gte: fromCalendarDay(today) } },
                 ],
               },
               orderBy: [{ showFrom: 'desc' }, { createdAt: 'desc' }],
@@ -122,12 +123,12 @@ export class PublicPagesService {
           title: announcement.title,
           body: announcement.body,
           photoId: announcement.photoId,
-          showFrom: calendarDay(announcement.showFrom),
+          showFrom: toCalendarDay(announcement.showFrom),
           showUntil: announcement.showUntil
-            ? calendarDay(announcement.showUntil)
+            ? toCalendarDay(announcement.showUntil)
             : null,
         }))
-        .filter((announcement) => isAnnouncementVisible(announcement, today)),
+        .filter((announcement) => isAnnouncementVisible(announcement, now)),
       staff: staff.map((member) => ({
         displayName: member.displayName,
         bio: member.bio,

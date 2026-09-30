@@ -2,6 +2,7 @@ export * from './lib/admin-salons';
 export * from './lib/announcements';
 export * from './lib/auth';
 export * from './lib/calendar-day';
+export * from './lib/gallery';
 export * from './lib/opening-hours';
 export * from './lib/phone';
 export * from './lib/photos';
