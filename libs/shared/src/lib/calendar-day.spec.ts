@@ -1,4 +1,19 @@
-import { warsawDate } from './calendar-day';
+import { isCalendarDay, warsawDate } from './calendar-day';
+
+describe('isCalendarDay', () => {
+  it.each([
+    ['2026-09-30', true],
+    ['2028-02-29', true],
+    ['2026-02-29', false],
+    ['2026-13-01', false],
+    ['2026-09-31', false],
+    ['2026-9-30', false],
+    ['2026-09-30T00:00:00Z', false],
+    ['', false],
+  ])('%s: %s', (text, valid) => {
+    expect(isCalendarDay(text)).toBe(valid);
+  });
+});
 
 describe('warsawDate', () => {
   it.each([

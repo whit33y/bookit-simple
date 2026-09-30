@@ -85,6 +85,14 @@ export const appRoutes: Route[] = [
                 (m) => m.OpeningHoursPage,
               ),
           },
+          {
+            path: 'ogloszenia',
+            title: 'Ogłoszenia · Bookit',
+            loadComponent: () =>
+              import('./settings/announcements-page').then(
+                (m) => m.AnnouncementsPage,
+              ),
+          },
         ],
       },
     ],

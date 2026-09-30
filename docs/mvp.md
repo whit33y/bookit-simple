@@ -370,7 +370,7 @@ Dane kontaktowe, O nas, link do mapy, kolor, logo, zdjęcie nagłówka, sekcje, 
 - [ ] 31. zdjęcie zwraca błąd z komunikatem o limicie
 
 **T22. Ogłoszenia** `api` `web` · zależy od T19
-- [ ] lista w panelu dzieli Ogłoszenia na aktywne, zaplanowane i minione
+- [x] lista w panelu dzieli Ogłoszenia na aktywne, zaplanowane i minione
 
 ### Etap 5. Kalendarz
 

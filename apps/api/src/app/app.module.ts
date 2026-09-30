@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AdminSalonsModule } from './admin-salons/admin-salons.module';
+import { AnnouncementsModule } from './announcements/announcements.module';
 import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env';
 import { HealthModule } from './health/health.module';
@@ -30,6 +31,7 @@ import { StaffModule } from './staff/staff.module';
     ServicesModule,
     OpeningHoursModule,
     PhotosModule,
+    AnnouncementsModule,
     HealthModule.register(),
   ],
 })
