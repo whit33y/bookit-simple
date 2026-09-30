@@ -7,3 +7,4 @@ export * from './lib/public-page';
 export * from './lib/reserved-slugs';
 export * from './lib/salon-page';
 export * from './lib/slug';
+export * from './lib/staff';

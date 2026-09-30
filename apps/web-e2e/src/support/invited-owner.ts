@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { APIRequestContext, request } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
+import { BASE_URL } from './base-url';
 import { linkSentTo } from './mailpit';
 
 export const PASSWORD = 'haslo-do-testow-e2e';
@@ -33,7 +34,7 @@ export function newSalonData() {
  */
 export async function invitedOwner(): Promise<InvitedOwner> {
   const { salonName, slug, ownerName, email } = newSalonData();
-  const admin = await request.newContext({ baseURL: 'http://localhost:4200' });
+  const admin = await request.newContext({ baseURL: BASE_URL });
   try {
     const login = await admin.post('/api/auth/login', { data: ADMINISTRATOR });
     if (!login.ok()) {

@@ -30,6 +30,10 @@ _Avoid_: zespół, staff
 Była osoba z Personelu, która nie ma już konta ani danych w Salonie. Zostaje tylko jej imię na Wizytach, które Właściciel zdecydował się zachować, a jej kolumna jest w kalendarzu do dnia jej ostatniej Wizyty.
 _Avoid_: zwolniony, nieaktywny, zarchiwizowany
 
+**Zaproszenie**:
+E-mail z jednorazowym linkiem do ustawienia hasła, ważnym 7 dni, który dostaje nowa osoba z Personelu. Na liście Personelu ma stan: Oczekuje (link jest ważny), Wygasło (trzeba wysłać nowe) albo Przyjęte (osoba ustawiła hasło). Jeden e-mail to jedno konto w jednym Salonie.
+_Avoid_: invite, aktywacja
+
 **Przyjmuje Wizyty**:
 Cecha osoby z Personelu: ma własną kolumnę w kalendarzu i można jej wpisać Wizytę. Domyślnie ma ją każdy, także Właściciel.
 _Avoid_: aktywny, dostępny

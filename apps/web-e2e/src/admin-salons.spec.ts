@@ -31,7 +31,7 @@ test('the Administrator creates a Salon, and its Właściciel accepts the invita
   await expect(page.getByLabel('Adres wizytówki')).toHaveValue(salon.slug);
   await expect(summary(page).getByRole('status')).toContainText('Adres wolny');
   await expect(summary(page)).toContainText(
-    `http://localhost:4200/${salon.slug}`,
+    `${new URL(page.url()).origin}/${salon.slug}`,
   );
   await page.getByLabel('Telefon').fill('600 123 456');
   await expect(summary(page)).toContainText('+48 600 123 456');

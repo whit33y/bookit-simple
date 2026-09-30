@@ -38,6 +38,12 @@ export class AuthService {
     return this.loading;
   }
 
+  /** Asks the API again, e.g. after the person changed their own role. */
+  refresh(): Promise<MeResponse | null> {
+    this.loading = null;
+    return this.ensureLoaded();
+  }
+
   async login(email: string, password: string): Promise<MeResponse> {
     const body: LoginRequest = { email, password };
     return this.loggedIn(

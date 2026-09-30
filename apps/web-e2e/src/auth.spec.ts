@@ -118,6 +118,6 @@ test.describe('panel navigation', () => {
     await expect(sideMenu(page)).toBeVisible();
     await expect(bottomNav(page)).toBeHidden();
     await sideMenu(page).getByRole('link', { name: 'Ustawienia' }).click();
-    await expect(page).toHaveURL('/panel/ustawienia');
+    await expect(page).toHaveURL('/panel/ustawienia/personel');
   });
 });
