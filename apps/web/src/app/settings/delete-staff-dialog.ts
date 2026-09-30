@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import {
   MAT_DIALOG_DATA,
@@ -31,7 +31,7 @@ import { StaffService } from './staff.service';
         zaloguje się już do panelu. Tego nie da się cofnąć.
       </p>
       @if (preview(); as preview) {
-        @if (preview.pastVisits + preview.futureVisits > 0) {
+        @if (hasVisits()) {
           <ul>
             <li>Przeszłe Wizyty: {{ preview.pastVisits }}</li>
             <li>Przyszłe Wizyty: {{ preview.futureVisits }}</li>
@@ -59,8 +59,8 @@ import { StaffService } from './staff.service';
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button [mat-dialog-close]="false">Anuluj</button>
-      @if (preview(); as preview) {
-        @if (preview.pastVisits + preview.futureVisits > 0) {
+      @if (preview()) {
+        @if (hasVisits()) {
           <button mat-button [disabled]="pending()" (click)="remove(false)">
             Usuń Wizyty
           </button>
@@ -68,7 +68,12 @@ import { StaffService } from './staff.service';
             Zachowaj Wizyty
           </button>
         } @else {
-          <button mat-flat-button [disabled]="pending()" (click)="remove(true)">
+          <!-- Nothing to keep, so her Nieobecności go too. -->
+          <button
+            mat-flat-button
+            [disabled]="pending()"
+            (click)="remove(false)"
+          >
             Usuń
           </button>
         }
@@ -91,6 +96,10 @@ export class DeleteStaffDialog implements OnInit {
   protected readonly member = inject<StaffMemberView>(MAT_DIALOG_DATA);
 
   protected readonly preview = signal<StaffDeletionPreview | null>(null);
+  protected readonly hasVisits = computed(() => {
+    const preview = this.preview();
+    return !!preview && preview.pastVisits + preview.futureVisits > 0;
+  });
   protected readonly pending = signal(false);
   protected readonly error = signal<string | null>(null);
 

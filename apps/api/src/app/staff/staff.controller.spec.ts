@@ -528,6 +528,17 @@ describe('Personel managed by the Właściciel', () => {
       return { client, visits };
     }
 
+    /** A Nieobecność of `staffMemberId` tomorrow. */
+    const addAbsence = (salonId: string, staffMemberId: string) =>
+      raw.absence.create({
+        data: {
+          salonId,
+          staffMemberId,
+          startsAt: new Date(Date.now() + DAY_MS),
+          endsAt: new Date(Date.now() + 2 * DAY_MS),
+        },
+      });
+
     describe('GET /api/staff/:id/deletion-preview', () => {
       it('counts past and future Wizyty and gives the last scheduled one', async () => {
         const { salon, owner, employee, asOwner } = await salonWithStaff();
@@ -596,14 +607,7 @@ describe('Personel managed by the Właściciel', () => {
             expiresAt: new Date(Date.now() + 60_000),
           },
         });
-        await raw.absence.create({
-          data: {
-            salonId: salon.id,
-            staffMemberId: ola.id,
-            startsAt: new Date(Date.now() + DAY_MS),
-            endsAt: new Date(Date.now() + 2 * DAY_MS),
-          },
-        });
+        await addAbsence(salon.id, ola.id);
         const { client, visits } = await addVisits(salon.id, ola.id, owner.id, [
           { in: -5 },
           { in: 3 },
@@ -706,14 +710,7 @@ describe('Personel managed by the Właściciel', () => {
         const others = await addVisits(salon.id, owner.id, employee.id, [
           { in: 1 },
         ]);
-        await raw.absence.create({
-          data: {
-            salonId: salon.id,
-            staffMemberId: employee.id,
-            startsAt: new Date(Date.now() + DAY_MS),
-            endsAt: new Date(Date.now() + 2 * DAY_MS),
-          },
-        });
+        await addAbsence(salon.id, employee.id);
         for (const visit of [...hers.visits, ...others.visits]) {
           await raw.visitChange.create({
             data: {

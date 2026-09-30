@@ -6,7 +6,7 @@ import {
   moveItemInArray,
 } from '@angular/cdk/drag-drop';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import {
   FormControl,
   FormGroup,
@@ -177,7 +177,7 @@ const INVITATION_LABELS: Record<InvitationStatus, string> = {
               >
                 <mat-icon>edit</mat-icon>
               </button>
-              @if (member.id !== myId()) {
+              @if (member.id !== ownStaffMemberId()) {
                 <button
                   mat-icon-button
                   (click)="remove(member)"
@@ -325,7 +325,10 @@ export class StaffPage implements OnInit {
   protected readonly roleLabels = STAFF_ROLE_LABELS;
   protected readonly invitationLabels = INVITATION_LABELS;
   protected readonly emailTaken = STAFF_EMAIL_TAKEN;
-  protected readonly myId = () => this.auth.me()?.staffMember?.id;
+  /** The Właściciel cannot remove themselves. */
+  protected readonly ownStaffMemberId = computed(
+    () => this.auth.me()?.staffMember?.id,
+  );
 
   protected readonly form = new FormGroup({
     displayName: new FormControl('', {

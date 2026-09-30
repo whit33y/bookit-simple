@@ -5,7 +5,11 @@ import {
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { StaffDeletionPreview, StaffMemberView } from '@bookit/shared';
+import {
+  LAST_OWNER,
+  StaffDeletionPreview,
+  StaffMemberView,
+} from '@bookit/shared';
 import { DeleteStaffDialog } from './delete-staff-dialog';
 
 const OLA: StaffMemberView = {
@@ -111,7 +115,7 @@ describe('DeleteStaffDialog', () => {
     button('Usuń').click();
     await settle();
     http
-      .expectOne((r) => r.params.get('keepVisits') === 'true')
+      .expectOne((r) => r.params.get('keepVisits') === 'false')
       .flush(null, { status: 204, statusText: 'No Content' });
   });
 
@@ -128,7 +132,7 @@ describe('DeleteStaffDialog', () => {
       .expectOne((r) => r.method === 'DELETE')
       .flush(
         {
-          message: 'Salon musi mieć co najmniej jednego Właściciela',
+          message: LAST_OWNER,
           error: 'Unprocessable Entity',
         },
         { status: 422, statusText: 'Unprocessable Entity' },
@@ -136,6 +140,6 @@ describe('DeleteStaffDialog', () => {
     await settle();
 
     expect(close).not.toHaveBeenCalled();
-    expect(text()).toContain('Salon musi mieć co najmniej jednego Właściciela');
+    expect(text()).toContain(LAST_OWNER);
   });
 });

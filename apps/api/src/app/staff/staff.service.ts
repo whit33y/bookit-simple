@@ -84,6 +84,23 @@ function toView(member: StaffMemberWithInvitation): StaffMemberView {
 const isPrismaError = (error: unknown, code: string) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === code;
 
+/** What a change to the Personel touches inside its transaction. */
+type StaffTx = Pick<
+  PrismaService,
+  'staffMember' | 'visit' | 'visitChange' | 'absence' | 'invitation' | 'user'
+>;
+
+/** `422` unless the Salon has a Właściciel other than `id`. */
+async function assertAnotherOwner(
+  tx: Pick<PrismaService, 'staffMember'>,
+  id: string,
+): Promise<void> {
+  const otherOwners = await tx.staffMember.count({
+    where: { role: 'OWNER', deletedAt: null, id: { not: id } },
+  });
+  if (otherOwners === 0) throw new UnprocessableEntityException(LAST_OWNER);
+}
+
 /** Sending the invitation happens inside the transaction, and SMTP can be slow. */
 const INVITE_TIMEOUT_MS = 15_000;
 
@@ -159,31 +176,16 @@ export class StaffService {
     changes: StaffMemberChanges,
   ): Promise<StaffMemberView> {
     if (changes.photoId) await this.assertPhotoExists(changes.photoId);
-    try {
-      await this.prisma.$transaction(
-        async (tx) => {
-          const member = await tx.staffMember.findFirst({
-            where: { id, deletedAt: null },
-          });
-          if (!member) throw new NotFoundException();
-          if (member.role === 'OWNER' && changes.role === 'EMPLOYEE') {
-            const otherOwners = await tx.staffMember.count({
-              where: { role: 'OWNER', deletedAt: null, id: { not: id } },
-            });
-            if (otherOwners === 0) {
-              throw new UnprocessableEntityException(LAST_OWNER);
-            }
-          }
-          await tx.staffMember.update({ where: { id }, data: changes });
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-      );
-    } catch (error) {
-      if (isPrismaError(error, 'P2034')) {
-        throw new ConflictException(STAFF_CHANGE_CONFLICT);
+    await this.changeOwners(async (tx) => {
+      const member = await tx.staffMember.findFirst({
+        where: { id, deletedAt: null },
+      });
+      if (!member) throw new NotFoundException();
+      if (member.role === 'OWNER' && changes.role === 'EMPLOYEE') {
+        await assertAnotherOwner(tx, id);
       }
-      throw error;
-    }
+      await tx.staffMember.update({ where: { id }, data: changes });
+    });
     return toView(await this.find(id));
   }
 
@@ -220,7 +222,7 @@ export class StaffService {
   async deletionPreview(id: string): Promise<StaffDeletionPreview> {
     await this.find(id);
     const now = new Date();
-    const [pastVisits, futureVisits, last] = await Promise.all([
+    const [pastVisits, futureVisits, lastScheduled] = await Promise.all([
       this.prisma.visit.count({
         where: { staffMemberId: id, startsAt: { lt: now } },
       }),
@@ -236,7 +238,7 @@ export class StaffService {
     return {
       pastVisits,
       futureVisits,
-      lastScheduledVisitAt: last?.startsAt.toISOString() ?? null,
+      lastScheduledVisitAt: lastScheduled?.startsAt.toISOString() ?? null,
     };
   }
 
@@ -250,51 +252,53 @@ export class StaffService {
     if (id === this.cls.get('staffMemberId')) {
       throw new UnprocessableEntityException(STAFF_DELETE_SELF);
     }
-    try {
-      await this.prisma.$transaction(
-        async (tx) => {
-          const member = await tx.staffMember.findFirst({
-            where: { id, deletedAt: null },
-          });
-          if (!member) throw new NotFoundException();
-          if (member.role === 'OWNER') {
-            const otherOwners = await tx.staffMember.count({
-              where: { role: 'OWNER', deletedAt: null, id: { not: id } },
-            });
-            if (otherOwners === 0) {
-              throw new UnprocessableEntityException(LAST_OWNER);
-            }
-          }
-          if (!keepVisits) {
-            const visits = await tx.visit.findMany({
-              where: { staffMemberId: id },
-              select: { id: true },
-            });
-            const visitIds = visits.map((visit) => visit.id);
-            await tx.visitChange.deleteMany({
-              where: { visitId: { in: visitIds } },
-            });
-            await tx.visit.deleteMany({ where: { id: { in: visitIds } } });
-            await tx.absence.deleteMany({ where: { staffMemberId: id } });
-          }
-          await tx.invitation.deleteMany({ where: { staffMemberId: id } });
-          await tx.staffMember.update({
-            where: { id },
-            data: {
-              deletedAt: new Date(),
-              userId: null,
-              photoId: null,
-              bio: null,
-              showOnPage: false,
-            },
-          });
-          // Sessions and password resets go with the account.
-          if (member.userId) {
-            await tx.user.delete({ where: { id: member.userId } });
-          }
+    await this.changeOwners(async (tx) => {
+      const member = await tx.staffMember.findFirst({
+        where: { id, deletedAt: null },
+      });
+      if (!member) throw new NotFoundException();
+      if (member.role === 'OWNER') await assertAnotherOwner(tx, id);
+      if (!keepVisits) {
+        const visits = await tx.visit.findMany({
+          where: { staffMemberId: id },
+          select: { id: true },
+        });
+        const visitIds = visits.map((visit) => visit.id);
+        await tx.visitChange.deleteMany({
+          where: { visitId: { in: visitIds } },
+        });
+        await tx.visit.deleteMany({ where: { id: { in: visitIds } } });
+        await tx.absence.deleteMany({ where: { staffMemberId: id } });
+      }
+      await tx.invitation.deleteMany({ where: { staffMemberId: id } });
+      await tx.staffMember.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          userId: null,
+          photoId: null,
+          bio: null,
+          showOnPage: false,
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-      );
+      });
+      // Sessions and password resets go with the account.
+      if (member.userId) {
+        await tx.user.delete({ where: { id: member.userId } });
+      }
+    });
+  }
+
+  /**
+   * A change that may take away a Właściciel. Serializable, so two such changes at once
+   * cannot both leave the Salon without one; the one that gives way answers `409`.
+   */
+  private async changeOwners(
+    change: (tx: StaffTx) => Promise<void>,
+  ): Promise<void> {
+    try {
+      await this.prisma.$transaction(change, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
     } catch (error) {
       if (isPrismaError(error, 'P2034')) {
         throw new ConflictException(STAFF_CHANGE_CONFLICT);
