@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import {
@@ -7,7 +6,11 @@ import {
   MatDialogRef,
 } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { StaffDeletionPreview, StaffMemberView } from '@bookit/shared';
+import {
+  StaffDeletionPreview,
+  StaffMemberView,
+  warsawDate,
+} from '@bookit/shared';
 import { errorMessage } from '../shared/error-message';
 import { StaffService } from './staff.service';
 
@@ -17,12 +20,7 @@ import { StaffService } from './staff.service';
  */
 @Component({
   selector: 'app-delete-staff-dialog',
-  imports: [
-    DatePipe,
-    MatButtonModule,
-    MatDialogModule,
-    MatProgressSpinnerModule,
-  ],
+  imports: [MatButtonModule, MatDialogModule, MatProgressSpinnerModule],
   template: `
     <h2 mat-dialog-title>Usunąć z Personelu: {{ member.displayName }}?</h2>
     <mat-dialog-content>
@@ -35,11 +33,8 @@ import { StaffService } from './staff.service';
           <ul>
             <li>Przeszłe Wizyty: {{ preview.pastVisits }}</li>
             <li>Przyszłe Wizyty: {{ preview.futureVisits }}</li>
-            @if (preview.lastScheduledVisitAt; as last) {
-              <li>
-                Ostatnia zaplanowana Wizyta:
-                {{ last | date: 'd.MM.yyyy' : 'Europe/Warsaw' }}
-              </li>
+            @if (lastScheduledDay(); as day) {
+              <li>Ostatnia zaplanowana Wizyta: {{ day }}</li>
             }
           </ul>
           <p>
@@ -99,6 +94,16 @@ export class DeleteStaffDialog implements OnInit {
   protected readonly hasVisits = computed(() => {
     const preview = this.preview();
     return !!preview && preview.pastVisits + preview.futureVisits > 0;
+  });
+  /**
+   * `d.MM.yyyy` in Europe/Warsaw. Not `DatePipe`: its timezone takes only offsets such
+   * as `+0100`, so it would show the day of the browser's zone.
+   */
+  protected readonly lastScheduledDay = computed(() => {
+    const last = this.preview()?.lastScheduledVisitAt;
+    if (!last) return null;
+    const [year, month, day] = warsawDate(new Date(last)).split('-');
+    return `${Number(day)}.${month}.${year}`;
   });
   protected readonly pending = signal(false);
   protected readonly error = signal<string | null>(null);
