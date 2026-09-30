@@ -7,7 +7,7 @@ import {
 } from '@angular/common/http';
 import { Injectable, InjectionToken, inject } from '@angular/core';
 import { PhotoView } from '@bookit/shared';
-import { filter, map, Observable } from 'rxjs';
+import { filter, firstValueFrom, map, Observable } from 'rxjs';
 
 /**
  * The app sends requests with `fetch`, which cannot report upload progress, so uploads
@@ -24,9 +24,10 @@ export const PHOTO_UPLOAD_BACKEND = new InjectionToken<HttpBackend>(
 /** While a Photo uploads: the share sent so far (0 to 1), then the saved Photo. */
 export type PhotoUploadEvent = { progress: number } | { photo: PhotoView };
 
-/** `POST /api/photos`, only for the Właściciel. */
+/** `POST /api/photos` and `DELETE /api/photos/:id`, only for the Właściciel. */
 @Injectable({ providedIn: 'root' })
 export class PhotosService {
+  private readonly http = inject(HttpClient);
   private readonly xhr = new HttpClient(inject(PHOTO_UPLOAD_BACKEND));
 
   /** `413` over 10 MB, `415` for a file that is not a photo. */
@@ -50,5 +51,10 @@ export class PhotosService {
         }),
         filter((event) => event !== null),
       );
+  }
+
+  /** Also clears every reference to the Photo, e.g. a logo or a gallery item. */
+  remove(id: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`/api/photos/${id}`));
   }
 }

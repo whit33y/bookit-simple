@@ -249,7 +249,7 @@ GET    /services?includeArchived=true  POST | PATCH /:id | POST /:id/archive | /
 GET    /opening-hours           PUT /opening-hours
 GET    /announcements           POST | PATCH /:id | DELETE /:id
 POST   /photos                  DELETE /photos/:id
-GET    /gallery                 PUT /gallery (kolejność)
+GET    /gallery                 POST { photoId } | DELETE /:photoId (usuwa też Photo) | PUT /order
 GET    /salon/page              PATCH /salon/page
 
 GET    /clients?q=              POST | PATCH /:id | DELETE /:id
@@ -367,7 +367,7 @@ Reguły z sekcji 5. Endpoint zwraca `Photo`. Serwowanie przez `api` albo presign
 Dane kontaktowe, O nas, link do mapy, kolor, logo, zdjęcie nagłówka, sekcje, klauzula RODO z szablonem.
 
 **T21. Galeria** `api` `web` · zależy od T19
-- [ ] 31. zdjęcie zwraca błąd z komunikatem o limicie
+- [x] 31. zdjęcie zwraca błąd z komunikatem o limicie
 
 **T22. Ogłoszenia** `api` `web` · zależy od T19
 - [ ] lista w panelu dzieli Ogłoszenia na aktywne, zaplanowane i minione

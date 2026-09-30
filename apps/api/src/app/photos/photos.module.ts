@@ -10,5 +10,6 @@ import { PhotosService } from './photos.service';
     PhotosService,
     { provide: PhotoStorage, useClass: S3PhotoStorage },
   ],
+  exports: [PhotosService],
 })
 export class PhotosModule {}

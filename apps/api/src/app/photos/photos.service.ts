@@ -11,7 +11,8 @@ import { processPhoto } from './process-photo';
 
 export const PHOTO_CONTENT_TYPE = 'image/webp';
 
-const toView = ({ id, width, height, bytes }: Photo): PhotoView => ({
+/** Also for views that list Photos, like the gallery. */
+export const photoView = ({ id, width, height, bytes }: Photo): PhotoView => ({
   id,
   url: photoUrl(id),
   width,
@@ -46,7 +47,7 @@ export class PhotosService {
       const photo = await this.prisma.photo.create({
         data: { id, salonId, storageKey, width, height, bytes: webp.length },
       });
-      return toView(photo);
+      return photoView(photo);
     } catch (error) {
       await this.deleteFile(storageKey);
       throw error;
