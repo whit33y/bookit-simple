@@ -135,6 +135,10 @@ const MATRIX: Row[] = [
   ['DELETE', `/api/photos/${UNKNOWN_ID}`, ['OWNER']],
   ['GET', `/api/public/photos/${UNKNOWN_ID}`, PUBLIC],
 
+  // T20: the content of the Wizytówka (an empty body changes nothing)
+  ['GET', '/api/salon/page', ['OWNER']],
+  ['PATCH', '/api/salon/page', ['OWNER']],
+
   // T21: the gallery (empty bodies and an unknown id, so nothing changes)
   ['GET', '/api/gallery', ['OWNER']],
   ['POST', '/api/gallery', ['OWNER']],

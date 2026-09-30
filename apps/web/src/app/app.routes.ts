@@ -99,6 +99,14 @@ export const appRoutes: Route[] = [
             loadComponent: () =>
               import('./settings/gallery-page').then((m) => m.GalleryPage),
           },
+          {
+            path: 'wizytowka',
+            title: 'Wizytówka · Bookit',
+            loadComponent: () =>
+              import('./settings/page-settings-page').then(
+                (m) => m.PageSettingsPage,
+              ),
+          },
         ],
       },
     ],
