@@ -1,4 +1,5 @@
 import {
+  addDays,
   isCalendarDay,
   warsawDate,
   warsawDayBounds,
@@ -85,5 +86,20 @@ describe('warsawDayBounds', () => {
       // Winter time since the 25th, UTC+1.
       endsAt: '2026-10-26T23:00:00.000Z',
     });
+  });
+});
+
+describe('addDays', () => {
+  it.each([
+    ['2026-10-05', 1, '2026-10-06'],
+    ['2026-10-31', 1, '2026-11-01'],
+    ['2026-12-31', 1, '2027-01-01'],
+    ['2028-02-28', 1, '2028-02-29'],
+    // The clocks go back on 25 October: still one day.
+    ['2026-10-25', 1, '2026-10-26'],
+    ['2026-10-01', 30, '2026-10-31'],
+    ['2026-10-01', -1, '2026-09-30'],
+  ])('%s + %d = %s', (day, days, expected) => {
+    expect(addDays(day, days)).toBe(expected);
   });
 });

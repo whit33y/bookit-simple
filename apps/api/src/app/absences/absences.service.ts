@@ -17,7 +17,7 @@ import type { AbsenceChanges, AbsenceFields } from './absences.schemas';
 
 type Db = Pick<PrismaService, 'absence' | 'staffMember'>;
 
-const toView = (absence: Absence): AbsenceView => ({
+export const toAbsenceView = (absence: Absence): AbsenceView => ({
   id: absence.id,
   staffMemberId: absence.staffMemberId,
   startsAt: absence.startsAt.toISOString(),
@@ -52,7 +52,7 @@ export class AbsencesService {
         // The create input type requires it; the Salon filter checks it is the context's.
         data: { ...fields, salonId: this.salonId() },
       });
-      return toView(absence);
+      return toAbsenceView(absence);
     });
   }
 
@@ -74,7 +74,7 @@ export class AbsencesService {
         where: { id },
         data: changes,
       });
-      return toView(absence);
+      return toAbsenceView(absence);
     });
   }
 

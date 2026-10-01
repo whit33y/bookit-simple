@@ -179,6 +179,9 @@ const MATRIX: Row[] = [
   ['PATCH', `/api/absences/${UNKNOWN_ID}`, ['OWNER', 'EMPLOYEE']],
   ['DELETE', `/api/absences/${UNKNOWN_ID}`, ['OWNER', 'EMPLOYEE']],
 
+  // T28: the calendar (no range, so 400)
+  ['GET', '/api/calendar', ['OWNER', 'EMPLOYEE']],
+
   // T34: the Wizytówka (unknown address, so 404)
   ['GET', '/api/public/pages/nieznany-salon', PUBLIC],
 

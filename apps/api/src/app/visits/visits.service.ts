@@ -9,8 +9,6 @@ import {
   ABSENCE_DEFAULT_LABEL,
   isVisitBreak,
   isVisitDuration,
-  SERVICE_BREAK_MAX,
-  SERVICE_DURATION_MAX,
   VISIT_BREAK_INVALID,
   VISIT_CLIENT_UNAVAILABLE,
   VISIT_COLLISION,
@@ -36,7 +34,7 @@ import {
 import {
   findCollisions,
   Interval,
-  MINUTE_MS,
+  LONGEST_VISIT_MS,
   sameInterval,
   visitInterval,
 } from './find-collisions';
@@ -53,10 +51,7 @@ type Db = Pick<
   | 'visitChange'
 >;
 
-/** The longest a Wizyta can take up, to find the ones that started before an interval. */
-const LONGEST_VISIT_MS = (SERVICE_DURATION_MAX + SERVICE_BREAK_MAX) * MINUTE_MS;
-
-const toView = (visit: VisitWithDetails): VisitView => ({
+export const toVisitView = (visit: VisitWithDetails): VisitView => ({
   id: visit.id,
   staffMemberId: visit.staffMemberId,
   clientId: visit.clientId,
@@ -153,7 +148,7 @@ export class VisitsService {
         include: visitDetailsInclude,
       });
       await this.changes.record(tx, visit.id, 'CREATED', null, visit);
-      return toView(visit);
+      return toVisitView(visit);
     });
   }
 
@@ -208,7 +203,7 @@ export class VisitsService {
         include: visitDetailsInclude,
       });
       await this.changes.record(tx, id, 'UPDATED', current, visit);
-      return toView(visit);
+      return toVisitView(visit);
     });
   }
 
@@ -242,7 +237,7 @@ export class VisitsService {
         include: visitDetailsInclude,
       });
       await this.changes.record(tx, id, ACTIONS[state], current, visit);
-      return toView(visit);
+      return toVisitView(visit);
     });
   }
 

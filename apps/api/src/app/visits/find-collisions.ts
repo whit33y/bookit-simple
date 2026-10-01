@@ -1,6 +1,14 @@
-import { VisitState } from '@bookit/shared';
+import {
+  SERVICE_BREAK_MAX,
+  SERVICE_DURATION_MAX,
+  VisitState,
+} from '@bookit/shared';
 
 export const MINUTE_MS = 60_000;
+
+/** The longest a Wizyta can take up, to find the ones that started before an interval. */
+export const LONGEST_VISIT_MS =
+  (SERVICE_DURATION_MAX + SERVICE_BREAK_MAX) * MINUTE_MS;
 
 /** The time a Wizyta takes up in one person's calendar: `[startsAt, endsAt)`. */
 export interface Interval {

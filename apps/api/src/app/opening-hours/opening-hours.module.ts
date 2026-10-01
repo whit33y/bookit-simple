@@ -6,5 +6,6 @@ import { OpeningHoursService } from './opening-hours.service';
 @Module({
   controllers: [OpeningHoursController],
   providers: [OpeningHoursService],
+  exports: [OpeningHoursService],
 })
 export class OpeningHoursModule {}

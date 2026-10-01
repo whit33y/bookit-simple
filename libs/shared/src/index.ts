@@ -2,6 +2,7 @@ export * from './lib/absences';
 export * from './lib/admin-salons';
 export * from './lib/announcements';
 export * from './lib/auth';
+export * from './lib/calendar';
 export * from './lib/calendar-day';
 export * from './lib/clients';
 export * from './lib/gallery';
