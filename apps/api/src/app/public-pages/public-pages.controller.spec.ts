@@ -30,6 +30,14 @@ function addDays(day: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** A Photo in the reply and the fields it has. */
+const photoKeys = (path: string) => [
+  path,
+  `${path}.id`,
+  `${path}.width`,
+  `${path}.height`,
+];
+
 const day = (value: string) => new Date(`${value}T00:00:00Z`);
 const time = (value: string) => new Date(`1970-01-01T${value}:00Z`);
 
@@ -267,8 +275,8 @@ describe('GET /api/public/pages/:slug', () => {
         'salon.email',
         'salon.mapUrl',
         'salon.accentColor',
-        'salon.logoPhotoId',
-        'salon.heroPhotoId',
+        ...photoKeys('salon.logo'),
+        ...photoKeys('salon.hero'),
         'sections',
         ...Object.keys(ALL_PAGE_SECTIONS).map((key) => `sections.${key}`),
         'categories',
@@ -282,15 +290,17 @@ describe('GET /api/public/pages/:slug', () => {
         'announcements',
         'announcements[].title',
         'announcements[].body',
-        'announcements[].photoId',
+        ...photoKeys('announcements[].photo'),
         'announcements[].showFrom',
         'announcements[].showUntil',
         'staff',
         'staff[].displayName',
         'staff[].bio',
-        'staff[].photoId',
+        ...photoKeys('staff[].photo'),
         'gallery',
-        'gallery[].photoId',
+        'gallery[].id',
+        'gallery[].width',
+        'gallery[].height',
         'openingHours',
         'openingHours[].weekday',
         'openingHours[].opensAt',
@@ -335,8 +345,8 @@ describe('GET /api/public/pages/:slug', () => {
       name: salon.name,
       slug: salon.slug,
       email: salon.email,
-      logoPhotoId: photos.logo.id,
-      heroPhotoId: photos.hero.id,
+      logo: { id: photos.logo.id, width: 800, height: 600 },
+      hero: { id: photos.hero.id, width: 800, height: 600 },
     });
     expect(body.sections).toEqual(ALL_PAGE_SECTIONS);
     expect(body.privacyNotice).toBe('Administratorem danych jest Studio.');
@@ -363,29 +373,29 @@ describe('GET /api/public/pages/:slug', () => {
       {
         title: 'Nowość',
         body: 'Nowość: treść',
-        photoId: null,
+        photo: null,
         showFrom: today,
         showUntil: null,
       },
       {
         title: 'Promocja',
         body: 'Promocja: treść',
-        photoId: photos.promo.id,
+        photo: { id: photos.promo.id, width: 800, height: 600 },
         showFrom: addDays(today, -3),
         showUntil: today,
       },
     ]);
     expect(body.staff).toEqual([
-      { displayName: 'Basia', bio: null, photoId: null },
+      { displayName: 'Basia', bio: null, photo: null },
       {
         displayName: 'Anna',
         bio: 'Fryzjerka od 10 lat',
-        photoId: photos.anna.id,
+        photo: { id: photos.anna.id, width: 800, height: 600 },
       },
     ]);
     expect(body.gallery).toEqual([
-      { photoId: photos.gallery1.id },
-      { photoId: photos.gallery2.id },
+      { id: photos.gallery1.id, width: 800, height: 600 },
+      { id: photos.gallery2.id, width: 800, height: 600 },
     ]);
     expect(body.openingHours).toEqual([
       { weekday: 1, opensAt: '10:00', closesAt: '18:30' },

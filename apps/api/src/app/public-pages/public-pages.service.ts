@@ -15,6 +15,10 @@ import { toClockTime } from '../opening-hours/clock-time';
 import { PrismaService } from '../prisma/prisma.service';
 import { SalonContext } from '../salon-context/salon-context';
 
+const PHOTO_SELECT = {
+  select: { id: true, width: true, height: true },
+} as const;
+
 const BY_SORT_ORDER = [
   { sortOrder: 'asc' },
   { createdAt: 'asc' },
@@ -35,7 +39,7 @@ export class PublicPagesService {
   async page(salon: Salon, now = new Date()): Promise<PublicPage> {
     const today = warsawDate(now);
     // Prisma queries are lazy: they run on `then`, so await inside the context.
-    const [categories, announcements, staff, gallery, openingHours] =
+    const [categories, announcements, staff, gallery, openingHours, photos] =
       await this.cls.runWith(
         { salonId: salon.id },
         async () =>
@@ -69,7 +73,7 @@ export class PublicPagesService {
               select: {
                 title: true,
                 body: true,
-                photoId: true,
+                photo: PHOTO_SELECT,
                 showFrom: true,
                 showUntil: true,
               },
@@ -77,18 +81,31 @@ export class PublicPagesService {
             this.prisma.staffMember.findMany({
               where: { showOnPage: true, deletedAt: null },
               orderBy: BY_SORT_ORDER,
-              select: { displayName: true, bio: true, photoId: true },
+              select: { displayName: true, bio: true, photo: PHOTO_SELECT },
             }),
             this.prisma.galleryItem.findMany({
               orderBy: BY_SORT_ORDER,
-              select: { photoId: true },
+              select: { photo: PHOTO_SELECT },
             }),
             this.prisma.openingHours.findMany({
               orderBy: { weekday: 'asc' },
               select: { weekday: true, opensAt: true, closesAt: true },
             }),
+            this.prisma.photo.findMany({
+              where: {
+                id: {
+                  in: [salon.logoPhotoId, salon.heroPhotoId].filter(
+                    (id) => id !== null,
+                  ),
+                },
+              },
+              ...PHOTO_SELECT,
+            }),
           ]),
       );
+
+    const photo = (id: string | null) =>
+      photos.find((candidate) => candidate.id === id) ?? null;
 
     return {
       salon: {
@@ -102,8 +119,8 @@ export class PublicPagesService {
         email: salon.email,
         mapUrl: salon.mapUrl,
         accentColor: salon.accentColor,
-        logoPhotoId: salon.logoPhotoId,
-        heroPhotoId: salon.heroPhotoId,
+        logo: photo(salon.logoPhotoId),
+        hero: photo(salon.heroPhotoId),
       },
       sections: pageSections(salon.sections),
       categories: categories
@@ -122,7 +139,7 @@ export class PublicPagesService {
         .map((announcement) => ({
           title: announcement.title,
           body: announcement.body,
-          photoId: announcement.photoId,
+          photo: announcement.photo,
           showFrom: toCalendarDay(announcement.showFrom),
           showUntil: announcement.showUntil
             ? toCalendarDay(announcement.showUntil)
@@ -132,9 +149,9 @@ export class PublicPagesService {
       staff: staff.map((member) => ({
         displayName: member.displayName,
         bio: member.bio,
-        photoId: member.photoId,
+        photo: member.photo,
       })),
-      gallery: gallery.map((item) => ({ photoId: item.photoId })),
+      gallery: gallery.map((item) => item.photo),
       openingHours: openingHours.map((hours) => ({
         weekday: hours.weekday,
         opensAt: toClockTime(hours.opensAt),

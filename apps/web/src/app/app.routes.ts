@@ -5,6 +5,7 @@ import {
   guestGuard,
   roleGuard,
 } from './auth/auth.guards';
+import { publicPageResolver } from './public-page/public-page-data';
 
 // Every static top-level path must be in RESERVED_SLUGS (see app.routes.spec.ts),
 // and the ones rendered in the browser listed in app.routes.server.ts.
@@ -148,5 +149,17 @@ export const appRoutes: Route[] = [
           import('./admin/salon-details-page').then((m) => m.SalonDetailsPage),
       },
     ],
+  },
+  {
+    // The Wizytówka; every other top-level path is reserved, so it does not shadow one.
+    path: ':slug',
+    resolve: { page: publicPageResolver },
+    loadComponent: () =>
+      import('./public-page/public-page').then((m) => m.PublicPageView),
+  },
+  {
+    path: '**',
+    loadComponent: () =>
+      import('./public-page/status-pages').then((m) => m.NotFoundPage),
   },
 ];

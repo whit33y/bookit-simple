@@ -14,6 +14,17 @@ export interface OpeningHoursDay {
 /** `HH:mm`, 00:00 to 23:59. */
 export const CLOCK_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+/** Names of the weekdays in the UI, Monday first: `WEEKDAY_NAMES[weekday - 1]`. */
+export const WEEKDAY_NAMES = [
+  'Poniedziałek',
+  'Wtorek',
+  'Środa',
+  'Czwartek',
+  'Piątek',
+  'Sobota',
+  'Niedziela',
+] as const;
+
 /** Monday to Friday, the days "skopiuj na dni robocze" fills in. */
 export const WORKING_WEEKDAYS = [1, 2, 3, 4, 5] as const;
 

@@ -19,20 +19,11 @@ import {
   OPENING_HOURS_CLOSES_BEFORE_OPENS,
   OPENING_HOURS_INVALID_TIME,
   OpeningHoursDay,
+  WEEKDAY_NAMES,
   WORKING_WEEKDAYS,
 } from '@bookit/shared';
 import { errorMessage } from '../shared/error-message';
 import { OpeningHoursService } from './opening-hours.service';
-
-const WEEKDAYS = [
-  'Poniedziałek',
-  'Wtorek',
-  'Środa',
-  'Czwartek',
-  'Piątek',
-  'Sobota',
-  'Niedziela',
-];
 
 /** Hours a closed day gets when it is switched to open. */
 const DEFAULT_OPENS_AT = '09:00';
@@ -247,11 +238,11 @@ const dayForm = (): DayForm =>
 export class OpeningHoursPage implements OnInit {
   private readonly api = inject(OpeningHoursService);
 
-  protected readonly weekdays = WEEKDAYS;
+  protected readonly weekdays = WEEKDAY_NAMES;
   protected readonly invalidTime = OPENING_HOURS_INVALID_TIME;
   protected readonly closesBeforeOpens = OPENING_HOURS_CLOSES_BEFORE_OPENS;
   protected readonly form = new FormGroup({
-    days: new FormArray(WEEKDAYS.map(dayForm)),
+    days: new FormArray(WEEKDAY_NAMES.map(dayForm)),
   });
 
   protected readonly loaded = signal(false);

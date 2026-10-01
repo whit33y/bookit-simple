@@ -28,7 +28,7 @@ npx nx run-many -t serve -p api web
 - Konsola MinIO: http://localhost:9001 (login i hasło z `S3_ACCESS_KEY` / `S3_SECRET_KEY`)
 - E-maile (zaproszenia, reset hasła): http://localhost:8025
 
-Serwer SSR `web` pyta API o stare Adresy wizytówki (`301` na nowy) pod `API_INTERNAL_URL`, domyślnie `http://localhost:3000`. W produkcji ustaw ją na adres `api` w sieci wewnętrznej.
+Serwer SSR `web` pyta API o stare Adresy wizytówki (`301` na nowy) pod `API_INTERNAL_URL`, domyślnie `http://localhost:3000`. W produkcji ustaw ją na adres `api` w sieci wewnętrznej. Z tego samego adresu serwer SSR pobiera dane Wizytówki, a przeglądarka dostaje je w HTML-u (transfer cache) i nie pyta API drugi raz. Serwer SSR odpowiada tylko na hosty z listy (ochrona przed SSRF): w buildzie jest `localhost`, w produkcji ustaw `NG_ALLOWED_HOSTS` na domenę, np. `NG_ALLOWED_HOSTS=bookit.pl`. Za reverse proxy z TLS ustaw też `NG_TRUST_PROXY_HEADERS=x-forwarded-proto,x-forwarded-host`, inaczej serwer widzi adres `http://`: linki kanoniczne i Open Graph wyjdą z `http://`, a przeglądarka pobierze dane Wizytówki drugi raz. Serwer SSR nie kompresuje odpowiedzi, robi to reverse proxy przed nim (np. `encode gzip zstd` w Caddy). Bez kompresji Wizytówka spada w Lighthouse na telefonie poniżej 90 punktów za wydajność.
 
 Kontener `minio-init` tworzy bucket `bookit` i kończy pracę, więc w `docker compose ps -a` ma stan `exited (0)`. Brak zmiennej w `.env` zatrzymuje start `api` z komunikatem, której brakuje.
 
