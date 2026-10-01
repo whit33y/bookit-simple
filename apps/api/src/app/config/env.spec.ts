@@ -61,17 +61,34 @@ describe('validateEnv', () => {
 });
 
 describe('validateSeedEnv', () => {
-  it('needs only the database and the Administrator credentials', () => {
-    const { DATABASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD } = validEnv;
+  const seedEnv = {
+    DATABASE_URL: validEnv.DATABASE_URL,
+    ADMIN_EMAIL: validEnv.ADMIN_EMAIL,
+    ADMIN_PASSWORD: validEnv.ADMIN_PASSWORD,
+    S3_ENDPOINT: validEnv.S3_ENDPOINT,
+    S3_ACCESS_KEY: validEnv.S3_ACCESS_KEY,
+    S3_SECRET_KEY: validEnv.S3_SECRET_KEY,
+    S3_BUCKET: validEnv.S3_BUCKET,
+    SEED_PASSWORD: 'kora1234',
+  };
 
-    expect(
-      validateSeedEnv({ DATABASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD }),
-    ).toEqual({ DATABASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD });
+  it('needs the database, the Administrator, MinIO and the Personel password', () => {
+    expect(validateSeedEnv(seedEnv)).toEqual(seedEnv);
   });
 
   it('names a missing ADMIN_PASSWORD', () => {
-    const { ADMIN_PASSWORD: _, ...rest } = validEnv;
+    const { ADMIN_PASSWORD: _, ...rest } = seedEnv;
 
     expect(() => validateSeedEnv(rest)).toThrow(/ADMIN_PASSWORD: is missing/);
+  });
+
+  it('names a missing SEED_PASSWORD', () => {
+    const { SEED_PASSWORD: _, ...rest } = seedEnv;
+
+    expect(() => validateSeedEnv(rest)).toThrow(/SEED_PASSWORD: is missing/);
+  });
+
+  it('does not ask the api for SEED_PASSWORD', () => {
+    expect(validateEnv(validEnv)).not.toHaveProperty('SEED_PASSWORD');
   });
 });
