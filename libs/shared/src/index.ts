@@ -5,6 +5,7 @@ export * from './lib/auth';
 export * from './lib/calendar-day';
 export * from './lib/clients';
 export * from './lib/gallery';
+export * from './lib/holidays';
 export * from './lib/opening-hours';
 export * from './lib/phone';
 export * from './lib/photos';
