@@ -4,6 +4,8 @@ import {
   warsawDate,
   warsawDayBounds,
   warsawDayStart,
+  warsawInstant,
+  warsawTime,
 } from './calendar-day';
 
 describe('isCalendarDay', () => {
@@ -101,5 +103,34 @@ describe('addDays', () => {
     ['2026-10-01', -1, '2026-09-30'],
   ])('%s + %d = %s', (day, days, expected) => {
     expect(addDays(day, days)).toBe(expected);
+  });
+});
+
+describe('warsawInstant', () => {
+  it.each([
+    // Winter, UTC+1.
+    ['2026-01-15', '10:00', '2026-01-15T09:00:00.000Z'],
+    ['2026-01-15', '00:05', '2026-01-14T23:05:00.000Z'],
+    // Summer, UTC+2.
+    ['2026-07-01', '23:55', '2026-07-01T21:55:00.000Z'],
+    // The clocks go forward at 2:00 on the last Sunday of March...
+    ['2026-03-29', '01:30', '2026-03-29T00:30:00.000Z'],
+    ['2026-03-29', '10:00', '2026-03-29T08:00:00.000Z'],
+    // ...and back at 3:00 on the last Sunday of October.
+    ['2026-10-25', '01:00', '2026-10-24T23:00:00.000Z'],
+    ['2026-10-25', '10:00', '2026-10-25T09:00:00.000Z'],
+  ])('%s %s is %s', (day, clock, iso) => {
+    expect(warsawInstant(day, clock).toISOString()).toBe(iso);
+  });
+});
+
+describe('warsawTime', () => {
+  it.each([
+    ['2026-01-15T09:00:00Z', '10:00'],
+    ['2026-01-14T23:05:00Z', '00:05'],
+    ['2026-07-01T21:55:00Z', '23:55'],
+    ['2026-10-25T09:00:00Z', '10:00'],
+  ])('%s is %s in Warsaw', (iso, clock) => {
+    expect(warsawTime(iso)).toBe(clock);
   });
 });

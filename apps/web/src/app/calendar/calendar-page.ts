@@ -1,15 +1,19 @@
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { DatePipe } from '@angular/common';
 import {
   Component,
   computed,
   DestroyRef,
+  effect,
   inject,
   input,
   linkedSignal,
   resource,
   signal,
+  untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -19,12 +23,18 @@ import {
   addDays,
   CalendarDay,
   CalendarResponse,
+  CalendarVisit,
+  ClientView,
   isCalendarDay,
   warsawDate,
 } from '@bookit/shared';
+import { NEW_VISIT_CLIENT_PARAM } from '../clients/client-links';
+import { ClientsService } from '../clients/clients.service';
 import { errorMessage } from '../shared/error-message';
-import { CalendarDayGrid } from './calendar-day-grid';
+import { CalendarDayGrid, CalendarSlot } from './calendar-day-grid';
 import { CalendarService } from './calendar.service';
+import { openVisitCard } from './visit-card';
+import { openVisitDialog, VisitDialogData } from './visit-dialog';
 
 const PATH = '/panel/kalendarz';
 
@@ -37,7 +47,9 @@ const CLOCK_TICK_MS = 30 * 1000;
 
 /**
  * `/panel/kalendarz?dzien=YYYY-MM-DD`: the day view of the calendar, today without
- * `dzien`. The form and the card of a Wizyta come in #30, the phone view in #32.
+ * `dzien`. A click in an empty field opens the Wizyta form there, a click in a Wizyta
+ * its card; `?klient=<id>` (from the karta Klienta) opens the form with that Klient.
+ * The phone view comes in #32.
  */
 @Component({
   selector: 'app-calendar-page',
@@ -86,6 +98,15 @@ const CLOCK_TICK_MS = 30 * 1000;
           (change)="go($any($event.target).value)"
         />
       </mat-form-field>
+      <button
+        mat-flat-button
+        type="button"
+        [disabled]="!shown()"
+        (click)="newVisit({ day: day() })"
+      >
+        <mat-icon>add</mat-icon>
+        Nowa Wizyta
+      </button>
     </header>
 
     @if (error(); as message) {
@@ -97,6 +118,8 @@ const CLOCK_TICK_MS = 30 * 1000;
         [day]="shown.day"
         [calendar]="shown.calendar"
         [currentTime]="now()"
+        (slotClick)="pickSlot($event)"
+        (visitClick)="openCard($event)"
       />
     } @else {
       <mat-spinner diameter="32" aria-label="Wczytywanie" />
@@ -143,11 +166,18 @@ const CLOCK_TICK_MS = 30 * 1000;
 export class CalendarPage {
   private readonly api = inject(CalendarService);
   private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
+  private readonly breakpoints = inject(BreakpointObserver);
+  private readonly clients = inject(ClientsService);
 
   /** `?dzien=` */
   readonly dzien = input<string>();
+  /** `?klient=`: open the form with this Klient. */
+  readonly klient = input<string>();
 
   protected readonly path = PATH;
+  /** The `?klient=` the form was opened for, so a reload does not open it again. */
+  private openedFor: string | undefined;
   protected readonly now = signal(new Date());
 
   /** `?dzien=`, or today when it is missing or not a real day. */
@@ -194,6 +224,65 @@ export class CalendarPage {
   constructor() {
     const timer = setInterval(() => this.now.set(new Date()), CLOCK_TICK_MS);
     inject(DestroyRef).onDestroy(() => clearInterval(timer));
+
+    // The form needs the people of the calendar, so it waits for the first day.
+    effect(() => {
+      const id = this.klient();
+      if (id && id !== this.openedFor && this.shown()) {
+        this.openedFor = id;
+        untracked(() => this.newVisitFor(id));
+      }
+    });
+  }
+
+  protected pickSlot(slot: CalendarSlot): void {
+    void this.newVisit({
+      staffMemberId: slot.staffMemberId,
+      startsAt: slot.startsAt,
+    });
+  }
+
+  protected async newVisit(
+    data: Omit<VisitDialogData, 'staff'>,
+  ): Promise<void> {
+    const staff = this.shown()?.calendar.staff;
+    if (!staff) return;
+    const saved = await openVisitDialog(this.dialog, this.breakpoints, {
+      staff,
+      ...data,
+    });
+    if (saved) this.calendar.reload();
+  }
+
+  protected async openCard(visit: CalendarVisit): Promise<void> {
+    const staff = this.shown()?.calendar.staff ?? [];
+    const result = await openVisitCard(this.dialog, { visit, staff });
+    // The card saves changes of the Stan Wizyty itself.
+    if (!result) {
+      this.calendar.reload();
+      return;
+    }
+    const saved = await openVisitDialog(this.dialog, this.breakpoints, {
+      staff,
+      visit: result.edit,
+    });
+    if (saved) this.calendar.reload();
+  }
+
+  /** Takes `?klient=` off the address first, so going back does not open the form again. */
+  private async newVisitFor(clientId: string): Promise<void> {
+    void this.router.navigate([], {
+      queryParams: { [NEW_VISIT_CLIENT_PARAM]: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+    let client: ClientView | undefined;
+    try {
+      client = await this.clients.get(clientId);
+    } catch {
+      // A Klient removed meanwhile: the form opens without one.
+    }
+    await this.newVisit({ day: this.day(), client });
   }
 
   protected go(day: string): void {
