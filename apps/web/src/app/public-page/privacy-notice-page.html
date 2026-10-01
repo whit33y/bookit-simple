@@ -1,0 +1,34 @@
+@if (data(); as page) { @let salon = page.salon;
+<main class="wrap">
+  <a class="back" [href]="'/' + salon.slug">← {{ salon.name }}</a>
+  <h1>Polityka prywatności</h1>
+
+  <address class="salon">
+    <strong>{{ salon.name }}</strong>
+    @if (address()) {
+    <span>{{ address() }}</span>
+    } @if (salon.email; as email) {
+    <a [href]="'mailto:' + email">{{ email }}</a>
+    } @if (salon.phone; as phone) {
+    <a [href]="'tel:' + phone">{{ formatPhone(phone) }}</a>
+    }
+  </address>
+
+  @if (paragraphs().length) {
+  <div class="notice">
+    @for (paragraph of paragraphs(); track $index) {
+    <p>{{ paragraph }}</p>
+    }
+  </div>
+  } @else {
+  <p class="muted">
+    Salon nie dodał jeszcze klauzuli informacyjnej. Pytania o dane osobowe
+    możesz kierować bezpośrednio do Salonu.
+  </p>
+  }
+</main>
+} @else if (unavailable()) {
+<app-page-unavailable />
+} @else {
+<app-not-found-page />
+}

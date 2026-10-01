@@ -4,7 +4,7 @@ import { Meta, Title } from '@angular/platform-browser';
 import { photoUrl, PublicPage } from '@bookit/shared';
 import { pageDescription, salonJsonLd } from './page-text';
 
-/** `<head>` of the Wizytówka for Google and link previews: title, description, Open Graph, JSON-LD. */
+/** `<head>` of the Wizytówka and its subpages for Google and link previews. */
 @Injectable({ providedIn: 'root' })
 export class PageHead {
   private readonly title = inject(Title);
@@ -12,6 +12,7 @@ export class PageHead {
   private readonly document = inject(DOCUMENT);
   private readonly request = inject(REQUEST, { optional: true });
 
+  /** The Wizytówka: title, description, Open Graph, JSON-LD. */
   show(page: PublicPage): void {
     const { salon } = page;
     const origin = this.origin();
@@ -35,9 +36,7 @@ export class PageHead {
     this.setMeta('property', 'og:image:width', hero && `${hero.width}`);
     this.setMeta('property', 'og:image:height', hero && `${hero.height}`);
 
-    this.headElement('link', 'rel="canonical"', {
-      rel: 'canonical',
-    }).setAttribute('href', url);
+    this.setCanonical(url);
     // `<` escaped, so no text from the Salon can close the script tag.
     this.headElement('script', 'type="application/ld+json"', {
       type: 'application/ld+json',
@@ -45,6 +44,24 @@ export class PageHead {
       /</g,
       '\\u003c',
     );
+  }
+
+  /** `/:slug/prywatnosc`, the klauzula RODO: title, description and its own address. */
+  showPrivacyNotice(page: PublicPage): void {
+    const { salon } = page;
+    this.title.setTitle(`Polityka prywatności · ${salon.name}`);
+    this.setMeta(
+      'name',
+      'description',
+      `Klauzula informacyjna RODO dla Klientów Salonu ${salon.name}.`,
+    );
+    this.setCanonical(`${this.origin()}/${salon.slug}/prywatnosc`);
+  }
+
+  private setCanonical(url: string): void {
+    this.headElement('link', 'rel="canonical"', {
+      rel: 'canonical',
+    }).setAttribute('href', url);
   }
 
   /** Where the page is served: from the request on the server, the address bar in the browser. */
