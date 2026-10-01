@@ -52,6 +52,13 @@ export const appRoutes: Route[] = [
           import('./calendar/calendar-page').then((m) => m.CalendarPage),
       },
       {
+        path: 'kalendarz/tydzien',
+        title: 'Kalendarz · Bookit',
+        data: { view: 'week' },
+        loadComponent: () =>
+          import('./calendar/calendar-page').then((m) => m.CalendarPage),
+      },
+      {
         path: 'klienci',
         title: 'Klienci · Bookit',
         loadComponent: () =>

@@ -60,10 +60,11 @@ test('the day view fits four columns on 1280×800, marks an Święto and greys S
     'false',
   );
 
-  // The grey block after closing starts at the 15:00 line.
+  // The grey block after closing, in the last column, starts at the 15:00 line.
   const afterClosing = page.locator('.closed').last();
   const at15 = page.getByRole('button', { name: 'Natalia, 15:00' });
-  await expect(page.locator('.closed')).toHaveCount(2);
+  // Before opening and after closing, in each of the four columns.
+  await expect(page.locator('.closed')).toHaveCount(8);
   const [closedBox, slotBox] = await Promise.all([
     afterClosing.boundingBox(),
     at15.boundingBox(),

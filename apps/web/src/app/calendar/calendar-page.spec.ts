@@ -5,6 +5,7 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import localePl from '@angular/common/locales/pl';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { LOCALE_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
@@ -15,6 +16,7 @@ import { Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { of } from 'rxjs';
 import { CalendarResponse, CalendarVisit } from '@bookit/shared';
+import { personColumns, weekColumns } from './calendar-columns';
 import { CalendarDayGrid, CalendarSlot } from './calendar-day-grid';
 import { CalendarPage } from './calendar-page';
 import { MoveCollisionsDialog } from './move-collisions-dialog';
@@ -86,17 +88,51 @@ const CALENDAR: CalendarResponse = {
 const text = (el: Element | null | undefined) =>
   el?.textContent?.replace(/\s+/g, ' ').trim();
 
+/** A screen of a phone (below 768 px) or of a computer. */
+const screen = (phone: boolean) => ({
+  provide: BreakpointObserver,
+  useValue: {
+    observe: () => of({ matches: phone, breakpoints: {} }),
+    isMatched: () => phone,
+  },
+});
+
+/** A finger going `dx` px across the element. */
+function swipe(el: Element, dx: number): void {
+  const pointer = (type: string, x: number) => {
+    const event = new MouseEvent(type, {
+      bubbles: true,
+      clientX: x,
+      clientY: 300,
+    });
+    Object.defineProperty(event, 'pointerType', { value: 'touch' });
+    el.dispatchEvent(event);
+  };
+  pointer('pointerdown', 200);
+  pointer('pointerup', 200 + dx);
+}
+
 describe('CalendarPage', () => {
-  async function setup(url = `/panel/kalendarz?dzien=${DAY}`) {
+  afterEach(() => localStorage.clear());
+
+  async function setup(url = `/panel/kalendarz?dzien=${DAY}`, phone = false) {
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter(
-          [{ path: 'panel/kalendarz', component: CalendarPage }],
+          [
+            { path: 'panel/kalendarz', component: CalendarPage },
+            {
+              path: 'panel/kalendarz/tydzien',
+              component: CalendarPage,
+              data: { view: 'week' },
+            },
+          ],
           withComponentInputBinding(),
         ),
         { provide: LOCALE_ID, useValue: 'pl' },
+        screen(phone),
       ],
     });
     const http = TestBed.inject(HttpTestingController);
@@ -107,12 +143,16 @@ describe('CalendarPage', () => {
       await harness.fixture.whenStable();
       harness.detectChanges();
     };
-    const flush = async (day: string, body: CalendarResponse | null) => {
+    const flush = async (
+      day: string,
+      body: CalendarResponse | null,
+      to = day,
+    ) => {
       const req = http.expectOne(
         (r) =>
           r.url === '/api/calendar' &&
           r.params.get('from') === day &&
-          r.params.get('to') === day,
+          r.params.get('to') === to,
       );
       if (body) req.flush(body);
       else req.flush({ statusCode: 500 }, { status: 500, statusText: 'Error' });
@@ -259,12 +299,12 @@ describe('CalendarPage', () => {
           .triggerEventHandler('visitMove', move);
         page.harness.detectChanges();
       };
-      const label = () =>
-        page.el.querySelector('.visit')?.getAttribute('aria-label');
-      const column = () =>
-        page.el
-          .querySelector<HTMLElement>('.visit')
-          ?.style.getPropertyValue('grid-column');
+      const dragged = () =>
+        page.el.querySelector<HTMLElement>(
+          '.visit[aria-label*="Strzyżenie damskie"]',
+        );
+      const label = () => dragged()?.getAttribute('aria-label');
+      const column = () => dragged()?.style.getPropertyValue('grid-column');
       const patch = () =>
         page.http.expectOne(
           (r) => r.method === 'PATCH' && r.url === '/api/visits/v1',
@@ -355,6 +395,169 @@ describe('CalendarPage', () => {
     });
   });
 
+  describe('the week view', () => {
+    // Kasia's Nieobecność from Tuesday to Thursday.
+    const WEEK: CalendarResponse = {
+      ...CALENDAR,
+      absences: [
+        {
+          id: 'a2',
+          staffMemberId: 'kasia',
+          startsAt: '2026-11-09T23:00:00Z',
+          endsAt: '2026-11-12T23:00:00Z',
+          reason: 'Urlop',
+        },
+      ],
+    };
+
+    it('shows the seven days of ?osoba= from the Monday of ?od=', async () => {
+      const { el, flush } = await setup(
+        '/panel/kalendarz/tydzien?osoba=kasia&od=2026-11-11',
+      );
+      await flush('2026-11-09', WEEK, '2026-11-15');
+
+      expect(text(el.querySelector('h1'))).toBe('9–15 listopada 2026');
+      // The day view on a phone goes on with the same person.
+      expect(localStorage.getItem('bookit.calendar.osoba')).toBe('kasia');
+      const heads = [...el.querySelectorAll('.name')].map(text);
+      expect(heads).toHaveLength(7);
+      expect(heads[0]).toBe('pon., 9.11');
+      expect(heads[2]).toBe('śr., 11.11');
+      expect(text(el.querySelector('.column:nth-child(4) .holiday'))).toBe(
+        'Święto Niepodległości',
+      );
+      // Kasia's Wizyty are on Wednesday, the fourth grid column.
+      expect(
+        [...el.querySelectorAll<HTMLElement>('.visit')].map((v) =>
+          v.style.getPropertyValue('grid-column'),
+        ),
+      ).toEqual(['4', '4']);
+    });
+
+    it('shows a Nieobecność of several days on each of them', async () => {
+      const { el, flush } = await setup(
+        '/panel/kalendarz/tydzien?osoba=kasia&od=2026-11-09',
+      );
+      await flush('2026-11-09', WEEK, '2026-11-15');
+
+      const absences = [...el.querySelectorAll<HTMLElement>('.absence')];
+      expect(absences.map(text)).toEqual(['Urlop', 'Urlop', 'Urlop']);
+      expect(
+        absences.map((a) => a.style.getPropertyValue('grid-column')),
+      ).toEqual(['3', '4', '5']);
+    });
+
+    it('goes to the weeks before and after, and to the day view', async () => {
+      const { el, flush } = await setup(
+        '/panel/kalendarz/tydzien?osoba=kasia&od=2026-11-11',
+      );
+      await flush('2026-11-09', WEEK, '2026-11-15');
+
+      const link = (label: string) =>
+        el.querySelector(`a[aria-label="${label}"]`)?.getAttribute('href');
+      expect(link('Poprzedni tydzień')).toBe(
+        '/panel/kalendarz/tydzien?osoba=kasia&od=2026-11-02',
+      );
+      expect(link('Następny tydzień')).toBe(
+        '/panel/kalendarz/tydzien?osoba=kasia&od=2026-11-16',
+      );
+
+      [...el.querySelectorAll<HTMLButtonElement>('mat-button-toggle button')]
+        .find((b) => text(b) === 'Dzień')
+        ?.click();
+      await new Promise((r) => setTimeout(r));
+      expect(TestBed.inject(Router).url).toBe(
+        '/panel/kalendarz?dzien=2026-11-09',
+      );
+      await flush('2026-11-09', CALENDAR);
+    });
+
+    it('opens the form for the person of the week at the field clicked', async () => {
+      const { el, flush } = await setup(
+        '/panel/kalendarz/tydzien?osoba=kasia&od=2026-11-09',
+      );
+      await flush('2026-11-09', WEEK, '2026-11-15');
+      const open = vi
+        .spyOn(TestBed.inject(MatDialog), 'open')
+        .mockReturnValue({ afterClosed: () => of(undefined) } as never);
+
+      el.querySelector<HTMLButtonElement>(
+        'button[aria-label="piątek, 13 listopada, 9:15"]',
+      )?.click();
+
+      expect(open).toHaveBeenCalledWith(
+        VisitDialog,
+        expect.objectContaining({
+          data: {
+            staff: CALENDAR.staff,
+            staffMemberId: 'kasia',
+            startsAt: new Date('2026-11-13T08:15:00Z'),
+          },
+        }),
+      );
+    });
+  });
+
+  describe('on a phone', () => {
+    const heads = (el: HTMLElement) =>
+      [...el.querySelectorAll('.name')].map(text);
+
+    it('shows the day of the person picked last, and a swipe changes the person', async () => {
+      localStorage.setItem('bookit.calendar.osoba', 'kasia');
+      const { el, flush, harness } = await setup(undefined, true);
+      await flush(DAY, CALENDAR);
+      expect(heads(el)).toEqual(['Kasia']);
+
+      const area = el.querySelector('.swipe');
+      if (!area) throw new Error('No swipe area');
+      swipe(area, -120);
+      harness.detectChanges();
+      expect(heads(el)).toEqual(['Ola']);
+      expect(localStorage.getItem('bookit.calendar.osoba')).toBe('ola');
+
+      swipe(area, 120);
+      swipe(area, 120);
+      harness.detectChanges();
+      expect(heads(el)).toEqual(['Magda']);
+      // A short move is no swipe, and there is nobody before the first person.
+      swipe(area, 120);
+      swipe(area, -20);
+      harness.detectChanges();
+      expect(heads(el)).toEqual(['Magda']);
+    });
+
+    it('opens the form with the person shown at the next full quarter on "+"', async () => {
+      vi.useFakeTimers({
+        now: new Date('2026-11-11T08:07:00Z'),
+        toFake: ['Date'],
+      });
+      try {
+        const { el, flush } = await setup(undefined, true);
+        await flush(DAY, CALENDAR);
+        const open = vi
+          .spyOn(TestBed.inject(MatDialog), 'open')
+          .mockReturnValue({ afterClosed: () => of(undefined) } as never);
+
+        el.querySelector<HTMLButtonElement>(
+          'button[aria-label="Nowa Wizyta"]',
+        )?.click();
+
+        expect(open).toHaveBeenCalledWith(
+          VisitDialog,
+          expect.objectContaining({
+            data: {
+              staff: CALENDAR.staff,
+              staffMemberId: 'magda',
+              startsAt: new Date('2026-11-11T08:15:00Z'),
+            },
+          }),
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   it('shows the error of a failed load', async () => {
     const { el, flush } = await setup();
     await flush(DAY, null);
@@ -368,7 +571,10 @@ describe('CalendarPage', () => {
 describe('CalendarDayGrid', () => {
   function setup(day = DAY, calendar = CALENDAR) {
     const fixture = TestBed.createComponent(CalendarDayGrid);
-    fixture.componentRef.setInput('day', day);
+    fixture.componentRef.setInput(
+      'columns',
+      personColumns(calendar.staff, day),
+    );
     fixture.componentRef.setInput('calendar', calendar);
     fixture.componentRef.setInput(
       'currentTime',
@@ -436,16 +642,35 @@ describe('CalendarDayGrid', () => {
       absences: [],
     });
 
-    // 7:00–21:00 in minute rows: closed 7:00–9:00 and 15:00–21:00.
-    expect(
-      [...el.querySelectorAll<HTMLElement>('.closed')].map((c) =>
-        c.style.getPropertyValue('grid-row'),
-      ),
-    ).toEqual(['1 / span 120', '481 / span 360']);
+    // 7:00–21:00 in minute rows: closed 7:00–9:00 and 15:00–21:00 in each column.
+    const closed = [...el.querySelectorAll<HTMLElement>('.closed')].map(
+      (c) =>
+        `${c.style.getPropertyValue('grid-column')}: ${c.style.getPropertyValue('grid-row')}`,
+    );
+    expect(closed).toEqual(
+      ['2', '3', '4'].flatMap((column) => [
+        `${column}: 1 / span 120`,
+        `${column}: 481 / span 360`,
+      ]),
+    );
   });
 
   it('draws the line of the current hour only on today', () => {
-    expect(setup().el.querySelector('.now')).not.toBeNull();
+    expect(setup().el.querySelectorAll('.now')).toHaveLength(4);
     expect(setup('2026-11-12').el.querySelector('.now')).toBeNull();
+  });
+
+  it('draws the line of the current hour only in the column of today in a week', () => {
+    const { fixture, el } = setup();
+    fixture.componentRef.setInput(
+      'columns',
+      weekColumns(CALENDAR.staff[1], '2026-11-09', []),
+    );
+    fixture.detectChanges();
+
+    const lines = [...el.querySelectorAll<HTMLElement>('.now')];
+    expect(lines.map((l) => l.style.getPropertyValue('grid-column'))).toEqual([
+      '4',
+    ]);
   });
 });

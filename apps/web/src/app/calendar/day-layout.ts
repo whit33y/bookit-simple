@@ -92,9 +92,12 @@ const minutesOf = (clock: string): number => {
 };
 
 /** Real minutes from the midnight of `day` to the Warsaw clock time `clock` (`HH:mm`). */
-function minuteOfClock(day: CalendarDay, clock: string): number {
+const minuteOfClock = (day: CalendarDay, clock: string): number =>
+  minuteOfClockMin(day, minutesOf(clock));
+
+/** Like `minuteOfClock`, for a clock time in minutes; 24:00 is the next midnight. */
+function minuteOfClockMin(day: CalendarDay, naive: number): number {
   const midnight = warsawDayStart(day);
-  const naive = minutesOf(clock);
   const shift =
     warsawOffsetMin(new Date(midnight.getTime() + naive * MINUTE_MS)) -
     warsawOffsetMin(midnight);
@@ -142,6 +145,38 @@ export function dayRange(
     if (end < length) endMin = Math.max(endMin, ceilToSlot(end));
   }
   return { day, startMin, endMin };
+}
+
+/** The Warsaw clock time of real minute `minute` of `day`, in minutes; 24:00 at its end. */
+const clockMinOf = (day: CalendarDay, minute: number): number =>
+  minute >= dayLength(day)
+    ? 24 * 60
+    : minutesOf(
+        warsawClock(
+          new Date(warsawDayStart(day).getTime() + minute * MINUTE_MS),
+        ),
+      );
+
+/**
+ * The `dayRange` of every one of `days`, all grown to the same clock times, so the days
+ * can stand side by side in one grid (the week view). On the days the clocks change the
+ * night has an hour more or less, so a range crossing it has a different length.
+ */
+export function alignedRanges(
+  days: CalendarDay[],
+  visits: CalendarVisit[],
+  absences: AbsenceView[],
+): DayRange[] {
+  const ranges = days.map((day) => dayRange(day, visits, absences));
+  const startClock = Math.min(
+    ...ranges.map((r) => clockMinOf(r.day, r.startMin)),
+  );
+  const endClock = Math.max(...ranges.map((r) => clockMinOf(r.day, r.endMin)));
+  return days.map((day) => ({
+    day,
+    startMin: minuteOfClockMin(day, startClock),
+    endMin: minuteOfClockMin(day, endClock),
+  }));
 }
 
 /** The rows from minute `start` to `end` of the day, cut to the range; `null` when none. */

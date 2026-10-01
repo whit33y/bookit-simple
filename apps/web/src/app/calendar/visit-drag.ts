@@ -10,11 +10,13 @@ import { DayRange, MINUTE_MS, SLOT_MIN } from './day-layout';
 /** The shortest Czas trwania the handle leaves. */
 const MIN_DURATION = SLOT_MIN;
 
-/** A column of the grid a Wizyta can be dragged over. */
+/** A column of the grid a Wizyta can be dragged over: one person on one day. */
 export interface DragColumn {
-  id: string;
+  staffMemberId: string;
   /** An Usunięta osoba z Personelu takes no Wizyty. */
   deleted: boolean;
+  /** The hours of its day the grid shows, at the same clock times in every column. */
+  range: DayRange;
 }
 
 /** How far a dragged Wizyta went: in minutes and in columns. */
@@ -37,29 +39,33 @@ const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
 
 /**
- * `visit` moved by `shift`, kept inside the hours of `range` with its Przerwa. It
- * stays with its person over an Usunięta osoba or past the last column.
+ * `visit`, in column `from`, moved by `shift`: to the same row of the target column,
+ * kept inside its hours with the Przerwa. It stays in its column over an Usunięta osoba
+ * or past the last column.
  */
 export function movedVisit(
   visit: CalendarVisit,
   shift: DragShift,
+  from: number,
   columns: DragColumn[],
-  range: DayRange,
 ): CalendarVisit {
-  const from = columns.findIndex((c) => c.id === visit.staffMemberId);
-  const target = columns[from + shift.columns];
-  const midnight = warsawDayStart(range.day).getTime();
-  const start =
-    (new Date(visit.startsAt).getTime() - midnight) / MINUTE_MS + shift.minutes;
-  const latest = range.endMin - visit.durationMin - visit.breakMin;
-  const minute = clamp(start, range.startMin, Math.max(latest, range.startMin));
+  const source = columns[from];
+  const candidate = columns[from + shift.columns];
+  const target = candidate && !candidate.deleted ? candidate : source;
+  const sourceMidnight = warsawDayStart(source.range.day).getTime();
+  const row =
+    (new Date(visit.startsAt).getTime() - sourceMidnight) / MINUTE_MS -
+    source.range.startMin +
+    shift.minutes;
+  const { day, startMin, endMin } = target.range;
+  const latest = endMin - visit.durationMin - visit.breakMin;
+  const minute = clamp(startMin + row, startMin, Math.max(latest, startMin));
   return {
     ...visit,
-    staffMemberId:
-      from !== -1 && target && !target.deleted
-        ? target.id
-        : visit.staffMemberId,
-    startsAt: new Date(midnight + minute * MINUTE_MS).toISOString(),
+    staffMemberId: target.staffMemberId,
+    startsAt: new Date(
+      warsawDayStart(day).getTime() + minute * MINUTE_MS,
+    ).toISOString(),
   };
 }
 
