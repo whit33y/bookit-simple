@@ -8,8 +8,12 @@ import {
 import {
   CLIENT_PHONE_TAKEN,
   CLIENT_SEARCH_LIMIT,
+  CLIENT_VISITS_PAGE_SIZE,
   ClientPhoneTakenResponse,
   ClientView,
+  ClientVisitPage,
+  ClientVisitStats,
+  VisitState,
   DELETED_CLIENT_NAME,
   normalizeName,
   parsePhone,
@@ -20,10 +24,25 @@ import { ClsService } from 'nestjs-cls';
 import { Client, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SalonContext } from '../salon-context/salon-context';
-import { VisitChangeRecorder } from '../visit-changes/visit-change-recorder';
+import {
+  VisitChangeRecorder,
+  visitDetailsInclude,
+} from '../visit-changes/visit-change-recorder';
+import { toVisitView } from '../visits/visits.service';
 import type { ClientChanges, ClientFields } from './clients.controller';
 
 type Db = Pick<PrismaService, 'client'>;
+
+/** The person is shown also after her removal: only her name is left. */
+const withStaffMember = {
+  ...visitDetailsInclude,
+  staffMember: { select: { displayName: true, deletedAt: true } },
+} satisfies Prisma.VisitInclude;
+
+const newestFirst = [
+  { startsAt: 'desc' },
+  { id: 'desc' },
+] satisfies Prisma.VisitOrderByWithRelationInput[];
 
 const toView = (client: Client): ClientView => ({
   id: client.id,
@@ -81,6 +100,35 @@ export class ClientsService {
 
   async get(id: string): Promise<ClientView> {
     return toView(await this.find(this.prisma, id));
+  }
+
+  /** `404` for a deleted Klient: the karta is gone with them. */
+  async visits(id: string, page: number): Promise<ClientVisitPage> {
+    await this.find(this.prisma, id);
+    const where = { clientId: id } satisfies Prisma.VisitWhereInput;
+    const [visits, stats] = await Promise.all([
+      this.prisma.visit.findMany({
+        where,
+        include: withStaffMember,
+        orderBy: newestFirst,
+        skip: (page - 1) * CLIENT_VISITS_PAGE_SIZE,
+        take: CLIENT_VISITS_PAGE_SIZE,
+      }),
+      this.visitStats(id),
+    ]);
+    return {
+      items: visits.map((visit) => ({
+        ...toVisitView(visit),
+        staffMember: {
+          displayName: visit.staffMember.displayName,
+          deleted: visit.staffMember.deletedAt !== null,
+        },
+      })),
+      page,
+      pageSize: CLIENT_VISITS_PAGE_SIZE,
+      total: stats.visits,
+      stats,
+    };
   }
 
   async create(fields: ClientFields): Promise<ClientView> {
@@ -154,6 +202,29 @@ export class ClientsService {
         },
       });
     });
+  }
+
+  private async visitStats(clientId: string): Promise<ClientVisitStats> {
+    const [byState, last] = await Promise.all([
+      this.prisma.visit.groupBy({
+        by: ['state'],
+        where: { clientId },
+        _count: { _all: true },
+      }),
+      this.prisma.visit.findFirst({
+        where: { clientId, state: 'SCHEDULED', startsAt: { lte: new Date() } },
+        orderBy: newestFirst,
+        select: { startsAt: true },
+      }),
+    ]);
+    const count = (state: VisitState) =>
+      byState.find((group) => group.state === state)?._count._all ?? 0;
+    return {
+      visits: byState.reduce((sum, group) => sum + group._count._all, 0),
+      cancelled: count('CANCELLED'),
+      noShow: count('NO_SHOW'),
+      lastVisitAt: last?.startsAt.toISOString() ?? null,
+    };
   }
 
   /** `404` for a Klient of another Salon or a deleted one. */

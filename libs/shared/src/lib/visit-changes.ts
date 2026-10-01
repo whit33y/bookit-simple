@@ -85,6 +85,11 @@ function warsawParts(iso: string): { day: string; time: string } {
   };
 }
 
+/** `5.10.2026` in Europe/Warsaw. */
+export function formatWarsawDate(iso: string): string {
+  return warsawParts(iso).day;
+}
+
 /** `5.10.2026, 14:00` */
 export function formatWarsawDateTime(iso: string): string {
   const { day, time } = warsawParts(iso);

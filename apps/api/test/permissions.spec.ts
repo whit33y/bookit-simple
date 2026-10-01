@@ -158,6 +158,7 @@ const MATRIX: Row[] = [
   // T23: the Kartoteka Klientów (empty bodies and an unknown id, so nothing changes)
   ['GET', '/api/clients?q=anna', ['OWNER', 'EMPLOYEE']],
   ['GET', `/api/clients/${UNKNOWN_ID}`, ['OWNER', 'EMPLOYEE']],
+  ['GET', `/api/clients/${UNKNOWN_ID}/visits`, ['OWNER', 'EMPLOYEE']],
   ['POST', '/api/clients', ['OWNER', 'EMPLOYEE']],
   ['PATCH', `/api/clients/${UNKNOWN_ID}`, ['OWNER', 'EMPLOYEE']],
   ['DELETE', `/api/clients/${UNKNOWN_ID}`, ['OWNER']],

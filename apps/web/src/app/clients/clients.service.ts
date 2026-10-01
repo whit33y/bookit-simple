@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import {
   ClientView,
+  ClientVisitPage,
   CreateClientRequest,
   UpdateClientRequest,
 } from '@bookit/shared';
@@ -58,6 +59,20 @@ export class ClientsService {
           ),
         ),
       ),
+    );
+  }
+
+  /** `404` for a deleted Klient. */
+  get(id: string): Promise<ClientView> {
+    return firstValueFrom(this.http.get<ClientView>(`${URL}/${id}`));
+  }
+
+  /** The karta Klienta: every Wizyta, newest first; `page` counts from 1. */
+  visits(id: string, page: number): Promise<ClientVisitPage> {
+    return firstValueFrom(
+      this.http.get<ClientVisitPage>(`${URL}/${id}/visits`, {
+        params: { page },
+      }),
     );
   }
 

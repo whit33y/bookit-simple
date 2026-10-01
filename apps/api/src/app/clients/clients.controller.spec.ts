@@ -9,6 +9,8 @@ import {
   CLIENT_NOTES_TOO_LONG,
   CLIENT_PHONE_TAKEN,
   CLIENT_SEARCH_LIMIT,
+  CLIENT_VISITS_PAGE_INVALID,
+  CLIENT_VISITS_PAGE_SIZE,
   ClientView,
   DELETED_CLIENT_NAME,
   PHONE_INVALID,
@@ -82,7 +84,7 @@ describe('Kartoteka Klientów', () => {
     staffMemberId: string,
     clientId: string,
     startsAt: Date,
-    state: 'SCHEDULED' | 'CANCELLED' = 'SCHEDULED',
+    state: 'SCHEDULED' | 'CANCELLED' | 'NO_SHOW' = 'SCHEDULED',
   ) {
     return raw.visit.create({
       data: {
@@ -414,6 +416,223 @@ describe('Kartoteka Klientów', () => {
       expect(
         await raw.client.findUniqueOrThrow({ where: { id: foreign.id } }),
       ).toMatchObject({ name: 'Obca' });
+    });
+  });
+
+  describe('GET /api/clients/:id/visits', () => {
+    const hour = 60 * 60 * 1000;
+    const hoursFromNow = (hours: number) => new Date(Date.now() + hours * hour);
+
+    it('lists every Wizyta newest first, with its Usługi from the snapshot, and counts them', async () => {
+      const { salon, owner, asEmployee } = await salonWithStaff();
+      const client = await addClient(salon.id, 'Łucja');
+      const category = await raw.serviceCategory.create({
+        data: { salonId: salon.id, name: `Strzyżenie ${unique()}` },
+      });
+      const service = await raw.service.create({
+        data: {
+          salonId: salon.id,
+          categoryId: category.id,
+          name: 'Strzyżenie damskie',
+          priceGrosze: 12000,
+          priceType: 'FROM',
+          durationMin: 60,
+        },
+      });
+      const lastDone = await addVisit(
+        salon.id,
+        owner.id,
+        client.id,
+        hoursFromNow(-24),
+      );
+      await raw.visitService.create({
+        data: {
+          visitId: lastDone.id,
+          serviceId: service.id,
+          nameSnapshot: 'Strzyżenie (stara nazwa)',
+          priceGroszeSnapshot: 10000,
+          priceTypeSnapshot: 'FIXED',
+        },
+      });
+      const future = await addVisit(
+        salon.id,
+        owner.id,
+        client.id,
+        hoursFromNow(48),
+      );
+      const cancelled1 = await addVisit(
+        salon.id,
+        owner.id,
+        client.id,
+        hoursFromNow(-48),
+        'CANCELLED',
+      );
+      const cancelled2 = await addVisit(
+        salon.id,
+        owner.id,
+        client.id,
+        hoursFromNow(24),
+        'CANCELLED',
+      );
+      const noShow = await addVisit(
+        salon.id,
+        owner.id,
+        client.id,
+        hoursFromNow(-72),
+        'NO_SHOW',
+      );
+      const older = await addVisit(
+        salon.id,
+        owner.id,
+        client.id,
+        hoursFromNow(-96),
+      );
+      const someoneElse = await addClient(salon.id, 'Marta');
+      await addVisit(salon.id, owner.id, someoneElse.id, hoursFromNow(-1));
+
+      const res = await asEmployee
+        .get(`${URL}/${client.id}/visits`)
+        .expect(200);
+
+      expect(res.body).toMatchObject({
+        page: 1,
+        pageSize: CLIENT_VISITS_PAGE_SIZE,
+        total: 6,
+        stats: {
+          visits: 6,
+          cancelled: 2,
+          noShow: 1,
+          lastVisitAt: lastDone.startsAt.toISOString(),
+        },
+      });
+      expect(res.body.items.map((v: { id: string }) => v.id)).toEqual([
+        future.id,
+        cancelled2.id,
+        lastDone.id,
+        cancelled1.id,
+        noShow.id,
+        older.id,
+      ]);
+      expect(res.body.items[2]).toEqual({
+        id: lastDone.id,
+        staffMemberId: owner.id,
+        clientId: client.id,
+        startsAt: lastDone.startsAt.toISOString(),
+        durationMin: 60,
+        breakMin: 0,
+        description: 'Strzyżenie',
+        state: 'SCHEDULED',
+        services: [
+          {
+            serviceId: service.id,
+            name: 'Strzyżenie (stara nazwa)',
+            priceGrosze: 10000,
+            priceType: 'FIXED',
+          },
+        ],
+        createdById: owner.id,
+        updatedById: owner.id,
+        staffMember: { displayName: 'OWNER', deleted: false },
+      });
+    });
+
+    it('shows the name of an Usunięta osoba z Personelu', async () => {
+      const { salon, asOwner } = await salonWithStaff();
+      const client = await addClient(salon.id, 'Ola');
+      const removed = await raw.staffMember.create({
+        data: {
+          salonId: salon.id,
+          role: 'EMPLOYEE',
+          displayName: 'Kasia',
+          acceptsVisits: false,
+          deletedAt: new Date(),
+        },
+      });
+      await addVisit(salon.id, removed.id, client.id, hoursFromNow(-24));
+
+      const res = await asOwner.get(`${URL}/${client.id}/visits`).expect(200);
+
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].staffMember).toEqual({
+        displayName: 'Kasia',
+        deleted: true,
+      });
+    });
+
+    it('pages newest first, with the stats of all Wizyty on every page', async () => {
+      const { salon, owner, asEmployee } = await salonWithStaff();
+      const client = await addClient(salon.id, 'Ola');
+      const count = CLIENT_VISITS_PAGE_SIZE + 1;
+      for (let i = 1; i <= count; i++) {
+        await addVisit(salon.id, owner.id, client.id, hoursFromNow(-i));
+      }
+
+      const first = await asEmployee
+        .get(`${URL}/${client.id}/visits`)
+        .query({ page: '1' })
+        .expect(200);
+      const second = await asEmployee
+        .get(`${URL}/${client.id}/visits`)
+        .query({ page: '2' })
+        .expect(200);
+
+      expect(first.body.items).toHaveLength(CLIENT_VISITS_PAGE_SIZE);
+      expect(second.body).toMatchObject({ page: 2, total: count });
+      expect(second.body.items).toHaveLength(1);
+      expect(second.body.stats).toEqual(first.body.stats);
+      expect(new Date(second.body.items[0].startsAt).getTime()).toBeLessThan(
+        new Date(first.body.items.at(-1).startsAt).getTime(),
+      );
+    });
+
+    it('has empty stats for a Klient without Wizyty', async () => {
+      const { salon, asEmployee } = await salonWithStaff();
+      const client = await addClient(salon.id, 'Ola');
+
+      const res = await asEmployee
+        .get(`${URL}/${client.id}/visits`)
+        .expect(200);
+
+      expect(res.body).toEqual({
+        items: [],
+        page: 1,
+        pageSize: CLIENT_VISITS_PAGE_SIZE,
+        total: 0,
+        stats: { visits: 0, cancelled: 0, noShow: 0, lastVisitAt: null },
+      });
+    });
+
+    it.each(['0', '-1', '1.5', 'abc'])(
+      'answers 400 for page=%j',
+      async (page) => {
+        const { salon, asEmployee } = await salonWithStaff();
+        const client = await addClient(salon.id, 'Ola');
+
+        const res = await asEmployee
+          .get(`${URL}/${client.id}/visits`)
+          .query({ page })
+          .expect(400);
+
+        expect(res.body.message).toBe(CLIENT_VISITS_PAGE_INVALID);
+      },
+    );
+
+    it('answers 404 for a Klient of another Salon or a deleted one', async () => {
+      const { salon, asEmployee } = await salonWithStaff();
+      const deleted = await addClient(salon.id, DELETED_CLIENT_NAME, {
+        deletedAt: new Date(),
+      });
+      const other = await salonWithStaff();
+      const foreign = await addClient(other.salon.id, 'Obca');
+      await addVisit(
+        other.salon.id,
+        other.owner.id,
+        foreign.id,
+        hoursFromNow(-1),
+      );
+
+      await asEmployee.get(`${URL}/${deleted.id}/visits`).expect(404);
+      await asEmployee.get(`${URL}/${foreign.id}/visits`).expect(404);
     });
   });
 

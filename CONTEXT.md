@@ -71,7 +71,7 @@ Czas po Wizycie, w którym Pracownik sprząta lub przygotowuje stanowisko. Zajmu
 _Avoid_: bufor, sprzątanie, zapas
 
 **Stan Wizyty**:
-Zaplanowana, Odwołana (Klient odwołał, Wizyta zostaje w historii) albo Nieodbyta (Klient nie przyszedł). Zaplanowana Wizyta z przeszłości to Wizyta, która się odbyła.
+Zaplanowana, Odwołana (Klient odwołał, Wizyta zostaje w historii) albo Nieodbyta (Klient nie przyszedł). Zaplanowana Wizyta z przeszłości to Wizyta, która się odbyła. Na karcie Klienta ma stan "Odbyta".
 _Avoid_: status, anulowana, no-show
 
 **Historia zmian**:
