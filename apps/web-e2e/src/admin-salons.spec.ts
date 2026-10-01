@@ -56,11 +56,8 @@ test('the Administrator creates a Salon, and its Właściciel accepts the invita
   await owner.getByLabel('Powtórz hasło').fill(PASSWORD);
   await owner.getByRole('button', { name: 'Ustaw hasło' }).click();
 
-  await expect(owner).toHaveURL('/panel');
-  await expect(owner.getByRole('heading', { name: 'Kalendarz' })).toBeVisible();
-  await expect(
-    owner.getByText('Ta sekcja jest w przygotowaniu.'),
-  ).toBeVisible();
+  await expect(owner).toHaveURL('/panel/kalendarz');
+  await expect(owner).toHaveTitle('Kalendarz · Bookit');
   await expect(owner.getByText(salon.salonName)).toBeVisible();
 });
 
@@ -103,9 +100,7 @@ test('suspending a Salon logs its Personel out until the Administrator resumes i
   const ownerPage = await (await browser.newContext()).newPage();
   const owner = await loggedInOwner(ownerPage.request);
   await ownerPage.goto('/panel');
-  await expect(
-    ownerPage.getByRole('heading', { name: 'Kalendarz' }),
-  ).toBeVisible();
+  await expect(ownerPage).toHaveTitle('Kalendarz · Bookit');
 
   await logInAsAdministrator(page);
   await page.getByLabel('Szukaj po nazwie').fill(owner.salonName);
@@ -138,7 +133,7 @@ test('suspending a Salon logs its Personel out until the Administrator resumes i
   await expect(page.getByRole('status')).toContainText('znów aktywny');
 
   await logIn();
-  await expect(ownerPage).toHaveURL('/panel');
+  await expect(ownerPage).toHaveURL('/panel/kalendarz');
 });
 
 test('changing the Adres wizytówki warns about the redirect, and the old address answers 301', async ({

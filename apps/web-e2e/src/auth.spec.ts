@@ -21,15 +21,15 @@ test('an invited person sets a password, lands in the panel, logs out and logs i
   await page.getByLabel('Powtórz hasło').fill(PASSWORD);
   await page.getByRole('button', { name: 'Ustaw hasło' }).click();
 
-  await expect(page).toHaveURL('/panel');
-  await expect(page.getByRole('heading', { name: 'Kalendarz' })).toBeVisible();
+  await expect(page).toHaveURL('/panel/kalendarz');
+  await expect(page).toHaveTitle('Kalendarz · Bookit');
 
   await page.getByRole('button', { name: 'Konto' }).click();
   await page.getByRole('menuitem', { name: 'Wyloguj się' }).click();
   await expect(page).toHaveURL('/logowanie');
 
   await logIn(page, owner.email, PASSWORD);
-  await expect(page).toHaveURL('/panel');
+  await expect(page).toHaveURL('/panel/kalendarz');
   await expect(page.getByText(owner.salonName)).toBeVisible();
 });
 
@@ -76,7 +76,7 @@ test('resets the password through the link from Mailpit', async ({ page }) => {
   );
 
   await logIn(page, owner.email, newPassword);
-  await expect(page).toHaveURL('/panel');
+  await expect(page).toHaveURL('/panel/kalendarz');
 });
 
 test('entering /panel without a session redirects to /logowanie', async ({

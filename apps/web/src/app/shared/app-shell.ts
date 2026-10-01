@@ -11,8 +11,6 @@ export interface NavItem {
   icon: string;
   label: string;
   link: string;
-  /** Active only on this exact URL, e.g. `/panel` and not `/panel/klienci`. */
-  exact?: boolean;
 }
 
 /**
@@ -37,7 +35,11 @@ export interface NavItem {
         <span class="title">{{ title() }}</span>
         <span class="grow"></span>
         <span class="who">{{ userName() }}</span>
-        <button mat-icon-button [matMenuTriggerFor]="account" aria-label="Konto">
+        <button
+          mat-icon-button
+          [matMenuTriggerFor]="account"
+          aria-label="Konto"
+        >
           <mat-icon>account_circle</mat-icon>
         </button>
         <mat-menu #account="matMenu" xPosition="before">
@@ -57,7 +59,6 @@ export interface NavItem {
               [routerLink]="item.link"
               routerLinkActive
               #rla="routerLinkActive"
-              [routerLinkActiveOptions]="{ exact: !!item.exact }"
               [activated]="rla.isActive"
               [attr.aria-current]="rla.isActive ? 'page' : null"
             >
@@ -79,7 +80,6 @@ export interface NavItem {
             [routerLink]="item.link"
             routerLinkActive="active"
             #rla="routerLinkActive"
-            [routerLinkActiveOptions]="{ exact: !!item.exact }"
             [attr.aria-current]="rla.isActive ? 'page' : null"
           >
             <mat-icon aria-hidden="true">{{ item.icon }}</mat-icon>

@@ -4,7 +4,7 @@ import { AuthService } from '../auth/auth.service';
 import { AppShell, NavItem } from '../shared/app-shell';
 
 const STAFF_NAV: NavItem[] = [
-  { icon: 'calendar_month', label: 'Kalendarz', link: '/panel', exact: true },
+  { icon: 'calendar_month', label: 'Kalendarz', link: '/panel/kalendarz' },
   { icon: 'group', label: 'Klienci', link: '/panel/klienci' },
 ];
 const OWNER_NAV: NavItem[] = [
