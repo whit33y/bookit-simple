@@ -151,6 +151,14 @@ export const appRoutes: Route[] = [
     ],
   },
   {
+    path: ':slug/prywatnosc',
+    resolve: { page: publicPageResolver },
+    loadComponent: () =>
+      import('./public-page/privacy-notice-page').then(
+        (m) => m.PrivacyNoticePage,
+      ),
+  },
+  {
     // The Wizytówka; every other top-level path is reserved, so it does not shadow one.
     path: ':slug',
     resolve: { page: publicPageResolver },

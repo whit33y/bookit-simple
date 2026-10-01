@@ -25,6 +25,15 @@ export function onAccentColor(accent: string): '#ffffff' | '#000000' {
   return onWhite >= onBlack ? '#ffffff' : '#000000';
 }
 
+/** Plain text from the Właściciel in paragraphs, split on blank lines; no HTML. */
+export function paragraphs(text: string | null): string[] {
+  return (text ?? '')
+    .replace(/\r\n?/g, '\n')
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+}
+
 const DESCRIPTION_MAX_LENGTH = 160;
 
 /** `<meta name="description">`: O nas on one line, at most 160 characters, cut on a word. */

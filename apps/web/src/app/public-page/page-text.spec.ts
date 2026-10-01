@@ -4,6 +4,7 @@ import {
   metaDescription,
   onAccentColor,
   pageDescription,
+  paragraphs,
   salonJsonLd,
   warsawWeekday,
 } from './page-text';
@@ -18,6 +19,27 @@ describe('onAccentColor', () => {
     ['#7fdbff', '#000000'],
   ])('puts readable text on %s', (accent, text) => {
     expect(onAccentColor(accent)).toBe(text);
+  });
+});
+
+describe('paragraphs', () => {
+  it('splits plain text on blank lines', () => {
+    expect(paragraphs('Pierwszy.\n\n  \nDrugi,\ndwie linie.\n')).toEqual([
+      'Pierwszy.',
+      'Drugi,\ndwie linie.',
+    ]);
+  });
+
+  it('accepts Windows line endings', () => {
+    expect(paragraphs('Pierwszy.\r\n\r\nDrugi.')).toEqual([
+      'Pierwszy.',
+      'Drugi.',
+    ]);
+  });
+
+  it('is empty without text', () => {
+    expect(paragraphs(null)).toEqual([]);
+    expect(paragraphs(' \n\n ')).toEqual([]);
   });
 });
 

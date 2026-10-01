@@ -17,8 +17,9 @@ describe('appRoutes', () => {
     );
   });
 
-  it('ends with the Wizytówka, then a 404 page for any other address', () => {
-    expect(appRoutes.slice(-2).map((route) => route.path)).toEqual([
+  it('ends with the Wizytówka and its klauzula RODO, then a 404 page for any other address', () => {
+    expect(appRoutes.slice(-3).map((route) => route.path)).toEqual([
+      ':slug/prywatnosc',
       ':slug',
       '**',
     ]);
