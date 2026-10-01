@@ -39,12 +39,12 @@ test('the Właściciel invites a Pracownik, who accepts the invitation, does not
   await employee.getByLabel('Powtórz hasło').fill(PASSWORD);
   await employee.getByRole('button', { name: 'Ustaw hasło' }).click();
 
-  await expect(employee).toHaveURL('/panel');
+  await expect(employee).toHaveURL('/panel/kalendarz');
   const menu = employee.getByRole('navigation', { name: 'Menu boczne' });
   await expect(menu.getByRole('link', { name: 'Kalendarz' })).toBeVisible();
   await expect(menu.getByRole('link', { name: 'Ustawienia' })).toHaveCount(0);
   await employee.goto('/panel/ustawienia/personel');
-  await expect(employee).toHaveURL('/panel');
+  await expect(employee).toHaveURL('/panel/kalendarz');
 
   await page.reload();
   await expect(row).toContainText('Przyjęte');

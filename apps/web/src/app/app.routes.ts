@@ -6,9 +6,6 @@ import {
   roleGuard,
 } from './auth/auth.guards';
 
-const placeholder = () =>
-  import('./shared/placeholder-page').then((m) => m.PlaceholderPage);
-
 // Every static top-level path must be in RESERVED_SLUGS (see app.routes.spec.ts),
 // and the ones rendered in the browser listed in app.routes.server.ts.
 export const appRoutes: Route[] = [
@@ -46,11 +43,12 @@ export const appRoutes: Route[] = [
     loadComponent: () =>
       import('./panel/panel-layout').then((m) => m.PanelLayout),
     children: [
+      { path: '', pathMatch: 'full', redirectTo: 'kalendarz' },
       {
-        path: '',
+        path: 'kalendarz',
         title: 'Kalendarz · Bookit',
-        data: { heading: 'Kalendarz' },
-        loadComponent: placeholder,
+        loadComponent: () =>
+          import('./calendar/calendar-page').then((m) => m.CalendarPage),
       },
       {
         path: 'klienci',
