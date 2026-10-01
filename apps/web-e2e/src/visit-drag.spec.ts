@@ -169,6 +169,9 @@ test.describe('on a phone', () => {
     });
 
     await page.goto(`/panel/kalendarz?dzien=${DAY}`);
+    // A phone shows one person at a time.
+    await page.getByRole('combobox', { name: 'Osoba' }).click();
+    await page.getByRole('option', { name: 'Kasia' }).click();
     await expect(visitOf(page)).toHaveAccessibleName(/^10:00–10:45/);
     await expect(visitOf(page)).toHaveClass(/cdk-drag-disabled/);
     await expect(page.locator('.resize')).toHaveCount(0);

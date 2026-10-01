@@ -5,6 +5,7 @@ import {
   OpeningHoursDay,
 } from '@bookit/shared';
 import {
+  alignedRanges,
   closedBlocks,
   dayColumns,
   dayRange,
@@ -117,6 +118,49 @@ describe('dayRange', () => {
       startMin: 8 * 60,
       endMin: 22 * 60,
     });
+  });
+});
+
+describe('alignedRanges', () => {
+  it('is the dayRange of a single day', () => {
+    const visits = [visit('v1', '2026-10-05T04:30:00Z', 60)];
+    expect(alignedRanges([DAY], visits, [])).toEqual([
+      dayRange(DAY, visits, []),
+    ]);
+  });
+
+  it('grows every day to the earliest start and the latest end of the week', () => {
+    // 6:30 on Tuesday and until 22:00 on Thursday.
+    const visits = [
+      visit('v1', '2026-10-06T04:30:00Z', 60),
+      visit('v2', '2026-10-08T19:00:00Z', 60),
+    ];
+    expect(
+      alignedRanges(['2026-10-05', '2026-10-06', '2026-10-08'], visits, []),
+    ).toEqual(
+      ['2026-10-05', '2026-10-06', '2026-10-08'].map((day) => ({
+        day,
+        startMin: 6 * 60 + 30,
+        endMin: 22 * 60,
+      })),
+    );
+  });
+
+  it('keeps the clock times on the day the clocks go back', () => {
+    // Saturday until 21:30; on Sunday 25 October 7:00 is 8 hours after midnight.
+    const visits = [visit('v1', '2026-10-24T18:30:00Z', 60)];
+    expect(alignedRanges(['2026-10-24', '2026-10-25'], visits, [])).toEqual([
+      { day: '2026-10-24', startMin: 7 * 60, endMin: 21 * 60 + 30 },
+      { day: '2026-10-25', startMin: 8 * 60, endMin: 22 * 60 + 30 },
+    ]);
+  });
+
+  it('runs to midnight when a Wizyta goes past it', () => {
+    const visits = [visit('v1', '2026-10-05T21:30:00Z', 60)];
+    expect(alignedRanges([DAY, '2026-10-06'], visits, [])).toEqual([
+      { day: DAY, startMin: 0, endMin: 24 * 60 },
+      { day: '2026-10-06', startMin: 0, endMin: 24 * 60 },
+    ]);
   });
 });
 

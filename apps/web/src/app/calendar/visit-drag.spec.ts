@@ -1,5 +1,5 @@
 import { CalendarResponse, CalendarVisit } from '@bookit/shared';
-import { dayRange } from './day-layout';
+import { alignedRanges, dayRange } from './day-layout';
 import {
   DragColumn,
   movedVisit,
@@ -30,9 +30,9 @@ const DAY = '2026-11-11';
 // 7:00–21:00.
 const RANGE = dayRange(DAY, [], []);
 const COLUMNS: DragColumn[] = [
-  { id: 'kasia', deleted: false },
-  { id: 'ola', deleted: false },
-  { id: 'ewa', deleted: true },
+  { staffMemberId: 'kasia', deleted: false, range: RANGE },
+  { staffMemberId: 'ola', deleted: false, range: RANGE },
+  { staffMemberId: 'ewa', deleted: true, range: RANGE },
 ];
 
 describe('snapMinutes', () => {
@@ -53,7 +53,7 @@ describe('snapMinutes', () => {
 describe('movedVisit', () => {
   it('moves a Wizyta in time and to another column', () => {
     expect(
-      movedVisit(visit(), { minutes: 60, columns: 1 }, COLUMNS, RANGE),
+      movedVisit(visit(), { minutes: 60, columns: 1 }, 0, COLUMNS),
     ).toMatchObject({
       staffMemberId: 'ola',
       startsAt: '2026-11-11T10:00:00.000Z',
@@ -63,32 +63,29 @@ describe('movedVisit', () => {
 
   it('keeps the person when moved over an Usunięta osoba or past the last column', () => {
     expect(
-      movedVisit(visit(), { minutes: 0, columns: 2 }, COLUMNS, RANGE)
-        .staffMemberId,
+      movedVisit(visit(), { minutes: 0, columns: 2 }, 0, COLUMNS).staffMemberId,
     ).toBe('kasia');
     expect(
       movedVisit(
         visit({ staffMemberId: 'ola' }),
         { minutes: 0, columns: 5 },
+        1,
         COLUMNS,
-        RANGE,
       ).staffMemberId,
     ).toBe('ola');
     expect(
-      movedVisit(visit(), { minutes: 0, columns: -3 }, COLUMNS, RANGE)
+      movedVisit(visit(), { minutes: 0, columns: -3 }, 0, COLUMNS)
         .staffMemberId,
     ).toBe('kasia');
   });
 
   it('stays inside the hours of the grid', () => {
     expect(
-      movedVisit(visit(), { minutes: -600, columns: 0 }, COLUMNS, RANGE)
-        .startsAt,
+      movedVisit(visit(), { minutes: -600, columns: 0 }, 0, COLUMNS).startsAt,
     ).toBe('2026-11-11T06:00:00.000Z');
     // 21:00 less the 45 min and the 10 min Przerwa.
     expect(
-      movedVisit(visit(), { minutes: 900, columns: 0 }, COLUMNS, RANGE)
-        .startsAt,
+      movedVisit(visit(), { minutes: 900, columns: 0 }, 0, COLUMNS).startsAt,
     ).toBe('2026-11-11T19:05:00.000Z');
   });
 
@@ -99,10 +96,35 @@ describe('movedVisit', () => {
       movedVisit(
         visit({ startsAt: '2026-10-25T06:00:00.000Z' }),
         { minutes: 60, columns: 0 },
-        COLUMNS,
-        range,
+        0,
+        [{ staffMemberId: 'kasia', deleted: false, range }],
       ).startsAt,
     ).toBe('2026-10-25T07:00:00.000Z');
+  });
+});
+
+describe('movedVisit in the week view', () => {
+  // Saturday 24 and Sunday 25 October 2026, when the clocks go back.
+  const ranges = alignedRanges(['2026-10-24', '2026-10-25'], [], []);
+  const week: DragColumn[] = ranges.map((range) => ({
+    staffMemberId: 'kasia',
+    deleted: false,
+    range,
+  }));
+
+  it('moves a Wizyta to the same clock time of the next day', () => {
+    // 10:00 on Saturday is 08:00Z, on Sunday 09:00Z.
+    expect(
+      movedVisit(
+        visit({ startsAt: '2026-10-24T08:00:00.000Z' }),
+        { minutes: 30, columns: 1 },
+        0,
+        week,
+      ),
+    ).toMatchObject({
+      staffMemberId: 'kasia',
+      startsAt: '2026-10-25T09:30:00.000Z',
+    });
   });
 });
 

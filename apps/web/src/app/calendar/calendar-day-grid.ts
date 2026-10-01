@@ -20,14 +20,19 @@ import {
   CalendarDay,
   CalendarResponse,
   CalendarVisit,
+  warsawDayStart,
 } from '@bookit/shared';
+import { GridColumn } from './calendar-columns';
 import {
+  alignedRanges,
   closedBlocks,
-  dayColumns,
-  dayRange,
+  DayLayout,
+  DayRange,
   layoutDay,
   MINUTE_MS,
   nowRow,
+  RowSpan,
+  Slot,
   SLOT_MIN,
   slots,
   slotStartsAt,
@@ -74,6 +79,8 @@ const DRAG_START_DELAY = { touch: 300, mouse: 0 };
 interface Drag {
   kind: 'move' | 'resize';
   visit: CalendarVisit;
+  /** The index of the column it is dragged from. */
+  from: number;
   shift: DragShift;
   /** Measured when the drag starts. */
   pointer: Point;
@@ -81,54 +88,89 @@ interface Drag {
   columnPx: number;
 }
 
+/** What a day draws under the Wizyty, the same in all its columns. */
+interface DayGrid {
+  range: DayRange;
+  slots: Slot[];
+  closed: RowSpan[];
+  /** The row of the line of the current hour. */
+  now: number | null;
+  layout: DayLayout;
+}
+
+/** The ranges of `days`, by day. */
+const rangesOf = (
+  days: CalendarDay[],
+  visits: CalendarVisit[],
+  calendar: CalendarResponse,
+): Map<CalendarDay, DayRange> =>
+  new Map(
+    alignedRanges(days, visits, calendar.absences).map((r) => [r.day, r]),
+  );
+
 /**
- * The day view from 768 px: a column for every person who Przyjmuje Wizyty, rows every
- * minute with a line every 15. Wizyty of one person that overlap go side by side.
- * When `editable`, a Wizyta is dragged to another time or person, and its lower edge
- * to another Czas trwania, in steps of 15 min.
+ * The calendar grid from a list of columns, each one person on one day: the people of
+ * a day (the day view), the days of a person (the week view) or one person (the phone).
+ * Rows every minute with a line every 15; all days show the same clock times. Wizyty
+ * of one person that overlap go side by side. When `editable`, a Wizyta is dragged to
+ * another time or column, and its lower edge to another Czas trwania, in steps of 15 min.
  */
 @Component({
   selector: 'app-calendar-day-grid',
   imports: [CdkDrag],
   template: `
-    <div class="head" [style.--columns]="columns().length">
+    <div class="head" [style.--columns]="cells().length">
       <span></span>
-      @for (person of columns(); track person.id) {
-        <span class="name">{{ person.label }}</span>
+      @for (cell of cells(); track cell.key) {
+        <span class="column">
+          <span class="name">{{ cell.label }}</span>
+          @if (cell.holiday) {
+            <span class="holiday">{{ cell.holiday }}</span>
+          }
+        </span>
       }
     </div>
     <div
       class="body"
-      [style.--columns]="columns().length"
-      [style.--minutes]="range().endMin - range().startMin"
+      [style.--columns]="cells().length"
+      [style.--minutes]="minutes()"
     >
-      @for (slot of slots(); track slot.row) {
+      @for (slot of axis(); track slot.row) {
         @if (slot.hour) {
           <span class="time" [style.grid-row]="slot.row">{{ slot.label }}</span>
         }
       }
-      @for (block of closed(); track block.row) {
-        <div
-          class="closed"
-          [style.grid-row]="gridRow(block.row, block.rows)"
-        ></div>
-      }
-      @for (person of columns(); track person.id) {
-        @for (slot of slots(); track slot.row) {
+      @for (cell of cells(); track cell.key) {
+        @for (block of cell.grid.closed; track block.row) {
+          <div
+            class="closed"
+            [style.grid-column]="cell.column"
+            [style.grid-row]="gridRow(block.row, block.rows)"
+          ></div>
+        }
+        @for (slot of cell.grid.slots; track slot.row) {
           <!-- An Usunięta osoba z Personelu takes no new Wizyty. -->
           <button
             type="button"
             class="slot"
             [class.hour]="slot.hour"
-            [style.grid-column]="person.column"
+            [style.grid-column]="cell.column"
             [style.grid-row]="gridRow(slot.row, slotMin)"
-            [attr.aria-label]="person.displayName + ', ' + slot.label"
-            [disabled]="person.deleted"
-            (click)="pick(person.id, slot.row)"
+            [attr.aria-label]="cell.name + ', ' + slot.label"
+            [disabled]="cell.deleted"
+            (click)="pick(cell, slot.row)"
           ></button>
         }
+        @if (cell.grid.now; as row) {
+          <div
+            class="now"
+            [style.grid-column]="cell.column"
+            [style.grid-row]="row"
+            aria-hidden="true"
+          ></div>
+        }
       }
-      @for (item of absences(); track item.block.absence.id) {
+      @for (item of absences(); track item.key) {
         <div
           class="absence"
           [style.grid-column]="item.column"
@@ -137,7 +179,7 @@ interface Drag {
           <span>{{ item.label }}</span>
         </div>
       }
-      @for (item of visits(); track item.block.visit.id) {
+      @for (item of visits(); track item.key) {
         <button
           type="button"
           class="visit"
@@ -157,7 +199,7 @@ interface Drag {
           [cdkDragDisabled]="!item.movable"
           [cdkDragStartDelay]="dragStartDelay"
           [cdkDragConstrainPosition]="keepInPlace"
-          (cdkDragStarted)="startDrag($event, 'move', item.visit)"
+          (cdkDragStarted)="startDrag($event, 'move', item.visit, item.from)"
           (cdkDragMoved)="moveDrag($event)"
           (cdkDragEnded)="endDrag($event)"
           (click)="openVisit(item.visit)"
@@ -184,14 +226,13 @@ interface Drag {
             cdkDragLockAxis="y"
             [cdkDragStartDelay]="dragStartDelay"
             [cdkDragConstrainPosition]="keepInPlace"
-            (cdkDragStarted)="startDrag($event, 'resize', item.visit)"
+            (cdkDragStarted)="
+              startDrag($event, 'resize', item.visit, item.from)
+            "
             (cdkDragMoved)="moveDrag($event)"
             (cdkDragEnded)="endDrag($event)"
           ></div>
         }
-      }
-      @if (now(); as row) {
-        <div class="now" [style.grid-row]="row" aria-hidden="true"></div>
       }
     </div>
   `,
@@ -199,6 +240,8 @@ interface Drag {
     :host {
       --axis: 48px;
       --minute: 1.6px;
+      /* The week view takes it down to fit seven days. */
+      --column-min: 120px;
       display: block;
     }
     .head,
@@ -206,7 +249,7 @@ interface Drag {
       display: grid;
       grid-template-columns: var(--axis) repeat(
           var(--columns),
-          minmax(120px, 1fr)
+          minmax(var(--column-min), 1fr)
         );
     }
     .head {
@@ -216,13 +259,29 @@ interface Drag {
       background: var(--mat-sys-surface);
       border-bottom: 1px solid var(--mat-sys-outline-variant);
     }
-    .name {
-      padding: 8px;
-      font-weight: 600;
-      text-align: center;
+    .column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 0;
+      padding: 8px 4px;
+    }
+    .name,
+    .holiday {
+      max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    .name {
+      font-weight: 600;
+    }
+    .holiday {
+      padding: 0 6px;
+      border-radius: 8px;
+      font-size: 12px;
+      background: var(--mat-sys-tertiary-container);
+      color: var(--mat-sys-on-tertiary-container);
     }
     .body {
       /* Room for the label of the first line. */
@@ -237,7 +296,6 @@ interface Drag {
       color: var(--mat-sys-on-surface-variant);
     }
     .closed {
-      grid-column: 2 / -1;
       background: var(--mat-sys-surface-container-high);
     }
     .slot {
@@ -336,7 +394,6 @@ interface Drag {
       background: var(--mat-sys-surface-container);
     }
     .now {
-      grid-column: 1 / -1;
       z-index: 4;
       border-top: 2px solid var(--mat-sys-error);
       pointer-events: none;
@@ -344,7 +401,8 @@ interface Drag {
   `,
 })
 export class CalendarDayGrid {
-  readonly day = input.required<CalendarDay>();
+  /** The columns, left to right. */
+  readonly columns = input.required<GridColumn[]>();
   readonly calendar = input.required<CalendarResponse>();
   /** The current time, for the line of the current hour. */
   readonly currentTime = input.required<Date>();
@@ -355,7 +413,7 @@ export class CalendarDayGrid {
   readonly slotClick = output<CalendarSlot>();
   /** A click in a Wizyta, to open its card. */
   readonly visitClick = output<CalendarVisit>();
-  /** A Wizyta dragged to another time, person or Czas trwania. */
+  /** A Wizyta dragged to another time, column or Czas trwania. */
   readonly visitMove = output<VisitMove>();
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -369,9 +427,26 @@ export class CalendarDayGrid {
   protected readonly slotMin = SLOT_MIN;
   protected readonly gridRow = gridRow;
 
-  /** The range without the drag, so a moved Wizyta stays inside it. */
-  private readonly baseRange = computed(() =>
-    dayRange(this.day(), this.calendar().visits, this.calendar().absences),
+  private readonly days = computed(() => [
+    ...new Set(this.columns().map((c) => c.day)),
+  ]);
+
+  /** The Wizyty of the people in the grid: only they set its hours. */
+  private readonly ownVisits = computed(() => {
+    const people = new Set(this.columns().map((c) => c.staffMemberId));
+    return this.calendar().visits.filter((v) => people.has(v.staffMemberId));
+  });
+
+  /** The ranges without the drag, so a moved Wizyta stays inside them. */
+  private readonly baseRanges = computed(() =>
+    rangesOf(this.days(), this.ownVisits(), this.calendar()),
+  );
+
+  private readonly dragColumns = computed(() =>
+    this.columns().map((column) => ({
+      ...column,
+      range: this.baseRanges().get(column.day) as DayRange,
+    })),
   );
 
   /** The dragged Wizyta at its new place, `null` when nothing is dragged. */
@@ -379,7 +454,7 @@ export class CalendarDayGrid {
     const drag = this.drag();
     if (!drag) return null;
     return drag.kind === 'move'
-      ? movedVisit(drag.visit, drag.shift, this.columns(), this.baseRange())
+      ? movedVisit(drag.visit, drag.shift, drag.from, this.dragColumns())
       : resizedVisit(drag.visit, drag.shift.minutes);
   });
 
@@ -389,93 +464,109 @@ export class CalendarDayGrid {
     return dragged ? replaceVisit(this.calendar(), dragged) : this.calendar();
   });
 
-  /** A longer Wizyta can grow it, a moved one never shrinks it under the pointer. */
-  protected readonly range = computed(() => {
+  /** A longer Wizyta can grow them, a moved one never shrinks them under the pointer. */
+  private readonly ranges = computed(() => {
     const dragged = this.draggedVisit();
-    const { visits, absences } = this.calendar();
     return dragged
-      ? dayRange(this.day(), [...visits, dragged], absences)
-      : this.baseRange();
+      ? rangesOf(this.days(), [...this.ownVisits(), dragged], this.calendar())
+      : this.baseRanges();
   });
-  protected readonly slots = computed(() => slots(this.range()));
-  protected readonly closed = computed(() =>
-    closedBlocks(this.range(), this.calendar().openingHours),
-  );
-  protected readonly now = computed(() =>
-    nowRow(this.range(), this.currentTime()),
-  );
 
-  protected readonly columns = computed(() =>
-    dayColumns(this.calendar().staff, this.day()).map((person, index) => ({
-      ...person,
-      deleted: person.visibleUntil !== null,
-      label: person.visibleUntil
-        ? `${person.displayName} (usunięta)`
-        : person.displayName,
+  /** What each day draws under the Wizyty, by day. */
+  private readonly dayGrids = computed(() => {
+    const { openingHours } = this.calendar();
+    const now = this.currentTime();
+    const drawn = this.drawn();
+    return new Map<CalendarDay, DayGrid>(
+      [...this.ranges().values()].map((range) => [
+        range.day,
+        {
+          range,
+          slots: slots(range),
+          closed: closedBlocks(range, openingHours),
+          now: nowRow(range, now),
+          layout: layoutDay(drawn.visits, drawn.absences, range),
+        },
+      ]),
+    );
+  });
+
+  protected readonly cells = computed(() =>
+    this.columns().map((column, index) => ({
+      ...column,
       // The first grid column is the time axis.
       column: index + 2,
+      index,
+      grid: this.dayGrids().get(column.day) as DayGrid,
     })),
   );
 
-  private readonly columnOf = computed(
-    () => new Map(this.columns().map((person) => [person.id, person.column])),
-  );
-
-  private readonly layout = computed(() =>
-    layoutDay(this.drawn().visits, this.drawn().absences, this.range()),
+  /** The clock times of the axis, from the first column. */
+  protected readonly axis = computed(() => this.cells()[0]?.grid.slots ?? []);
+  protected readonly minutes = computed(() =>
+    Math.max(
+      0,
+      ...[...this.ranges().values()].map((r) => r.endMin - r.startMin),
+    ),
   );
 
   protected readonly visits = computed(() => {
-    const firstMinute = slotStartsAt(this.range(), 1).getTime();
     const drag = this.drag();
-    return this.layout().visits.flatMap((block) => {
-      const column = this.columnOf().get(block.visit.staffMemberId);
-      if (!column) return [];
-      const { startsAt, durationMin, services, description } = block.visit;
-      const endsAt = new Date(startsAt).getTime() + durationMin * MINUTE_MS;
-      const time = `${warsawClock(startsAt)}–${warsawClock(new Date(endsAt))}`;
-      const details = services.length
-        ? services.map((service) => service.name).join(', ')
-        : (description ?? '');
-      const noShow = block.visit.state === 'NO_SHOW';
-      // The handlers get the Wizyta as it was before the drag.
-      const before = drag?.visit.id === block.visit.id ? drag.visit : null;
-      return [
-        {
-          block,
-          visit: before ?? block.visit,
-          dragged: before !== null,
-          // One cut by the grid (from the day before) is moved in the form.
-          movable:
-            this.editable() &&
-            block.rows > 0 &&
-            new Date(startsAt).getTime() >= firstMinute,
-          column,
-          time,
-          details,
-          noShow,
-          label: [time, block.visit.client.name, details]
-            .concat(noShow ? ['Nieodbyta'] : [])
-            .filter(Boolean)
-            .join(', '),
-        },
-      ];
+    return this.cells().flatMap((cell) => {
+      const firstMinute = slotStartsAt(cell.grid.range, 1).getTime();
+      const dayStart = warsawDayStart(cell.day).getTime();
+      return cell.grid.layout.visits
+        .filter((block) => block.visit.staffMemberId === cell.staffMemberId)
+        .map((block) => {
+          const { startsAt, durationMin, services, description } = block.visit;
+          const endsAt = new Date(startsAt).getTime() + durationMin * MINUTE_MS;
+          const time = `${warsawClock(startsAt)}–${warsawClock(new Date(endsAt))}`;
+          const details = services.length
+            ? services.map((service) => service.name).join(', ')
+            : (description ?? '');
+          const noShow = block.visit.state === 'NO_SHOW';
+          // The handlers get the Wizyta as it was before the drag.
+          const before = drag?.visit.id === block.visit.id ? drag.visit : null;
+          return {
+            // The id alone, so a Wizyta dragged to another column keeps its element;
+            // the part of one from the day before is another element.
+            key:
+              new Date(startsAt).getTime() >= dayStart
+                ? block.visit.id
+                : `${block.visit.id}@${cell.key}`,
+            block,
+            visit: before ?? block.visit,
+            dragged: before !== null,
+            // One cut by the grid (from the day before) is moved in the form.
+            movable:
+              this.editable() &&
+              block.rows > 0 &&
+              new Date(startsAt).getTime() >= firstMinute,
+            column: cell.column,
+            from: cell.index,
+            time,
+            details,
+            noShow,
+            label: [time, block.visit.client.name, details]
+              .concat(noShow ? ['Nieodbyta'] : [])
+              .filter(Boolean)
+              .join(', '),
+          };
+        });
     });
   });
 
   protected readonly absences = computed(() =>
-    this.layout().absences.flatMap((block) => {
-      const column = this.columnOf().get(block.absence.staffMemberId);
-      return column
-        ? [
-            {
-              block,
-              column,
-              label: block.absence.reason || ABSENCE_DEFAULT_LABEL,
-            },
-          ]
-        : [];
-    }),
+    this.cells().flatMap((cell) =>
+      cell.grid.layout.absences
+        .filter((block) => block.absence.staffMemberId === cell.staffMemberId)
+        .map((block) => ({
+          key: `${cell.key}:${block.absence.id}`,
+          block,
+          column: cell.column,
+          label: block.absence.reason || ABSENCE_DEFAULT_LABEL,
+        })),
+    ),
   );
 
   protected openVisit(visit: CalendarVisit): void {
@@ -490,6 +581,7 @@ export class CalendarDayGrid {
     { event }: CdkDragStart,
     kind: Drag['kind'],
     visit: CalendarVisit,
+    from: number,
   ): void {
     const slot = this.host.nativeElement
       .querySelector('.slot')
@@ -498,6 +590,7 @@ export class CalendarDayGrid {
     this.drag.set({
       kind,
       visit,
+      from,
       shift: { minutes: 0, columns: 0 },
       pointer: pointerOf(event),
       minutePx: slot.height / SLOT_MIN,
@@ -533,10 +626,13 @@ export class CalendarDayGrid {
     }
   }
 
-  protected pick(staffMemberId: string, row: number): void {
+  protected pick(
+    cell: { staffMemberId: string; grid: DayGrid },
+    row: number,
+  ): void {
     this.slotClick.emit({
-      staffMemberId,
-      startsAt: slotStartsAt(this.range(), row),
+      staffMemberId: cell.staffMemberId,
+      startsAt: slotStartsAt(cell.grid.range, row),
     });
   }
 }
