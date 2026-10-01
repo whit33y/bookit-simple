@@ -18,11 +18,18 @@ const envSchema = z.object({
   ADMIN_PASSWORD: requiredString,
 });
 
-const seedEnvSchema = envSchema.pick({
-  DATABASE_URL: true,
-  ADMIN_EMAIL: true,
-  ADMIN_PASSWORD: true,
-});
+/** Studio Kora needs MinIO for its Photos and one password for its whole Personel. */
+const seedEnvSchema = envSchema
+  .pick({
+    DATABASE_URL: true,
+    ADMIN_EMAIL: true,
+    ADMIN_PASSWORD: true,
+    S3_ENDPOINT: true,
+    S3_ACCESS_KEY: true,
+    S3_SECRET_KEY: true,
+    S3_BUCKET: true,
+  })
+  .extend({ SEED_PASSWORD: requiredString });
 
 export type Env = z.infer<typeof envSchema>;
 export type SeedEnv = z.infer<typeof seedEnvSchema>;
@@ -32,7 +39,7 @@ export function validateEnv(raw: Record<string, unknown>): Env {
   return parseEnv(envSchema, raw);
 }
 
-/** The seed needs only the database and the Administrator's credentials. */
+/** The seed needs the database, the Administrator's credentials, MinIO and `SEED_PASSWORD`. */
 export function validateSeedEnv(raw: Record<string, unknown>): SeedEnv {
   return parseEnv(seedEnvSchema, raw);
 }

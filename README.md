@@ -20,7 +20,7 @@ docker compose up -d          # Postgres :5432, MinIO :9000 (konsola :9001), Mai
 docker compose ps             # postgres, minio i mailpit powinny być "healthy"
 npm install
 npx nx run api:migrate        # prisma migrate dev: tabele z prisma/schema.prisma
-npx nx run api:seed           # Administrator z ADMIN_EMAIL i ADMIN_PASSWORD, można uruchamiać wielokrotnie
+npx nx run api:seed           # Administrator z .env i Salon Studio Kora, można uruchamiać wielokrotnie
 npx nx run-many -t serve -p api web
 ```
 
@@ -37,6 +37,8 @@ Kontener `minio-init` tworzy bucket `bookit` i kończy pracę, więc w `docker c
 Schemat i migracje są w `prisma/`, konfiguracja CLI w `prisma.config.ts`. Po zmianie schematu `npx nx run api:migrate --name opis-zmiany` tworzy migrację. Prisma Client generuje się do `apps/api/src/generated/prisma` (poza gitem) przed `build`, `test` i `lint` albo ręcznie przez `npx nx run api:prisma-generate`.
 
 Seed nie nadpisuje hasła istniejącego Administratora. Żeby zmienić hasło z `.env`, usuń go z bazy i uruchom seed ponownie.
+
+Seed zakłada też fikcyjny Salon pilotażowy Studio Kora z [docs/mvp.md, sekcja 9](docs/mvp.md): Wizytówka pod http://localhost:4200/studio-kora, Personel `magda@studio-kora.test` (Właściciel), `kasia@`, `ola@` i `natalia@studio-kora.test` z hasłem z `SEED_PASSWORD`. Każde uruchomienie usuwa Studio Kora (z kontami i plikami zdjęć w MinIO) i tworzy je od nowa, z Wizytami na bieżący i następny tydzień liczonymi od dnia uruchomienia. Losowość ma stałe ziarno, więc dwa uruchomienia tego samego dnia dają te same dane (poza identyfikatorami). Ogłoszenie zaczyna się w dniu uruchomienia, a Kolizja trafia na pierwszy dzień od dziś, w którym Kasia ma Wizyty. W kalendarzu jest jedna celowa Kolizja (Kasia), Nieobecność Natalii w piątek, a w poprzednim tygodniu jedna Wizyta odwołana i jedna nieodbyta. Seed potrzebuje MinIO, bo zdjęcia przechodzą przez ten sam kod co `POST /api/photos`.
 
 ## Testy
 

@@ -7,7 +7,8 @@ export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
-    seed: 'tsx apps/api/src/seed/seed.ts',
+    // The api's tsconfig: Nest decorators and the `@bookit/shared` path.
+    seed: 'tsx --tsconfig apps/api/tsconfig.app.json apps/api/src/seed/seed.ts',
   },
   datasource: {
     url: process.env.DATABASE_URL,
