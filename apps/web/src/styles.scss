@@ -25,3 +25,12 @@ body {
   background: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
 }
+
+/* The Wizyta form on a phone: the whole screen, no rounded corners. */
+.full-screen-dialog .mat-mdc-dialog-surface {
+  border-radius: 0;
+}
+.full-screen-dialog .mat-mdc-dialog-content {
+  max-height: none;
+  flex: 1;
+}

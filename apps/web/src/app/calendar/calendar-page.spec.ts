@@ -8,10 +8,14 @@ import localePl from '@angular/common/locales/pl';
 import { LOCALE_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
+import { Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { of } from 'rxjs';
 import { CalendarResponse, CalendarVisit } from '@bookit/shared';
 import { CalendarDayGrid, CalendarSlot } from './calendar-day-grid';
 import { CalendarPage } from './calendar-page';
+import { VisitDialog } from './visit-dialog';
 
 registerLocaleData(localePl);
 
@@ -168,6 +172,55 @@ describe('CalendarPage', () => {
 
     expect(text(el.querySelector('h1'))).toBe('sobota, 14 listopada 2026');
     expect(el.querySelector('.holiday')).toBeNull();
+  });
+
+  it('opens the Wizyta form at the empty field clicked', async () => {
+    const { el, flush } = await setup();
+    await flush(DAY, CALENDAR);
+    const open = vi
+      .spyOn(TestBed.inject(MatDialog), 'open')
+      .mockReturnValue({ afterClosed: () => of(undefined) } as never);
+
+    el.querySelector<HTMLButtonElement>(
+      'button[aria-label="Kasia, 9:15"]',
+    )?.click();
+
+    expect(open).toHaveBeenCalledWith(
+      VisitDialog,
+      expect.objectContaining({
+        data: {
+          staff: CALENDAR.staff,
+          staffMemberId: 'kasia',
+          startsAt: new Date('2026-11-11T08:15:00Z'),
+        },
+      }),
+    );
+  });
+
+  it('opens the form with the Klient of ?klient= and takes it off the address', async () => {
+    const { flush, http, settle } = await setup(
+      `/panel/kalendarz?dzien=${DAY}&klient=c1`,
+    );
+    const open = vi
+      .spyOn(TestBed.inject(MatDialog), 'open')
+      .mockReturnValue({ afterClosed: () => of(undefined) } as never);
+    await flush(DAY, CALENDAR);
+    const client = {
+      id: 'c1',
+      name: 'Anna Nowak',
+      phoneE164: null,
+      notes: null,
+    };
+    http.expectOne('/api/clients/c1').flush(client);
+    await settle();
+
+    expect(open).toHaveBeenCalledWith(
+      VisitDialog,
+      expect.objectContaining({
+        data: { staff: CALENDAR.staff, day: DAY, client },
+      }),
+    );
+    expect(TestBed.inject(Router).url).toBe(`/panel/kalendarz?dzien=${DAY}`);
   });
 
   it('shows the error of a failed load', async () => {
