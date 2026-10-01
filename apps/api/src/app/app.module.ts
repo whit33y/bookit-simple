@@ -4,6 +4,7 @@ import { AbsencesModule } from './absences/absences.module';
 import { AdminSalonsModule } from './admin-salons/admin-salons.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { AuthModule } from './auth/auth.module';
+import { CalendarModule } from './calendar/calendar.module';
 import { ClientsModule } from './clients/clients.module';
 import { validateEnv } from './config/env';
 import { GalleryModule } from './gallery/gallery.module';
@@ -42,6 +43,7 @@ import { VisitsModule } from './visits/visits.module';
     ClientsModule,
     VisitsModule,
     AbsencesModule,
+    CalendarModule,
     HealthModule.register(),
   ],
 })

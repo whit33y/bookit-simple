@@ -5,7 +5,7 @@ import {
   VisitChangePage,
   VisitChangeView,
   VisitSnapshot,
-  warsawDayStart,
+  warsawDayBounds,
 } from '@bookit/shared';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -18,12 +18,6 @@ const withAuthor = {
 type ChangeWithAuthor = Prisma.VisitChangeGetPayload<{
   include: typeof withAuthor;
 }>;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** The day after, whose Warsaw midnight may be 23 or 25 hours later. */
-const nextDay = (day: CalendarDay): CalendarDay =>
-  new Date(Date.parse(`${day}T00:00:00Z`) + DAY_MS).toISOString().slice(0, 10);
 
 const newestFirst = [
   { at: 'desc' },
@@ -71,7 +65,10 @@ export class VisitChangesService {
       ...(staffId && { staffMemberId: staffId }),
       ...(clientId && aboutClient(clientId)),
       ...(day && {
-        at: { gte: warsawDayStart(day), lt: warsawDayStart(nextDay(day)) },
+        at: {
+          gte: warsawDayBounds(day).startsAt,
+          lt: warsawDayBounds(day).endsAt,
+        },
       }),
     };
     const [changes, total] = await Promise.all([

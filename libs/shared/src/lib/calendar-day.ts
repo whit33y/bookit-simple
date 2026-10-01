@@ -48,10 +48,15 @@ export function warsawDayBounds(day: CalendarDay): {
   startsAt: Date;
   endsAt: Date;
 } {
-  const next = new Date(`${day}T00:00:00Z`);
-  next.setUTCDate(next.getUTCDate() + 1);
   return {
     startsAt: warsawDayStart(day),
-    endsAt: warsawDayStart(next.toISOString().slice(0, 10)),
+    endsAt: warsawDayStart(addDays(day, 1)),
   };
+}
+
+/** The day `days` after `day` (before it when negative), counted on the calendar. */
+export function addDays(day: CalendarDay, days: number): CalendarDay {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }
