@@ -20,11 +20,19 @@ export interface PublicServiceCategory {
   services: PublicService[];
 }
 
+/** A Photo with its size, so `<img>` reserves the space before the file loads. */
+export interface PublicPhoto {
+  /** For `photoUrl(id)` */
+  id: string;
+  width: number;
+  height: number;
+}
+
 /** An Ogłoszenie shown today, newest first. */
 export interface PublicAnnouncement {
   title: string;
   body: string;
-  photoId: string | null;
+  photo: PublicPhoto | null;
   showFrom: CalendarDay;
   showUntil: CalendarDay | null;
 }
@@ -33,11 +41,7 @@ export interface PublicAnnouncement {
 export interface PublicStaffMember {
   displayName: string;
   bio: string | null;
-  photoId: string | null;
-}
-
-export interface PublicGalleryItem {
-  photoId: string;
+  photo: PublicPhoto | null;
 }
 
 /** Godziny otwarcia of one weekday; a missing weekday is closed. */
@@ -57,14 +61,15 @@ export interface PublicPage {
     email: string | null;
     mapUrl: string | null;
     accentColor: string | null;
-    logoPhotoId: string | null;
-    heroPhotoId: string | null;
+    logo: PublicPhoto | null;
+    hero: PublicPhoto | null;
   };
   sections: PageSections;
   categories: PublicServiceCategory[];
   announcements: PublicAnnouncement[];
   staff: PublicStaffMember[];
-  gallery: PublicGalleryItem[];
+  /** In the order set by the Właściciel */
+  gallery: PublicPhoto[];
   openingHours: PublicOpeningHours[];
   privacyNotice: string | null;
 }

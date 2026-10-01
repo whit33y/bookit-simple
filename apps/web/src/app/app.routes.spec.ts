@@ -16,6 +16,13 @@ describe('appRoutes', () => {
       expect.arrayContaining(staticTopLevelSegments),
     );
   });
+
+  it('ends with the Wizytówka, then a 404 page for any other address', () => {
+    expect(appRoutes.slice(-2).map((route) => route.path)).toEqual([
+      ':slug',
+      '**',
+    ]);
+  });
 });
 
 describe('serverRoutes', () => {

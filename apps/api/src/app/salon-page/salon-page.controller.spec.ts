@@ -162,8 +162,8 @@ describe('Treść Wizytówki', () => {
         .expect(200);
       expect(page.body.salon).toMatchObject({
         accentColor: '#c0392b',
-        logoPhotoId: logo.id,
-        heroPhotoId: hero.id,
+        logo: expect.objectContaining({ id: logo.id }),
+        hero: expect.objectContaining({ id: hero.id }),
         mapUrl: 'https://maps.app.goo.gl/abc123',
       });
       expect(page.body.privacyNotice).toBe(saved.privacyNotice);

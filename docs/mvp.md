@@ -423,8 +423,8 @@ Funkcja `(host, ścieżka) -> Salon` z ADR 0002, `GET /public/pages/:slug` z Cen
 
 **T35. Wizytówka SSR** `web` · zależy od T34, T20, T21, T22
 Sekcje z sekcji 6, kolor przewodni jako zmienna CSS, SEO i JSON-LD.
-- [ ] `curl http://localhost:4000/studio-kora` zwraca HTML z nazwą Salonu i Cennikiem
-- [ ] Lighthouse na telefonie: Performance ≥ 90, Accessibility ≥ 90
+- [x] `curl http://localhost:4000/studio-kora` zwraca HTML z nazwą Salonu i Cennikiem
+- [x] Lighthouse na telefonie: Performance ≥ 90, Accessibility ≥ 90
 
 **T36. Klauzula RODO na Wizytówce** `web` · zależy od T35
 

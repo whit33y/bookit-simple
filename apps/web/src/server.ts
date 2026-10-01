@@ -7,6 +7,7 @@ import {
 import express from 'express';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { apiInternalUrl } from './api-internal-url';
 import { currentSlugFromApi, movedPath } from './slug-redirect';
 
 const serverDistFolder = dirname(fileURLToPath(import.meta.url));
@@ -15,9 +16,7 @@ const browserDistFolder = resolve(serverDistFolder, '../browser');
 const app = express();
 const angularApp = new AngularNodeAppEngine();
 
-/** The api as the server reaches it; the browser goes through `/api`. */
-const apiUrl = process.env['API_INTERNAL_URL'] || 'http://localhost:3000';
-const currentSlug = currentSlugFromApi(apiUrl);
+const currentSlug = currentSlugFromApi(apiInternalUrl());
 
 /**
  * Serve static files from /browser

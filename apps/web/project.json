@@ -26,6 +26,9 @@
         "ssr": {
           "entry": "apps/web/src/server.ts"
         },
+        "security": {
+          "allowedHosts": ["localhost"]
+        },
         "outputMode": "server"
       },
       "configurations": {

@@ -1,0 +1,234 @@
+// Own light styles, no Angular Material, so the Wizytówka loads fast on a phone.
+:host {
+  --text: #1d1b20;
+  --muted: #49454f;
+  --line: #e6e0e9;
+  display: block;
+  min-height: 100vh;
+  background: #fff;
+  color: var(--text);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+h2 {
+  margin: 0 0 16px;
+  font-size: 1.5rem;
+  &::after {
+    content: '';
+    display: block;
+    width: 48px;
+    height: 4px;
+    margin-top: 6px;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+}
+
+h3 {
+  margin: 0 0 4px;
+  font-size: 1.125rem;
+}
+
+p {
+  margin: 0;
+}
+
+.text {
+  white-space: pre-line;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+section {
+  padding: 32px 0;
+  border-top: 1px solid var(--line);
+}
+
+.header {
+  text-align: center;
+}
+
+.hero-photo {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: cover;
+}
+
+.header-body {
+  padding-top: 24px;
+  padding-bottom: 32px;
+}
+
+.logo {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+.header-address {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.call {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 12px 28px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.call-number {
+  font-weight: 400;
+}
+
+.card {
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 12px;
+  img {
+    display: block;
+    margin-bottom: 12px;
+    border-radius: 8px;
+  }
+}
+
+.services {
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+
+.service {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.service-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.service-name {
+  font-weight: 500;
+}
+
+.price {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.team {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: center;
+  img,
+  .initial {
+    display: block;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 8px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+}
+
+.initial {
+  display: grid;
+  place-content: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 2.5rem;
+  font-weight: 600;
+}
+
+.hours {
+  width: 100%;
+  border-collapse: collapse;
+  th,
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    font-weight: 400;
+  }
+  td {
+    text-align: right;
+  }
+  .today {
+    font-weight: 600;
+    box-shadow: inset 4px 0 var(--accent);
+    th,
+    td {
+      font-weight: 600;
+    }
+  }
+}
+
+.today-label {
+  margin-left: 8px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.75rem;
+}
+
+.contact {
+  display: grid;
+  gap: 8px;
+  font-style: normal;
+}
+
+a {
+  color: inherit;
+}
+
+.contact a,
+.footer a {
+  display: inline-block;
+  padding: 8px 0;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 16px;
+  padding-bottom: 32px;
+  border-top: 1px solid var(--line);
+}
