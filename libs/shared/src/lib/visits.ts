@@ -8,6 +8,24 @@ import {
 
 export type VisitState = 'SCHEDULED' | 'CANCELLED' | 'NO_SHOW';
 
+/**
+ * The Stan Wizyty to show. A Zaplanowana Wizyta that has already started is one that
+ * took place, so it reads "Odbyta".
+ */
+export function visitStateLabel(
+  visit: { state: VisitState; startsAt: string },
+  now: Date,
+): string {
+  switch (visit.state) {
+    case 'CANCELLED':
+      return 'Odwołana';
+    case 'NO_SHOW':
+      return 'Nieodbyta';
+    case 'SCHEDULED':
+      return new Date(visit.startsAt) <= now ? 'Odbyta' : 'Zaplanowana';
+  }
+}
+
 /** A Usługa of a Wizyta as it was when it was added: the Cennik may have changed since. */
 export interface VisitServiceView {
   serviceId: string;

@@ -1,3 +1,5 @@
+import type { VisitView } from './visits';
+
 /**
  * The form of a name that search compares: lowercase, without Polish marks, single spaces.
  * NFD splits `ą` into `a` and a mark, but `ł` is a letter of its own, so it goes separately.
@@ -78,3 +80,35 @@ export const CLIENT_NOTES_HINT =
   'Nie wpisuj tu informacji o zdrowiu (alergie, choroby, leki)';
 /** What is left of the name of a deleted Klient, also on their past Wizyty. */
 export const DELETED_CLIENT_NAME = 'Klient usunięty';
+
+/** A Wizyta on the karta Klienta, with its person: also an Usunięta osoba z Personelu. */
+export interface ClientVisit extends VisitView {
+  staffMember: { displayName: string; deleted: boolean };
+}
+
+/** Counted over all Wizyty of the Klient, not only the page. */
+export interface ClientVisitStats {
+  /** Every Wizyta, in any Stan Wizyty, past and future. */
+  visits: number;
+  cancelled: number;
+  noShow: number;
+  /** ISO 8601 start of the latest Wizyta that took place: `SCHEDULED` and already started. */
+  lastVisitAt: string | null;
+}
+
+/**
+ * `GET /api/clients/:id/visits?page=` reply: every Wizyta of the Klient, also cancelled
+ * and no-show ones, newest first, `CLIENT_VISITS_PAGE_SIZE` a page; `page` counts from 1.
+ * `404` for a deleted Klient.
+ */
+export interface ClientVisitPage {
+  items: ClientVisit[];
+  page: number;
+  pageSize: number;
+  total: number;
+  stats: ClientVisitStats;
+}
+
+export const CLIENT_VISITS_PAGE_SIZE = 20;
+/** `400` for a `page` that is not a whole number from 1. */
+export const CLIENT_VISITS_PAGE_INVALID = 'Nieprawidłowy numer strony';

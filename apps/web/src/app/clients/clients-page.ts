@@ -7,10 +7,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { RouterLink } from '@angular/router';
 import { CLIENT_SEARCH_LIMIT, ClientView, formatPhone } from '@bookit/shared';
 import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { errorMessage } from '../shared/error-message';
+import { clientCardPath } from './client-links';
 import { ClientDialogData, openClientDialog } from './client-dialog';
 import { ClientsService } from './clients.service';
 import {
@@ -20,7 +22,7 @@ import {
 
 /**
  * `/panel/klienci`: the Kartoteka Klientów. The Personel searches, adds and edits;
- * only the Właściciel deletes. The card with the history of Wizyty comes in #33.
+ * only the Właściciel deletes. A name opens the karta Klienta with their Wizyty.
  */
 @Component({
   selector: 'app-clients-page',
@@ -31,6 +33,7 @@ import {
     MatInputModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
+    RouterLink,
   ],
   template: `
     <div class="top">
@@ -62,7 +65,9 @@ import {
           @for (item of clients; track item.id) {
             <li class="row" [attr.aria-label]="item.name">
               <div class="text">
-                <span class="name">{{ item.name }}</span>
+                <a class="name" [routerLink]="cardPath(item.id)">{{
+                  item.name
+                }}</a>
                 @if (item.phoneE164) {
                   <a class="phone" [href]="'tel:' + item.phoneE164">{{
                     formatPhone(item.phoneE164)
@@ -157,6 +162,8 @@ import {
     }
     .name {
       font-weight: 600;
+      color: inherit;
+      width: fit-content;
       overflow-wrap: anywhere;
     }
     .phone {
@@ -189,6 +196,7 @@ export class ClientsPage {
   private readonly me = inject(AuthService).me;
 
   protected readonly formatPhone = formatPhone;
+  protected readonly cardPath = clientCardPath;
   protected readonly limit = CLIENT_SEARCH_LIMIT;
   protected readonly isOwner = computed(() => this.me()?.role === 'OWNER');
 

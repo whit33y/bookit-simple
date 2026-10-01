@@ -6,6 +6,7 @@ import {
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
+import { provideRouter } from '@angular/router';
 import { CLIENT_SEARCH_LIMIT, ClientView, MeResponse } from '@bookit/shared';
 import { of } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
@@ -44,6 +45,7 @@ describe('ClientsPage', () => {
     const open = vi.fn(() => ({ afterClosed: () => of(closeWith) }));
     TestBed.configureTestingModule({
       providers: [
+        provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: MatDialog, useValue: { open } },
@@ -83,8 +85,13 @@ describe('ClientsPage', () => {
   });
 
   it('lists the Klienci with the phone in groups and the notes', async () => {
-    const { names, row } = await setup();
+    const { names, row, el } = await setup();
 
+    expect(
+      el
+        .querySelector('li[aria-label="Anna Nowak"] a.name')
+        ?.getAttribute('href'),
+    ).toBe('/panel/klienci/c1');
     expect(names()).toEqual(['Anna Nowak', 'Łucja']);
     expect(row('Anna Nowak')).toContain('+48 600 100 200');
     expect(row('Anna Nowak')).toContain('Woli rano');

@@ -19,7 +19,9 @@ import {
   CLIENT_NAME_TOO_LONG,
   CLIENT_NOTES_MAX_LENGTH,
   CLIENT_NOTES_TOO_LONG,
+  CLIENT_VISITS_PAGE_INVALID,
   ClientView,
+  ClientVisitPage,
   CreateClientRequest,
   PHONE_INVALID,
   UpdateClientRequest,
@@ -65,6 +67,15 @@ const updateSchema = z.object({
   acceptDuplicatePhone: fields.acceptDuplicatePhone,
 }) satisfies z.ZodType<unknown, UpdateClientRequest>;
 
+/** Query string: `page` comes as text. */
+const visitsQuerySchema = z.object({
+  page: z.coerce
+    .number({ error: CLIENT_VISITS_PAGE_INVALID })
+    .int(CLIENT_VISITS_PAGE_INVALID)
+    .min(1, CLIENT_VISITS_PAGE_INVALID)
+    .default(1),
+});
+
 export type ClientFields = z.output<typeof createSchema>;
 export type ClientChanges = z.output<typeof updateSchema>;
 
@@ -96,6 +107,15 @@ export class ClientsController {
   @Get(':id')
   get(@Param('id', ParseUUIDPipe) id: string): Promise<ClientView> {
     return this.clients.get(id);
+  }
+
+  /** The karta Klienta: every Wizyta, newest first, and stats of them all. */
+  @Get(':id/visits')
+  visits(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: unknown,
+  ): Promise<ClientVisitPage> {
+    return this.clients.visits(id, parse(visitsQuerySchema, query).page);
   }
 
   /** `422` for an invalid phone, `409` for one another Klient has. */

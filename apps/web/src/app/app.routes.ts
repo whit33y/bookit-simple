@@ -59,6 +59,12 @@ export const appRoutes: Route[] = [
           import('./clients/clients-page').then((m) => m.ClientsPage),
       },
       {
+        path: 'klienci/:id',
+        title: 'Karta Klienta · Bookit',
+        loadComponent: () =>
+          import('./clients/client-card-page').then((m) => m.ClientCardPage),
+      },
+      {
         path: 'ustawienia',
         canActivate: [roleGuard('OWNER')],
         loadComponent: () =>
