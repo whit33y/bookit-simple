@@ -12,12 +12,14 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterLink } from '@angular/router';
 import {
   addDays,
@@ -26,15 +28,21 @@ import {
   CalendarVisit,
   ClientView,
   isCalendarDay,
+  VisitCollision,
   warsawDate,
 } from '@bookit/shared';
+import { firstValueFrom, map } from 'rxjs';
 import { NEW_VISIT_CLIENT_PARAM } from '../clients/client-links';
 import { ClientsService } from '../clients/clients.service';
 import { errorMessage } from '../shared/error-message';
 import { CalendarDayGrid, CalendarSlot } from './calendar-day-grid';
 import { CalendarService } from './calendar.service';
+import { MoveCollisionsDialog } from './move-collisions-dialog';
 import { openVisitCard } from './visit-card';
-import { openVisitDialog, VisitDialogData } from './visit-dialog';
+import { openVisitDialog, PHONE_QUERY, VisitDialogData } from './visit-dialog';
+import { moveRequest, replaceVisit, VisitMove } from './visit-drag';
+import { collisionsOf } from './visit-request';
+import { VisitsService } from './visits.service';
 
 const PATH = '/panel/kalendarz';
 
@@ -49,7 +57,8 @@ const CLOCK_TICK_MS = 30 * 1000;
  * `/panel/kalendarz?dzien=YYYY-MM-DD`: the day view of the calendar, today without
  * `dzien`. A click in an empty field opens the Wizyta form there, a click in a Wizyta
  * its card; `?klient=<id>` (from the karta Klienta) opens the form with that Klient.
- * The phone view comes in #32.
+ * From 768 px a Wizyta is dragged: the calendar shows it at once and puts it back when
+ * the save fails. The phone view comes in #32.
  */
 @Component({
   selector: 'app-calendar-page',
@@ -118,8 +127,10 @@ const CLOCK_TICK_MS = 30 * 1000;
         [day]="shown.day"
         [calendar]="shown.calendar"
         [currentTime]="now()"
+        [editable]="!phone()"
         (slotClick)="pickSlot($event)"
         (visitClick)="openCard($event)"
+        (visitMove)="move($event)"
       />
     } @else {
       <mat-spinner diameter="32" aria-label="Wczytywanie" />
@@ -169,6 +180,8 @@ export class CalendarPage {
   private readonly dialog = inject(MatDialog);
   private readonly breakpoints = inject(BreakpointObserver);
   private readonly clients = inject(ClientsService);
+  private readonly visits = inject(VisitsService);
+  private readonly snackBar = inject(MatSnackBar);
 
   /** `?dzien=` */
   readonly dzien = input<string>();
@@ -179,6 +192,11 @@ export class CalendarPage {
   /** The `?klient=` the form was opened for, so a reload does not open it again. */
   private openedFor: string | undefined;
   protected readonly now = signal(new Date());
+  /** Below 768 px a Wizyta is moved in the form, not dragged. */
+  protected readonly phone = toSignal(
+    this.breakpoints.observe(PHONE_QUERY).pipe(map((state) => state.matches)),
+    { initialValue: this.breakpoints.isMatched(PHONE_QUERY) },
+  );
 
   /** `?dzien=`, or today when it is missing or not a real day. */
   protected readonly day = computed<CalendarDay>(() => {
@@ -267,6 +285,62 @@ export class CalendarPage {
       visit: result.edit,
     });
     if (saved) this.calendar.reload();
+  }
+
+  /**
+   * Shows the dragged Wizyta at its new place and saves it. A Kolizja asks first, and
+   * "Cofnij" or a failed save puts it back where it was.
+   */
+  protected async move({ before, after }: VisitMove): Promise<void> {
+    this.showVisit(after);
+    try {
+      if (await this.saveMove(before, after)) {
+        this.calendar.reload();
+        return;
+      }
+    } catch (error) {
+      this.snackBar.open(
+        `Nie przeniesiono Wizyty. ${errorMessage(error)}`,
+        'OK',
+        { duration: 6000 },
+      );
+    }
+    this.showVisit(before);
+  }
+
+  /** Resolves with `false` for "Cofnij" on the Kolizje. */
+  private async saveMove(
+    before: CalendarVisit,
+    after: CalendarVisit,
+  ): Promise<boolean> {
+    try {
+      await this.visits.update(before.id, moveRequest(before, after));
+    } catch (error) {
+      const collisions = collisionsOf(error);
+      if (!collisions) throw error;
+      if (!(await this.confirmCollisions(collisions))) return false;
+      await this.visits.update(before.id, moveRequest(before, after, true));
+    }
+    return true;
+  }
+
+  private showVisit(visit: CalendarVisit): void {
+    this.shown.update(
+      (shown) =>
+        shown && { ...shown, calendar: replaceVisit(shown.calendar, visit) },
+    );
+  }
+
+  private confirmCollisions(collisions: VisitCollision[]): Promise<boolean> {
+    return firstValueFrom(
+      this.dialog
+        .open<MoveCollisionsDialog, VisitCollision[], boolean>(
+          MoveCollisionsDialog,
+          { data: collisions, width: '480px' },
+        )
+        .afterClosed()
+        .pipe(map(Boolean)),
+    );
   }
 
   /** Takes `?klient=` off the address first, so going back does not open the form again. */

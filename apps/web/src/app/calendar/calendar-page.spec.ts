@@ -9,13 +9,17 @@ import { LOCALE_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { By } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { of } from 'rxjs';
 import { CalendarResponse, CalendarVisit } from '@bookit/shared';
 import { CalendarDayGrid, CalendarSlot } from './calendar-day-grid';
 import { CalendarPage } from './calendar-page';
+import { MoveCollisionsDialog } from './move-collisions-dialog';
 import { VisitDialog } from './visit-dialog';
+import { VisitMove } from './visit-drag';
 
 registerLocaleData(localePl);
 
@@ -223,6 +227,134 @@ describe('CalendarPage', () => {
     expect(TestBed.inject(Router).url).toBe(`/panel/kalendarz?dzien=${DAY}`);
   });
 
+  describe('a dragged Wizyta', () => {
+    const before = CALENDAR.visits[0];
+    // To Ola, an hour later.
+    const after = {
+      ...before,
+      staffMemberId: 'ola',
+      startsAt: '2026-11-11T10:00:00.000Z',
+    };
+    const COLLISION = {
+      statusCode: 409,
+      error: 'Conflict',
+      message: 'Wizyta nachodzi na inne wpisy tej osoby',
+      collisions: [
+        {
+          type: 'absence',
+          id: 'a1',
+          startsAt: '2026-11-11T11:00:00Z',
+          endsAt: '2026-11-11T12:00:00Z',
+          label: 'Lekarz',
+        },
+      ],
+    };
+
+    async function dragged() {
+      const page = await setup();
+      await page.flush(DAY, CALENDAR);
+      const drop = (move: VisitMove) => {
+        page.harness.fixture.debugElement
+          .query(By.directive(CalendarDayGrid))
+          .triggerEventHandler('visitMove', move);
+        page.harness.detectChanges();
+      };
+      const label = () =>
+        page.el.querySelector('.visit')?.getAttribute('aria-label');
+      const column = () =>
+        page.el
+          .querySelector<HTMLElement>('.visit')
+          ?.style.getPropertyValue('grid-column');
+      const patch = () =>
+        page.http.expectOne(
+          (r) => r.method === 'PATCH' && r.url === '/api/visits/v1',
+        );
+      // `whenStable` would wait for the request still open.
+      const tick = async () => {
+        await new Promise((r) => setTimeout(r));
+        page.harness.detectChanges();
+      };
+      return { ...page, drop, label, column, patch, tick };
+    }
+
+    it('shows at once where it was dropped and saves only the person and time', async () => {
+      const { drop, label, column, patch, flush, tick } = await dragged();
+
+      drop({ before, after });
+
+      expect(label()).toMatch(/^11:00–11:45/);
+      // Ola is the third column after the time axis.
+      expect(column()).toBe('4');
+      const req = patch();
+      expect(req.request.body).toEqual({
+        staffMemberId: 'ola',
+        startsAt: '2026-11-11T10:00:00.000Z',
+      });
+      req.flush(after);
+      await tick();
+      await flush(DAY, { ...CALENDAR, visits: [after, CALENDAR.visits[1]] });
+      expect(label()).toMatch(/^11:00–11:45/);
+    });
+
+    it('goes back to where it was with a message when the save fails', async () => {
+      const { drop, label, column, patch, settle } = await dragged();
+      const snack = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
+
+      drop({ before, after });
+      patch().error(new ProgressEvent('error'), { status: 0 });
+      await settle();
+
+      expect(label()).toMatch(/^10:00–10:45/);
+      expect(column()).toBe('3');
+      expect(snack).toHaveBeenCalledWith(
+        'Nie przeniesiono Wizyty. Nie udało się połączyć z serwerem. Sprawdź internet i spróbuj ponownie.',
+        'OK',
+        expect.anything(),
+      );
+    });
+
+    it('saves despite a Kolizja after "Zapisz mimo to"', async () => {
+      const { drop, label, patch, tick, flush } = await dragged();
+      const open = vi
+        .spyOn(TestBed.inject(MatDialog), 'open')
+        .mockReturnValue({ afterClosed: () => of(true) } as never);
+
+      drop({ before, after });
+      patch().flush(COLLISION, { status: 409, statusText: 'Conflict' });
+      await tick();
+
+      expect(open).toHaveBeenCalledWith(
+        MoveCollisionsDialog,
+        expect.objectContaining({ data: COLLISION.collisions }),
+      );
+      const again = patch();
+      expect(again.request.body).toEqual({
+        staffMemberId: 'ola',
+        startsAt: '2026-11-11T10:00:00.000Z',
+        acceptCollisions: true,
+      });
+      again.flush(after);
+      await tick();
+      await flush(DAY, { ...CALENDAR, visits: [after, CALENDAR.visits[1]] });
+      expect(label()).toMatch(/^11:00–11:45/);
+    });
+
+    it('goes back without a message after "Cofnij" on the Kolizje', async () => {
+      const { drop, label, patch, settle } = await dragged();
+      vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
+        afterClosed: () => of(false),
+      } as never);
+      const snack = vi.spyOn(TestBed.inject(MatSnackBar), 'open');
+
+      drop({ before, after });
+      patch().flush(COLLISION, { status: 409, statusText: 'Conflict' });
+      await settle();
+
+      expect(label()).toMatch(/^10:00–10:45/);
+      expect(snack).not.toHaveBeenCalled();
+    });
+  });
+
   it('shows the error of a failed load', async () => {
     const { el, flush } = await setup();
     await flush(DAY, null);
@@ -277,6 +409,24 @@ describe('CalendarDayGrid', () => {
     el.querySelector<HTMLButtonElement>('.visit')?.click();
 
     expect(opened.map((v) => v.id)).toEqual(['v1']);
+  });
+
+  it('lets Wizyty be dragged only when editable', () => {
+    const { fixture, el } = setup();
+    const visits = () => [...el.querySelectorAll('.visit')];
+
+    expect(
+      visits().every((v) => v.classList.contains('cdk-drag-disabled')),
+    ).toBe(true);
+    expect(el.querySelector('.resize')).toBeNull();
+
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+
+    expect(
+      visits().some((v) => v.classList.contains('cdk-drag-disabled')),
+    ).toBe(false);
+    expect(el.querySelectorAll('.resize')).toHaveLength(2);
   });
 
   it('greys the hours outside the Godziny otwarcia, all of Saturday after 15:00', () => {

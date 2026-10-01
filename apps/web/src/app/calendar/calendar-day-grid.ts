@@ -1,4 +1,20 @@
-import { Component, computed, input, output } from '@angular/core';
+import {
+  CdkDrag,
+  CdkDragEnd,
+  CdkDragMove,
+  CdkDragStart,
+  DragConstrainPosition,
+  Point,
+} from '@angular/cdk/drag-drop';
+import {
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import {
   ABSENCE_DEFAULT_LABEL,
   CalendarDay,
@@ -17,6 +33,15 @@ import {
   slotStartsAt,
   warsawClock,
 } from './day-layout';
+import {
+  DragShift,
+  movedVisit,
+  moveRequest,
+  replaceVisit,
+  resizedVisit,
+  snapMinutes,
+  VisitMove,
+} from './visit-drag';
 
 /** An empty field of the grid that was clicked: the form of #30 starts from it. */
 export interface CalendarSlot {
@@ -28,11 +53,43 @@ export interface CalendarSlot {
 const gridRow = (row: number, rows: number): string => `${row} / span ${rows}`;
 
 /**
+ * The dragged element stays where the grid puts it: the grid itself draws the Wizyta
+ * at its new place, snapped to the quarters.
+ */
+const keepInPlace: DragConstrainPosition = (_point, _ref, rect) => ({
+  x: rect.left,
+  y: rect.top,
+});
+
+/** Where the pointer of `event` is on the page, scrolled part included. */
+function pointerOf(event: MouseEvent | TouchEvent): Point {
+  const point =
+    'touches' in event ? (event.touches[0] ?? event.changedTouches[0]) : event;
+  return { x: point.pageX, y: point.pageY };
+}
+
+/** On a touch screen a Wizyta is dragged after a long press, so the grid still scrolls. */
+const DRAG_START_DELAY = { touch: 300, mouse: 0 };
+
+interface Drag {
+  kind: 'move' | 'resize';
+  visit: CalendarVisit;
+  shift: DragShift;
+  /** Measured when the drag starts. */
+  pointer: Point;
+  minutePx: number;
+  columnPx: number;
+}
+
+/**
  * The day view from 768 px: a column for every person who Przyjmuje Wizyty, rows every
  * minute with a line every 15. Wizyty of one person that overlap go side by side.
+ * When `editable`, a Wizyta is dragged to another time or person, and its lower edge
+ * to another Czas trwania, in steps of 15 min.
  */
 @Component({
   selector: 'app-calendar-day-grid',
+  imports: [CdkDrag],
   template: `
     <div class="head" [style.--columns]="columns().length">
       <span></span>
@@ -85,6 +142,7 @@ const gridRow = (row: number, rows: number): string => `${row} / span ${rows}`;
           type="button"
           class="visit"
           [class.no-show]="item.noShow"
+          [class.dragged]="item.dragged"
           [style.grid-column]="item.column"
           [style.grid-row]="
             gridRow(item.block.row, item.block.rows + item.block.breakRows)
@@ -95,7 +153,14 @@ const gridRow = (row: number, rows: number): string => `${row} / span ${rows}`;
           [style.grid-template-rows]="
             item.block.rows + 'fr ' + item.block.breakRows + 'fr'
           "
-          (click)="visitClick.emit(item.block.visit)"
+          cdkDrag
+          [cdkDragDisabled]="!item.movable"
+          [cdkDragStartDelay]="dragStartDelay"
+          [cdkDragConstrainPosition]="keepInPlace"
+          (cdkDragStarted)="startDrag($event, 'move', item.visit)"
+          (cdkDragMoved)="moveDrag($event)"
+          (cdkDragEnded)="endDrag($event)"
+          (click)="openVisit(item.visit)"
         >
           <span class="work">
             <span class="line"
@@ -106,6 +171,24 @@ const gridRow = (row: number, rows: number): string => `${row} / span ${rows}`;
           </span>
           <span class="break" aria-hidden="true"></span>
         </button>
+        @if (item.movable) {
+          <!-- The mouse way to change the Czas trwania; the form is the other. -->
+          <div
+            class="resize"
+            aria-hidden="true"
+            [style.grid-column]="item.column"
+            [style.grid-row]="gridRow(item.block.row, item.block.rows)"
+            [style.--lane]="item.block.lane"
+            [style.--lanes]="item.block.lanes"
+            cdkDrag
+            cdkDragLockAxis="y"
+            [cdkDragStartDelay]="dragStartDelay"
+            [cdkDragConstrainPosition]="keepInPlace"
+            (cdkDragStarted)="startDrag($event, 'resize', item.visit)"
+            (cdkDragMoved)="moveDrag($event)"
+            (cdkDragEnded)="endDrag($event)"
+          ></div>
+        }
       }
       @if (now(); as row) {
         <div class="now" [style.grid-row]="row" aria-hidden="true"></div>
@@ -200,6 +283,22 @@ const gridRow = (row: number, rows: number): string => `${row} / span ${rows}`;
       line-height: 16px;
       color: var(--mat-sys-on-primary-container);
     }
+    .visit.cdk-drag:not(.cdk-drag-disabled) {
+      cursor: grab;
+    }
+    .visit.dragged {
+      z-index: 4;
+      cursor: grabbing;
+      opacity: 0.85;
+    }
+    .resize {
+      z-index: 4;
+      align-self: end;
+      width: calc(100% / var(--lanes) - 4px);
+      height: 8px;
+      margin-left: calc(100% * var(--lane) / var(--lanes) + 2px);
+      cursor: ns-resize;
+    }
     .visit:focus-visible {
       outline: 2px solid var(--mat-sys-primary);
     }
@@ -249,18 +348,55 @@ export class CalendarDayGrid {
   readonly calendar = input.required<CalendarResponse>();
   /** The current time, for the line of the current hour. */
   readonly currentTime = input.required<Date>();
+  /** Whether Wizyty can be dragged: only from 768 px. */
+  readonly editable = input(false);
 
   /** A click in an empty field: the person and the start of its quarter. */
   readonly slotClick = output<CalendarSlot>();
   /** A click in a Wizyta, to open its card. */
   readonly visitClick = output<CalendarVisit>();
+  /** A Wizyta dragged to another time, person or Czas trwania. */
+  readonly visitMove = output<VisitMove>();
+
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly drag = signal<Drag | null>(null);
+  /** A drag ends with a click on the Wizyta, which must not open its card. */
+  private suppressClick = false;
+
+  protected readonly keepInPlace = keepInPlace;
+  protected readonly dragStartDelay = DRAG_START_DELAY;
 
   protected readonly slotMin = SLOT_MIN;
   protected readonly gridRow = gridRow;
 
-  protected readonly range = computed(() =>
+  /** The range without the drag, so a moved Wizyta stays inside it. */
+  private readonly baseRange = computed(() =>
     dayRange(this.day(), this.calendar().visits, this.calendar().absences),
   );
+
+  /** The dragged Wizyta at its new place, `null` when nothing is dragged. */
+  private readonly draggedVisit = computed(() => {
+    const drag = this.drag();
+    if (!drag) return null;
+    return drag.kind === 'move'
+      ? movedVisit(drag.visit, drag.shift, this.columns(), this.baseRange())
+      : resizedVisit(drag.visit, drag.shift.minutes);
+  });
+
+  /** The calendar as drawn: with the dragged Wizyta where it is being dragged. */
+  private readonly drawn = computed(() => {
+    const dragged = this.draggedVisit();
+    return dragged ? replaceVisit(this.calendar(), dragged) : this.calendar();
+  });
+
+  /** A longer Wizyta can grow it, a moved one never shrinks it under the pointer. */
+  protected readonly range = computed(() => {
+    const dragged = this.draggedVisit();
+    const { visits, absences } = this.calendar();
+    return dragged
+      ? dayRange(this.day(), [...visits, dragged], absences)
+      : this.baseRange();
+  });
   protected readonly slots = computed(() => slots(this.range()));
   protected readonly closed = computed(() =>
     closedBlocks(this.range(), this.calendar().openingHours),
@@ -286,11 +422,13 @@ export class CalendarDayGrid {
   );
 
   private readonly layout = computed(() =>
-    layoutDay(this.calendar().visits, this.calendar().absences, this.range()),
+    layoutDay(this.drawn().visits, this.drawn().absences, this.range()),
   );
 
-  protected readonly visits = computed(() =>
-    this.layout().visits.flatMap((block) => {
+  protected readonly visits = computed(() => {
+    const firstMinute = slotStartsAt(this.range(), 1).getTime();
+    const drag = this.drag();
+    return this.layout().visits.flatMap((block) => {
       const column = this.columnOf().get(block.visit.staffMemberId);
       if (!column) return [];
       const { startsAt, durationMin, services, description } = block.visit;
@@ -300,9 +438,18 @@ export class CalendarDayGrid {
         ? services.map((service) => service.name).join(', ')
         : (description ?? '');
       const noShow = block.visit.state === 'NO_SHOW';
+      // The handlers get the Wizyta as it was before the drag.
+      const before = drag?.visit.id === block.visit.id ? drag.visit : null;
       return [
         {
           block,
+          visit: before ?? block.visit,
+          dragged: before !== null,
+          // One cut by the grid (from the day before) is moved in the form.
+          movable:
+            this.editable() &&
+            block.rows > 0 &&
+            new Date(startsAt).getTime() >= firstMinute,
           column,
           time,
           details,
@@ -313,8 +460,8 @@ export class CalendarDayGrid {
             .join(', '),
         },
       ];
-    }),
-  );
+    });
+  });
 
   protected readonly absences = computed(() =>
     this.layout().absences.flatMap((block) => {
@@ -330,6 +477,61 @@ export class CalendarDayGrid {
         : [];
     }),
   );
+
+  protected openVisit(visit: CalendarVisit): void {
+    if (this.suppressClick) {
+      this.suppressClick = false;
+      return;
+    }
+    this.visitClick.emit(visit);
+  }
+
+  protected startDrag(
+    { event }: CdkDragStart,
+    kind: Drag['kind'],
+    visit: CalendarVisit,
+  ): void {
+    const slot = this.host.nativeElement
+      .querySelector('.slot')
+      ?.getBoundingClientRect();
+    if (!slot) return;
+    this.drag.set({
+      kind,
+      visit,
+      shift: { minutes: 0, columns: 0 },
+      pointer: pointerOf(event),
+      minutePx: slot.height / SLOT_MIN,
+      columnPx: slot.width,
+    });
+  }
+
+  /** The `distance` of CDK is of the element, which `keepInPlace` holds still. */
+  protected moveDrag({ event }: CdkDragMove): void {
+    const drag = this.drag();
+    if (!drag) return;
+    const pointer = pointerOf(event);
+    const minutes = snapMinutes(pointer.y - drag.pointer.y, drag.minutePx);
+    const columns =
+      drag.kind === 'move'
+        ? Math.round((pointer.x - drag.pointer.x) / drag.columnPx) || 0
+        : 0;
+    if (minutes !== drag.shift.minutes || columns !== drag.shift.columns) {
+      this.drag.set({ ...drag, shift: { minutes, columns } });
+    }
+  }
+
+  protected endDrag({ source }: CdkDragEnd): void {
+    source.reset();
+    const before = this.drag()?.visit;
+    const after = this.draggedVisit();
+    this.drag.set(null);
+    this.suppressClick = true;
+    // No click came: the pointer was let go off the Wizyta.
+    setTimeout(() => (this.suppressClick = false));
+    if (before && after && Object.keys(moveRequest(before, after)).length) {
+      this.visitMove.emit({ before, after });
+    }
+  }
 
   protected pick(staffMemberId: string, row: number): void {
     this.slotClick.emit({
