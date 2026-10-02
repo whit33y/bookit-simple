@@ -3,6 +3,7 @@ module.exports = {
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
   globalSetup: '<rootDir>/jest.global-setup.ts',
+  globalTeardown: '<rootDir>/jest.global-teardown.ts',
   transform: {
     '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
