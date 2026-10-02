@@ -71,15 +71,16 @@ test.describe('on a computer', () => {
       name: 'Nieobecność, Kasia, Urlop',
     });
     await expect(absence).toBeVisible();
-    await expect(absence).toHaveCSS(
+    // The hatched block around the label, in the column of Kasia's empty fields.
+    const block = absence.locator('..');
+    await expect(block).toHaveCSS(
       'background-image',
       /repeating-linear-gradient/,
     );
-    // In the column of Kasia's empty fields.
     const column = await employee
       .getByRole('button', { name: 'Kasia, 9:00' })
       .evaluate((slot) => getComputedStyle(slot).gridColumnStart);
-    await expect(absence).toHaveCSS('grid-column-start', column);
+    await expect(block).toHaveCSS('grid-column-start', column);
 
     expect(await absencesOn(employee.request, FRIDAY)).toEqual([
       expect.objectContaining({
@@ -130,7 +131,16 @@ test.describe('on a computer', () => {
       reason: 'Lekarz',
     });
 
-    await page.getByRole('button', { name: 'Nieobecność, Ewa, Lekarz' }).click();
+    // An empty field under it still takes a Wizyta, as a Kolizja.
+    await page.getByRole('button', { name: 'Ewa, 11:00' }).click();
+    const visitForm = page.getByRole('dialog', { name: 'Nowa Wizyta' });
+    await expect(visitForm.getByLabel('Godzina')).toHaveValue('11:00');
+    await visitForm.getByRole('button', { name: 'Anuluj' }).click();
+    await expect(visitForm).toBeHidden();
+
+    await page
+      .getByRole('button', { name: 'Nieobecność, Ewa, Lekarz' })
+      .click();
     const form = page.getByRole('dialog', { name: 'Edycja Nieobecności' });
     await expect(form.getByLabel('Od godziny')).toHaveValue('10:00');
     await form.getByLabel('Do godziny').fill('09:00');

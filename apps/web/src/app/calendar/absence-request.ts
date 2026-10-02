@@ -27,9 +27,11 @@ export interface AbsenceFields {
   reason: string;
 }
 
-/** Of a new Nieobecność without whole days. */
-const FROM_TIME = '09:00';
-const TO_TIME = '17:00';
+const DEFAULT_FROM_TIME = '09:00';
+const DEFAULT_TO_TIME = '17:00';
+
+/** The fields a `422` of saving can belong under. */
+export type AbsenceErrorField = 'toDay' | 'staffMemberId';
 
 /** A new Nieobecność starts as the whole of `day`. */
 export function newAbsenceFields(
@@ -40,9 +42,9 @@ export function newAbsenceFields(
     staffMemberId,
     allDay: true,
     fromDay: day,
-    fromTime: FROM_TIME,
+    fromTime: DEFAULT_FROM_TIME,
     toDay: day,
-    toTime: TO_TIME,
+    toTime: DEFAULT_TO_TIME,
     reason: '',
   };
 }
@@ -79,10 +81,10 @@ export function absenceFields(absence: AbsenceView): AbsenceFields {
     staffMemberId: absence.staffMemberId,
     allDay,
     fromDay: warsawDate(startsAt),
-    fromTime: allDay ? FROM_TIME : warsawTime(startsAt),
+    fromTime: allDay ? DEFAULT_FROM_TIME : warsawTime(startsAt),
     // The midnight it ends at is the start of the day after the last one.
     toDay: allDay ? addDays(warsawDate(endsAt), -1) : warsawDate(endsAt),
-    toTime: allDay ? TO_TIME : warsawTime(endsAt),
+    toTime: allDay ? DEFAULT_TO_TIME : warsawTime(endsAt),
     reason: absence.reason ?? '',
   };
 }
@@ -110,9 +112,7 @@ export function absenceChanges(
 }
 
 /** The field a `422` of saving belongs under, `null` for an error of the whole form. */
-export function fieldOfError(
-  error: unknown,
-): 'toDay' | 'staffMemberId' | null {
+export function fieldOfError(error: unknown): AbsenceErrorField | null {
   if (!(error instanceof HttpErrorResponse) || error.status !== 422) {
     return null;
   }

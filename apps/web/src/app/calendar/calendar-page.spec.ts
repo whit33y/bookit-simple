@@ -678,7 +678,7 @@ describe('CalendarDayGrid', () => {
     const opened: AbsenceView[] = [];
     fixture.componentInstance.absenceClick.subscribe((a) => opened.push(a));
 
-    el.querySelector<HTMLButtonElement>('.absence')?.click();
+    el.querySelector<HTMLButtonElement>('.absence button')?.click();
 
     expect(opened.map((a) => a.id)).toEqual(['a1']);
   });

@@ -98,6 +98,38 @@ export interface VisitDialogData {
 /** Below this the form takes the whole screen. */
 export const PHONE_QUERY = '(max-width: 767.98px)';
 
+/** The size of a calendar form: `width` wide, the whole screen on a phone. */
+export function formSize(
+  breakpoints: BreakpointObserver,
+  width: string,
+): MatDialogConfig {
+  return breakpoints.isMatched(PHONE_QUERY)
+    ? {
+        width: '100vw',
+        maxWidth: '100vw',
+        height: '100dvh',
+        maxHeight: '100dvh',
+        panelClass: 'full-screen-dialog',
+      }
+    : { width };
+}
+
+/**
+ * The people to pick in a calendar form: who Przyjmuje Wizyty, and an Usunięta osoba z
+ * Personelu only as the person `keepId` of what is edited.
+ */
+export function staffOptions(
+  staff: CalendarStaffMember[],
+  keepId?: string,
+): { id: string; label: string }[] {
+  return staff
+    .filter((p) => p.visibleUntil === null || p.id === keepId)
+    .map((p) => ({
+      id: p.id,
+      label: p.visibleUntil ? `${p.displayName} (usunięta)` : p.displayName,
+    }));
+}
+
 /**
  * Opens the form, on the whole screen of a phone; resolves with the saved Wizyta,
  * `undefined` if cancelled.
@@ -107,19 +139,10 @@ export function openVisitDialog(
   breakpoints: BreakpointObserver,
   data: VisitDialogData,
 ): Promise<VisitView | undefined> {
-  const size: MatDialogConfig = breakpoints.isMatched(PHONE_QUERY)
-    ? {
-        width: '100vw',
-        maxWidth: '100vw',
-        height: '100dvh',
-        maxHeight: '100dvh',
-        panelClass: 'full-screen-dialog',
-      }
-    : { width: '640px' };
   return firstValueFrom(
     dialog
       .open<VisitDialog, VisitDialogData, VisitView>(VisitDialog, {
-        ...size,
+        ...formSize(breakpoints, '640px'),
         data,
         autoFocus: data.visit ? 'dialog' : 'first-tabbable',
       })
@@ -403,15 +426,10 @@ export class VisitDialog {
   protected readonly visit = this.data.visit;
   protected readonly quickLengths = QUICK_LENGTHS;
 
-  /** People who Przyjmują Wizyty; an Usunięta osoba only as the person of the edited one. */
-  protected readonly staffOptions = this.data.staff
-    .filter(
-      (p) => p.visibleUntil === null || p.id === this.visit?.staffMemberId,
-    )
-    .map((p) => ({
-      id: p.id,
-      label: p.visibleUntil ? `${p.displayName} (usunięta)` : p.displayName,
-    }));
+  protected readonly staffOptions = staffOptions(
+    this.data.staff,
+    this.visit?.staffMemberId,
+  );
 
   protected readonly client = signal<ClientView | null>(
     this.visit

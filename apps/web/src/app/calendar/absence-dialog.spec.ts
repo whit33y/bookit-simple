@@ -55,12 +55,12 @@ describe('AbsenceDialog', () => {
     const dialog = fixture.componentInstance as unknown as {
       model: WritableSignal<AbsenceFields>;
     };
-    const field = (label: string) => {
-      const found = [...el.querySelectorAll('mat-form-field')].find(
+    const formField = (label: string) =>
+      [...el.querySelectorAll('mat-form-field')].find(
         (f) => f.querySelector('mat-label')?.textContent?.trim() === label,
       );
-      return found?.querySelector('input') as HTMLInputElement | undefined;
-    };
+    const field = (label: string) =>
+      formField(label)?.querySelector('input') as HTMLInputElement | undefined;
     const button = (text: string) => {
       const found = [...el.querySelectorAll('button')].find(
         (b) => b.textContent?.trim() === text,
@@ -77,7 +77,18 @@ describe('AbsenceDialog', () => {
       await settle();
     };
     const text = () => el.textContent ?? '';
-    return { http, close, el, settle, field, button, submit, fill, text };
+    return {
+      http,
+      close,
+      el,
+      settle,
+      formField,
+      field,
+      button,
+      submit,
+      fill,
+      text,
+    };
   }
 
   afterEach(() => TestBed.inject(HttpTestingController).verify());
@@ -126,7 +137,7 @@ describe('AbsenceDialog', () => {
   });
 
   it('shows the end before the start from the API under "Do" until the time changes', async () => {
-    const { http, close, el, fill, submit, settle } = await setup({
+    const { http, close, formField, fill, submit, settle } = await setup({
       staffMemberId: 'kasia',
     });
     await fill({ allDay: false, fromTime: '12:00', toTime: '11:00' });
@@ -140,9 +151,7 @@ describe('AbsenceDialog', () => {
       { status: 422, statusText: 'Unprocessable Entity' },
     );
     await settle();
-    const to = [...el.querySelectorAll('mat-form-field')].find(
-      (f) => f.querySelector('mat-label')?.textContent?.trim() === 'Do',
-    );
+    const to = formField('Do');
     expect(to?.querySelector('mat-error')?.textContent).toContain(
       ABSENCE_ENDS_BEFORE_START,
     );
@@ -154,7 +163,9 @@ describe('AbsenceDialog', () => {
     await fill({ fromTime: '10:00' });
     expect(to?.querySelector('mat-error')).toBeNull();
     await submit();
-    http.expectOne({ url: '/api/absences', method: 'POST' }).flush({ id: 'a2' });
+    http
+      .expectOne({ url: '/api/absences', method: 'POST' })
+      .flush({ id: 'a2' });
     await settle();
     expect(close).toHaveBeenCalledWith(true);
   });

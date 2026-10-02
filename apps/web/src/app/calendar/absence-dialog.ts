@@ -12,7 +12,6 @@ import { MatButtonModule } from '@angular/material/button';
 import {
   MAT_DIALOG_DATA,
   MatDialog,
-  MatDialogConfig,
   MatDialogModule,
   MatDialogRef,
 } from '@angular/material/dialog';
@@ -34,6 +33,7 @@ import { firstValueFrom } from 'rxjs';
 import { errorMessage } from '../shared/error-message';
 import {
   absenceChanges,
+  AbsenceErrorField,
   absenceFields,
   AbsenceFields,
   absenceRequest,
@@ -41,9 +41,7 @@ import {
   newAbsenceFields,
 } from './absence-request';
 import { AbsencesService } from './absences.service';
-import { PHONE_QUERY } from './visit-dialog';
-
-type RefusedField = NonNullable<ReturnType<typeof fieldOfError>>;
+import { formSize, staffOptions } from './visit-dialog';
 
 export interface AbsenceDialogData {
   /** The columns of the calendar: who can get a Nieobecność, and the names of the rest. */
@@ -61,25 +59,13 @@ export function openAbsenceDialog(
   breakpoints: BreakpointObserver,
   data: AbsenceDialogData,
 ): Promise<boolean> {
-  const size: MatDialogConfig = breakpoints.isMatched(PHONE_QUERY)
-    ? {
-        width: '100vw',
-        maxWidth: '100vw',
-        height: '100dvh',
-        maxHeight: '100dvh',
-        panelClass: 'full-screen-dialog',
-      }
-    : { width: '520px' };
   return firstValueFrom(
     dialog
-      .open<AbsenceDialog, AbsenceDialogData, boolean>(
-        AbsenceDialog,
-        {
-          ...size,
-          data,
-          autoFocus: data.absence ? 'dialog' : 'first-tabbable',
-        },
-      )
+      .open<AbsenceDialog, AbsenceDialogData, boolean>(AbsenceDialog, {
+        ...formSize(breakpoints, '520px'),
+        data,
+        autoFocus: data.absence ? 'dialog' : 'first-tabbable',
+      })
       .afterClosed(),
   ).then(Boolean);
 }
@@ -174,11 +160,7 @@ export function openAbsenceDialog(
       <mat-dialog-actions>
         @if (absence) {
           @if (confirmDelete()) {
-            <button
-              mat-button
-              type="button"
-              (click)="confirmDelete.set(false)"
-            >
+            <button mat-button type="button" (click)="confirmDelete.set(false)">
               Nie usuwaj
             </button>
             <button
@@ -267,21 +249,16 @@ export class AbsenceDialog {
 
   protected readonly absence = this.data.absence;
 
-  /** The Personel but the Usunięte osoby, unless as the person of the edited one. */
-  protected readonly staffOptions = this.data.staff
-    .filter(
-      (p) => p.visibleUntil === null || p.id === this.absence?.staffMemberId,
-    )
-    .map((p) => ({
-      id: p.id,
-      label: p.visibleUntil ? `${p.displayName} (usunięta)` : p.displayName,
-    }));
+  protected readonly staffOptions = staffOptions(
+    this.data.staff,
+    this.absence?.staffMemberId,
+  );
 
   protected readonly model = signal<AbsenceFields>(this.initialModel());
 
   /** What the API refused at the last save, shown under its field until it changes. */
   private readonly refused = signal<{
-    field: RefusedField;
+    field: AbsenceErrorField;
     key: string;
     message: string;
   } | null>(null);
@@ -344,7 +321,7 @@ export class AbsenceDialog {
       if (field) {
         this.refused.set({
           field,
-          key: this.keyOf(field),
+          key: this.refusalScope(field),
           message: errorMessage(error),
         });
       } else {
@@ -374,16 +351,16 @@ export class AbsenceDialog {
    * The values a refusal is about: the person, or the whole time of the Nieobecność, so
    * changing its start clears an end before the start too.
    */
-  private keyOf(field: RefusedField): string {
+  private refusalScope(field: AbsenceErrorField): string {
     const m = this.model();
     return field === 'staffMemberId'
       ? m.staffMemberId
       : [m.allDay, m.fromDay, m.fromTime, m.toDay, m.toTime].join();
   }
 
-  private refusedError(field: RefusedField) {
+  private refusedError(field: AbsenceErrorField) {
     const refused = this.refused();
-    return refused?.field === field && refused.key === this.keyOf(field)
+    return refused?.field === field && refused.key === this.refusalScope(field)
       ? { kind: 'server', message: refused.message }
       : undefined;
   }

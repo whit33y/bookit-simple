@@ -128,9 +128,9 @@ describe('newAbsenceFields', () => {
 
 describe('absenceChanges', () => {
   it('is empty when nothing changed', () => {
-    expect(absenceChanges(ABSENCE, absenceRequest(absenceFields(ABSENCE)))).toEqual(
-      {},
-    );
+    expect(
+      absenceChanges(ABSENCE, absenceRequest(absenceFields(ABSENCE))),
+    ).toEqual({});
   });
 
   it('has only what changed', () => {

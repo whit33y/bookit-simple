@@ -38,7 +38,7 @@ import { firstValueFrom, map } from 'rxjs';
 import { NEW_VISIT_CLIENT_PARAM } from '../clients/client-links';
 import { ClientsService } from '../clients/clients.service';
 import { errorMessage } from '../shared/error-message';
-import { openAbsenceDialog } from './absence-dialog';
+import { AbsenceDialogData, openAbsenceDialog } from './absence-dialog';
 import {
   GridColumn,
   nextQuarter,
@@ -586,24 +586,24 @@ export class CalendarPage {
   }
 
   /** "Nowa Nieobecność": the day shown, in the week view and on a phone for the person shown. */
-  protected async newAbsence(): Promise<void> {
-    const staff = this.shown()?.calendar.staff;
-    if (!staff) return;
+  protected newAbsence(): void {
     const person = this.week() || this.phone() ? this.bookable() : undefined;
-    const saved = await openAbsenceDialog(this.dialog, this.breakpoints, {
-      staff,
-      day: this.focusDay(),
-      ...(person ? { staffMemberId: person } : {}),
-    });
-    if (saved) this.calendar.reload();
+    void this.absenceForm(person ? { staffMemberId: person } : {});
   }
 
-  protected async openAbsence(absence: AbsenceView): Promise<void> {
-    const staff = this.shown()?.calendar.staff ?? [];
+  protected openAbsence(absence: AbsenceView): void {
+    void this.absenceForm({ absence });
+  }
+
+  private async absenceForm(
+    data: Omit<AbsenceDialogData, 'staff' | 'day'>,
+  ): Promise<void> {
+    const staff = this.shown()?.calendar.staff;
+    if (!staff) return;
     const changed = await openAbsenceDialog(this.dialog, this.breakpoints, {
       staff,
-      absence,
       day: this.focusDay(),
+      ...data,
     });
     if (changed) this.calendar.reload();
   }

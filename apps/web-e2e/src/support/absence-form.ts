@@ -15,7 +15,10 @@ export interface AbsenceInput {
  * Adds a Nieobecność through "Nowa Nieobecność" in the calendar shown on `page`, as the
  * Personel does, e.g. the "dzień recepcji" scenario (#38).
  */
-export async function addAbsence(page: Page, input: AbsenceInput): Promise<void> {
+export async function addAbsence(
+  page: Page,
+  input: AbsenceInput,
+): Promise<void> {
   await page.getByRole('button', { name: 'Nowa Nieobecność' }).click();
   const form = page.getByRole('dialog', { name: 'Nowa Nieobecność' });
   if (input.person) {
