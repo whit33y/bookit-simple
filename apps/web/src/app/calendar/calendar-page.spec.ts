@@ -15,7 +15,8 @@ import { By } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { of } from 'rxjs';
-import { CalendarResponse, CalendarVisit } from '@bookit/shared';
+import { AbsenceView, CalendarResponse, CalendarVisit } from '@bookit/shared';
+import { AbsenceDialog } from './absence-dialog';
 import { personColumns, weekColumns } from './calendar-columns';
 import { CalendarDayGrid, CalendarSlot } from './calendar-day-grid';
 import { CalendarPage } from './calendar-page';
@@ -236,6 +237,36 @@ describe('CalendarPage', () => {
           staff: CALENDAR.staff,
           staffMemberId: 'kasia',
           startsAt: new Date('2026-11-11T08:15:00Z'),
+        },
+      }),
+    );
+  });
+
+  it('opens a new Nieobecność on the day shown, and a Nieobecność clicked to edit it', async () => {
+    const { el, flush } = await setup();
+    await flush(DAY, CALENDAR);
+    const open = vi
+      .spyOn(TestBed.inject(MatDialog), 'open')
+      .mockReturnValue({ afterClosed: () => of(undefined) } as never);
+
+    [...el.querySelectorAll<HTMLButtonElement>('.bar button')]
+      .find((b) => text(b)?.endsWith('Nowa Nieobecność'))
+      ?.click();
+    expect(open).toHaveBeenLastCalledWith(
+      AbsenceDialog,
+      expect.objectContaining({ data: { staff: CALENDAR.staff, day: DAY } }),
+    );
+
+    el.querySelector<HTMLButtonElement>(
+      'button[aria-label="Nieobecność, Ola, Lekarz"]',
+    )?.click();
+    expect(open).toHaveBeenLastCalledWith(
+      AbsenceDialog,
+      expect.objectContaining({
+        data: {
+          staff: CALENDAR.staff,
+          absence: CALENDAR.absences[0],
+          day: DAY,
         },
       }),
     );
@@ -472,6 +503,31 @@ describe('CalendarPage', () => {
       await flush('2026-11-09', CALENDAR);
     });
 
+    it('opens a new Nieobecność for the person of the week', async () => {
+      const { el, flush } = await setup(
+        '/panel/kalendarz/tydzien?osoba=kasia&od=2026-11-09',
+      );
+      await flush('2026-11-09', WEEK, '2026-11-15');
+      const open = vi
+        .spyOn(TestBed.inject(MatDialog), 'open')
+        .mockReturnValue({ afterClosed: () => of(undefined) } as never);
+
+      [...el.querySelectorAll<HTMLButtonElement>('.bar button')]
+        .find((b) => text(b)?.endsWith('Nowa Nieobecność'))
+        ?.click();
+
+      expect(open).toHaveBeenCalledWith(
+        AbsenceDialog,
+        expect.objectContaining({
+          data: {
+            staff: CALENDAR.staff,
+            day: '2026-11-09',
+            staffMemberId: 'kasia',
+          },
+        }),
+      );
+    });
+
     it('opens the form for the person of the week at the field clicked', async () => {
       const { el, flush } = await setup(
         '/panel/kalendarz/tydzien?osoba=kasia&od=2026-11-09',
@@ -615,6 +671,16 @@ describe('CalendarDayGrid', () => {
     el.querySelector<HTMLButtonElement>('.visit')?.click();
 
     expect(opened.map((v) => v.id)).toEqual(['v1']);
+  });
+
+  it('emits the Nieobecność clicked', () => {
+    const { fixture, el } = setup();
+    const opened: AbsenceView[] = [];
+    fixture.componentInstance.absenceClick.subscribe((a) => opened.push(a));
+
+    el.querySelector<HTMLButtonElement>('.absence button')?.click();
+
+    expect(opened.map((a) => a.id)).toEqual(['a1']);
   });
 
   it('lets Wizyty be dragged only when editable', () => {

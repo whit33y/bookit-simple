@@ -17,6 +17,7 @@ import {
 } from '@angular/core';
 import {
   ABSENCE_DEFAULT_LABEL,
+  AbsenceView,
   CalendarDay,
   CalendarResponse,
   CalendarVisit,
@@ -171,12 +172,19 @@ const rangesOf = (
         }
       }
       @for (item of absences(); track item.key) {
+        <!-- Only the label opens it: a Wizyta can still be added under it, as a Kolizja. -->
         <div
           class="absence"
           [style.grid-column]="item.column"
           [style.grid-row]="gridRow(item.block.row, item.block.rows)"
         >
-          <span>{{ item.label }}</span>
+          <button
+            type="button"
+            [attr.aria-label]="item.name"
+            (click)="absenceClick.emit(item.block.absence)"
+          >
+            {{ item.label }}
+          </button>
         </div>
       }
       @for (item of visits(); track item.key) {
@@ -327,8 +335,17 @@ const rangesOf = (
         transparent 2px 8px
       );
     }
-    .absence span {
+    .absence button {
+      all: unset;
+      pointer-events: auto;
+      cursor: pointer;
       background: var(--mat-sys-surface);
+    }
+    .absence button:hover {
+      text-decoration: underline;
+    }
+    .absence button:focus-visible {
+      outline: 2px solid var(--mat-sys-primary);
     }
     .visit {
       all: unset;
@@ -413,6 +430,8 @@ export class CalendarDayGrid {
   readonly slotClick = output<CalendarSlot>();
   /** A click in a Wizyta, to open its card. */
   readonly visitClick = output<CalendarVisit>();
+  /** A click in a Nieobecność, to edit or remove it. */
+  readonly absenceClick = output<AbsenceView>();
   /** A Wizyta dragged to another time, column or Czas trwania. */
   readonly visitMove = output<VisitMove>();
 
@@ -565,6 +584,9 @@ export class CalendarDayGrid {
           block,
           column: cell.column,
           label: block.absence.reason || ABSENCE_DEFAULT_LABEL,
+          name: [ABSENCE_DEFAULT_LABEL, cell.name, block.absence.reason]
+            .filter(Boolean)
+            .join(', '),
         })),
     ),
   );
