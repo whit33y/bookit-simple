@@ -61,6 +61,8 @@ test('the Właściciel adds an Ogłoszenie, sees the groups and deletes it, and 
 
   await page.getByRole('button', { name: 'Usuń: Nowy fotel' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Usuń' }).click();
+  // An open dialog hides the page from roles, so wait for it before looking at the row.
+  await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByRole('listitem', { name: 'Nowy fotel' })).toHaveCount(
     0,
   );

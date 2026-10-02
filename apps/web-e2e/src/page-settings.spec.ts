@@ -77,7 +77,7 @@ test('the Właściciel sets the colour, logo and map link of the Wizytówka', as
   expect(await wizytowka.json()).toMatchObject({
     salon: {
       accentColor: '#c0392b',
-      logoPhotoId: logo.id,
+      logo: expect.objectContaining({ id: logo.id }),
       mapUrl: 'https://maps.app.goo.gl/abc123',
     },
   });
