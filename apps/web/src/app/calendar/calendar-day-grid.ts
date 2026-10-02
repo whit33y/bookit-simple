@@ -17,6 +17,7 @@ import {
 } from '@angular/core';
 import {
   ABSENCE_DEFAULT_LABEL,
+  AbsenceView,
   CalendarDay,
   CalendarResponse,
   CalendarVisit,
@@ -171,13 +172,16 @@ const rangesOf = (
         }
       }
       @for (item of absences(); track item.key) {
-        <div
+        <button
+          type="button"
           class="absence"
           [style.grid-column]="item.column"
           [style.grid-row]="gridRow(item.block.row, item.block.rows)"
+          [attr.aria-label]="item.name"
+          (click)="absenceClick.emit(item.block.absence)"
         >
           <span>{{ item.label }}</span>
-        </div>
+        </button>
       }
       @for (item of visits(); track item.key) {
         <button
@@ -316,8 +320,13 @@ const rangesOf = (
       cursor: default;
     }
     .absence {
+      all: unset;
       z-index: 2;
-      pointer-events: none;
+      /* A button centres what it holds; the reason goes at the top. */
+      display: flex;
+      align-items: flex-start;
+      box-sizing: border-box;
+      cursor: pointer;
       padding: 4px 6px;
       font-size: 12px;
       color: var(--mat-sys-on-surface-variant);
@@ -329,6 +338,9 @@ const rangesOf = (
     }
     .absence span {
       background: var(--mat-sys-surface);
+    }
+    .absence:focus-visible {
+      outline: 2px solid var(--mat-sys-primary);
     }
     .visit {
       all: unset;
@@ -413,6 +425,8 @@ export class CalendarDayGrid {
   readonly slotClick = output<CalendarSlot>();
   /** A click in a Wizyta, to open its card. */
   readonly visitClick = output<CalendarVisit>();
+  /** A click in a Nieobecność, to edit or remove it. */
+  readonly absenceClick = output<AbsenceView>();
   /** A Wizyta dragged to another time, column or Czas trwania. */
   readonly visitMove = output<VisitMove>();
 
@@ -565,6 +579,9 @@ export class CalendarDayGrid {
           block,
           column: cell.column,
           label: block.absence.reason || ABSENCE_DEFAULT_LABEL,
+          name: [ABSENCE_DEFAULT_LABEL, cell.name, block.absence.reason]
+            .filter(Boolean)
+            .join(', '),
         })),
     ),
   );

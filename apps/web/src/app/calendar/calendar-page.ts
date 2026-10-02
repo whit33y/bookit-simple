@@ -24,6 +24,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterLink } from '@angular/router';
 import {
+  AbsenceView,
   addDays,
   CalendarDay,
   CalendarResponse,
@@ -37,6 +38,7 @@ import { firstValueFrom, map } from 'rxjs';
 import { NEW_VISIT_CLIENT_PARAM } from '../clients/client-links';
 import { ClientsService } from '../clients/clients.service';
 import { errorMessage } from '../shared/error-message';
+import { openAbsenceDialog } from './absence-dialog';
 import {
   GridColumn,
   nextQuarter,
@@ -77,11 +79,11 @@ const CLOCK_TICK_MS = 30 * 1000;
  * `/panel/kalendarz?dzien=YYYY-MM-DD`: the day view of the calendar, today without
  * `dzien`. `/panel/kalendarz/tydzien?osoba=<id>&od=YYYY-MM-DD`: the week view, the
  * seven days of one person from the Monday of `od`. A click in an empty field opens
- * the Wizyta form there, a click in a Wizyta its card; `?klient=<id>` (from the karta
- * Klienta) opens the form with that Klient. From 768 px a Wizyta is dragged: the
- * calendar shows it at once and puts it back when the save fails. Below 768 px the day
- * view has one person, changed by a swipe, and a "+" for a new Wizyta. The person last
- * picked is remembered in the browser.
+ * the Wizyta form there, a click in a Wizyta its card, a click in a Nieobecność its
+ * form; `?klient=<id>` (from the karta Klienta) opens the form with that Klient. From
+ * 768 px a Wizyta is dragged: the calendar shows it at once and puts it back when the
+ * save fails. Below 768 px the day view has one person, changed by a swipe, and a "+"
+ * for a new Wizyta. The person last picked is remembered in the browser.
  */
 @Component({
   selector: 'app-calendar-page',
@@ -188,6 +190,15 @@ const CLOCK_TICK_MS = 30 * 1000;
           />
         </mat-form-field>
       </span>
+      <button
+        mat-stroked-button
+        type="button"
+        [disabled]="!shown()"
+        (click)="newAbsence()"
+      >
+        <mat-icon>event_busy</mat-icon>
+        Nowa Nieobecność
+      </button>
       @if (!phone()) {
         <button
           mat-flat-button
@@ -221,6 +232,7 @@ const CLOCK_TICK_MS = 30 * 1000;
           [editable]="!phone()"
           (slotClick)="pickSlot($event)"
           (visitClick)="openCard($event)"
+          (absenceClick)="openAbsence($event)"
           (visitMove)="move($event)"
         />
       </div>
@@ -571,6 +583,29 @@ export class CalendarPage {
       ...(person ? { staffMemberId: person } : {}),
       startsAt: nextQuarter(this.now(), this.focusDay()),
     });
+  }
+
+  /** "Nowa Nieobecność": the day shown, in the week view and on a phone for the person shown. */
+  protected async newAbsence(): Promise<void> {
+    const staff = this.shown()?.calendar.staff;
+    if (!staff) return;
+    const person = this.week() || this.phone() ? this.bookable() : undefined;
+    const saved = await openAbsenceDialog(this.dialog, this.breakpoints, {
+      staff,
+      day: this.focusDay(),
+      ...(person ? { staffMemberId: person } : {}),
+    });
+    if (saved) this.calendar.reload();
+  }
+
+  protected async openAbsence(absence: AbsenceView): Promise<void> {
+    const staff = this.shown()?.calendar.staff ?? [];
+    const changed = await openAbsenceDialog(this.dialog, this.breakpoints, {
+      staff,
+      absence,
+      day: this.focusDay(),
+    });
+    if (changed) this.calendar.reload();
   }
 
   /** The id of the person shown, unless an Usunięta osoba z Personelu, who takes no new Wizyty. */
