@@ -1,5 +1,6 @@
 import { APIRequestContext, expect, Page, test } from '@playwright/test';
 import { loggedInOwner } from './support/invited-owner';
+import { swipe } from './support/swipe';
 
 // A Thursday; the week runs from Monday 9 November.
 const DAY = '2026-11-12';
@@ -24,25 +25,7 @@ async function kasiaAndOla(request: APIRequestContext): Promise<string> {
 }
 
 /** The name in the head of the only column. */
-const shownPerson = (page: Page) =>
-  page.locator('app-calendar-day-grid .name');
-
-/** A finger moving `dx` px across the middle of the grid, as a real touch screen sends it. */
-async function swipe(page: Page, dx: number): Promise<void> {
-  const box = await page.locator('app-calendar-day-grid').boundingBox();
-  if (!box) throw new Error('The grid is not drawn');
-  const x = box.x + box.width / 2;
-  const y = 400;
-  const cdp = await page.context().newCDPSession(page);
-  const touch = (type: string, points: { x: number; y: number }[]) =>
-    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points });
-  await touch('touchStart', [{ x, y }]);
-  for (let i = 1; i <= 10; i++) {
-    await touch('touchMove', [{ x: x + (dx * i) / 10, y }]);
-  }
-  await touch('touchEnd', []);
-  await cdp.detach();
-}
+const shownPerson = (page: Page) => page.locator('app-calendar-day-grid .name');
 
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
@@ -75,7 +58,9 @@ test.describe('on a phone', () => {
       'Kasia',
     );
     await expect(form.getByLabel('Data')).toHaveValue('2026-11-13');
-    await expect(form.getByLabel('Godzina')).toHaveValue(/^\d\d:(00|15|30|45)$/);
+    await expect(form.getByLabel('Godzina')).toHaveValue(
+      /^\d\d:(00|15|30|45)$/,
+    );
   });
 });
 
@@ -105,7 +90,9 @@ test.describe('on a computer', () => {
       'Ola',
     ]);
     await page.getByRole('radio', { name: 'Tydzień' }).click();
-    await expect(page).toHaveURL(/\/panel\/kalendarz\/tydzien\?osoba=.+&od=2026-11-09$/);
+    await expect(page).toHaveURL(
+      /\/panel\/kalendarz\/tydzien\?osoba=.+&od=2026-11-09$/,
+    );
     await page.getByRole('combobox', { name: 'Osoba' }).click();
     await page.getByRole('option', { name: 'Kasia' }).click();
     await expect(page).toHaveURL(

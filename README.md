@@ -49,6 +49,8 @@ npx nx run-many -t lint test build
 npx nx run web-e2e:e2e
 ```
 
-Testy Playwright (`apps/web-e2e`) potrzebują Postgresa i Mailpita z `docker compose up -d`. Same uruchamiają `nx serve web` (razem z `api`), a jeśli aplikacja już działa na :4200, korzystają z niej. Linki z zaproszeń i resetu hasła pobierają z API Mailpita. Salony z zaproszonym Właścicielem testy zakładają przez API Administratora, więc baza potrzebuje Administratora z `.env` (`npx nx run api:seed`). Przy pierwszym uruchomieniu zainstaluj przeglądarkę: `npx playwright install chromium`.
+Testy Playwright (`apps/web-e2e`) potrzebują Postgresa, MinIO i Mailpita z `docker compose up -d`. Same uruchamiają `nx serve web` (razem z `api`), a jeśli aplikacja już działa na :4200, korzystają z niej. Linki z zaproszeń i resetu hasła pobierają z API Mailpita. Salony z zaproszonym Właścicielem testy zakładają przez API Administratora, więc baza potrzebuje Administratora z `.env` (`npx nx run api:seed`). Przy pierwszym uruchomieniu zainstaluj przeglądarkę: `npx playwright install chromium`.
 
-CI (`.github/workflows/ci.yml`) uruchamia `nx affected -t lint test build` na każdym PR i pushu do `main`, z Postgresem 16 i zmiennymi z `.env.example`.
+Scenariusze pilota (`apps/web-e2e/src/pilot`: dzień recepcji, telefon, Właściciel, odejście, izolacja) prowadzą Studio Kora przez cały dzień. Każdy test zakłada własną kopię Studio Kora z seeda (`apps/api/src/seed/seed-studio-kora-copy.ts`, adres `kora-<id>`, Personel `magda@kora-<id>.test` itd.) i usuwa ją po sobie, więc scenariusze nie zależą od kolejności ani od Studio Kora programisty i mogą biec równolegle.
+
+CI (`.github/workflows/ci.yml`) uruchamia `nx affected -t lint test build` na każdym PR i pushu do `main`, z Postgresem 16 i zmiennymi z `.env.example`. Osobny job `e2e` stawia usługi z `docker-compose.yml`, wykonuje migracje i seed, a potem `nx run web-e2e:e2e` na świeżej bazie; raport Playwrighta po błędzie jest w artefaktach przebiegu.
