@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   CallHandler,
   Controller,
   Delete,
@@ -21,6 +22,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  CropPhotoRequest,
   PHOTO_FILE_REQUIRED,
   PHOTO_MAX_BYTES,
   PHOTO_TOO_LARGE,
@@ -29,6 +31,7 @@ import {
 import { Response } from 'express';
 import { memoryStorage } from 'multer';
 import { catchError, Observable, throwError } from 'rxjs';
+import { z } from 'zod';
 import { Public, Roles } from '../auth/access.decorators';
 import { AdminScope } from '../salon-context/admin-scope.decorator';
 import { PHOTO_CONTENT_TYPE, PhotosService } from './photos.service';
@@ -54,6 +57,22 @@ class PhotoTooLargeMessage implements NestInterceptor {
   }
 }
 
+/** Whole pixels of the source Photo; the service checks the square against its size. */
+const pixels = z.int({ error: 'Nieprawidłowy kadr' });
+const cropSchema = z.object({
+  x: pixels,
+  y: pixels,
+  size: pixels,
+}) satisfies z.ZodType<CropPhotoRequest>;
+
+function parse<T>(schema: z.ZodType<T>, body: unknown): T {
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    throw new BadRequestException(parsed.error.issues[0]?.message);
+  }
+  return parsed.data;
+}
+
 /** `/api/photos`: only the Właściciel adds and deletes Photos of the Salon. */
 @Controller('photos')
 @Roles('OWNER')
@@ -72,6 +91,15 @@ export class PhotosController {
   upload(@UploadedFile() file?: Express.Multer.File): Promise<PhotoView> {
     if (!file) throw new BadRequestException(PHOTO_FILE_REQUIRED);
     return this.photos.upload(file.buffer);
+  }
+
+  /** `{ x, y, size }` in pixels of the Photo; replies with the new Photo. */
+  @Post(':id/crop')
+  crop(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: unknown,
+  ): Promise<PhotoView> {
+    return this.photos.crop(id, parse(cropSchema, body));
   }
 
   @Delete(':id')

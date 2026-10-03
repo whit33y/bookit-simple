@@ -161,7 +161,7 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 
 1. Właściciel klika "Usuń" przy osobie. Nie może usunąć samego siebie ani ostatniego Właściciela.
 2. Dialog pokazuje liczbę jej przeszłych i przyszłych Wizyt i pyta: "Zachować Wizyty?".
-3. **Zachowaj:** usuwamy konto `User`, sesje i zaproszenia. Na `StaffMember` ustawiamy `deletedAt`, zerujemy `userId`, `photoId`, `bio`, `showOnPage`. Zostaje `displayName`. Kalendarz pokazuje kolumnę "{imię} (usunięta)" na każdym dniu do dnia jej ostatniej Wizyty `SCHEDULED` włącznie. Wizyty da się edytować i przepisać na inną osobę, ale nowej nie da się jej dodać. Usuniętej osoby nie pokazujemy w formularzu Wizyty.
+3. **Zachowaj:** usuwamy konto `User`, sesje i zaproszenia. Na `StaffMember` ustawiamy `deletedAt`, zerujemy `userId`, `photoId`, `bio`, `showOnPage`, a jej Zdjęcie profilowe usuwamy razem z plikiem. Zostaje `displayName`. Kalendarz pokazuje kolumnę "{imię} (usunięta)" na każdym dniu do dnia jej ostatniej Wizyty `SCHEDULED` włącznie. Wizyty da się edytować i przepisać na inną osobę, ale nowej nie da się jej dodać. Usuniętej osoby nie pokazujemy w formularzu Wizyty.
 4. **Nie zachowuj:** jak wyżej, dodatkowo usuwamy wszystkie jej Wizyty, Nieobecności i wpisy `VisitChange` tych Wizyt.
 
 ### Klient
@@ -192,6 +192,8 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 - Limit 10 MB na plik. Akceptowane typy rozpoznajemy po sygnaturze pliku (`file-type`), nie po rozszerzeniu: JPEG, PNG, WebP, HEIC/HEIF.
 - HEIC konwertujemy przez `heic-convert` do JPEG, potem `sharp` robi `rotate()` według EXIF, skaluje do maks. 1600 px dłuższego boku, usuwa metadane (w tym GPS) i zapisuje WebP w jakości 80.
 - Pole pliku ma `accept="image/*"`, dzięki czemu Safari na iOS przy wyborze z galerii zwykle sam wysyła JPEG.
+- Zdjęcie profilowe to kwadrat 480×480 kadrowany przez Właściciela w oknie osoby z Personelu (`ngx-image-cropper`, okrągła maska). Najpierw zwykły upload, potem `POST /photos/:id/crop` wycina kwadrat z WebP, skaluje go do 480 px (mniejszy wycinek zostaje mniejszy) i usuwa źródłowe zdjęcie. Oryginału nie trzymamy, więc zmiana kadru wymaga ponownego wgrania pliku.
+- Stary plik Zdjęcia profilowego znika z S3 i z bazy przy podmianie zdjęcia, przy usunięciu zdjęcia (`photoId: null`) i przy usunięciu osoby z Personelu. Zdjęcia wgrane w oknie, które Właściciel zamknął bez "Zapisz", też usuwamy.
 
 ### Czas
 
@@ -250,7 +252,7 @@ GET    /service-categories      POST | PATCH /:id | DELETE /:id | PUT /order
 GET    /services?includeArchived=true  POST | PATCH /:id | POST /:id/archive | /unarchive | PUT /order
 GET    /opening-hours           PUT /opening-hours
 GET    /announcements           POST | PATCH /:id | DELETE /:id
-POST   /photos                  DELETE /photos/:id
+POST   /photos                  POST /photos/:id/crop { x, y, size }   DELETE /photos/:id
 GET    /gallery                 POST { photoId } | DELETE /:photoId (usuwa też Photo) | PUT /order
 GET    /salon/page              PATCH /salon/page
 

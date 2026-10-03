@@ -19,12 +19,15 @@ import { Mail, MailService } from '../../mail/mail.service';
 import { AppModule } from '../app.module';
 import { configureApp } from '../configure-app';
 import { createPrismaClient } from '../prisma/prisma.service';
+import { InMemoryPhotoStorage } from '../../../test/in-memory-photo-storage';
+import { PhotoStorage } from '../photos/photo-storage';
 
 const PASSWORD = 'correct horse battery staple';
 
 describe('Personel managed by the Właściciel', () => {
   const raw = createPrismaClient(process.env.DATABASE_URL ?? '');
   const sent: Mail[] = [];
+  const storage = new InMemoryPhotoStorage();
   let failMail = false;
   let app: INestApplication;
   let passwordHash: string;
@@ -86,6 +89,24 @@ describe('Personel managed by the Właściciel', () => {
     };
   }
 
+  /** A Photo of the Salon with its file in the storage. */
+  async function addPhoto(salonId: string) {
+    const storageKey = `salons/${salonId}/${randomUUID()}.webp`;
+    storage.files.set(storageKey, {
+      body: Buffer.from('webp'),
+      contentType: 'image/webp',
+    });
+    return raw.photo.create({
+      data: { salonId, storageKey, width: 480, height: 480, bytes: 4 },
+    });
+  }
+
+  /** Whether the Photo is gone, row and file. */
+  async function isGone(photo: { id: string; storageKey: string }) {
+    const row = await raw.photo.findUnique({ where: { id: photo.id } });
+    return row === null && !storage.files.has(photo.storageKey);
+  }
+
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(MailService)
@@ -95,6 +116,8 @@ describe('Personel managed by the Właściciel', () => {
           sent.push(mail);
         },
       })
+      .overrideProvider(PhotoStorage)
+      .useValue(storage)
       .compile();
     app = configureApp(moduleRef.createNestApplication());
     await app.init();
@@ -368,28 +391,52 @@ describe('Personel managed by the Właściciel', () => {
       expect(res.body.message).toBe(STAFF_PHOTO_NOT_FOUND);
     });
 
-    it('sets a photo of the Salon and clears it with null', async () => {
+    it('sets a photo of the Salon, and drops the old one with its file when it changes', async () => {
       const { salon, employee, asOwner } = await salonWithStaff();
-      const photo = await raw.photo.create({
-        data: {
-          salonId: salon.id,
-          storageKey: `test/${randomUUID()}.webp`,
-          width: 10,
-          height: 10,
-          bytes: 100,
-        },
+      const first = await addPhoto(salon.id);
+      const second = await addPhoto(salon.id);
+
+      await asOwner
+        .patch(`/api/staff/${employee.id}`)
+        .send({ photoId: first.id })
+        .expect(200)
+        .expect((r) => expect(r.body.photoId).toBe(first.id));
+      // The same photo again changes nothing.
+      await asOwner
+        .patch(`/api/staff/${employee.id}`)
+        .send({ photoId: first.id, bio: 'Koloryzacja' })
+        .expect(200);
+      expect(await isGone(first)).toBe(false);
+
+      await asOwner
+        .patch(`/api/staff/${employee.id}`)
+        .send({ photoId: second.id })
+        .expect(200)
+        .expect((r) => expect(r.body.photoId).toBe(second.id));
+      expect(await isGone(first)).toBe(true);
+      expect(await isGone(second)).toBe(false);
+    });
+
+    it('drops the photo with its file on photoId null, and keeps it when photoId is left out', async () => {
+      const { salon, employee, asOwner } = await salonWithStaff();
+      const photo = await addPhoto(salon.id);
+      await raw.staffMember.update({
+        where: { id: employee.id },
+        data: { photoId: photo.id },
       });
 
       await asOwner
         .patch(`/api/staff/${employee.id}`)
-        .send({ photoId: photo.id })
-        .expect(200)
-        .expect((r) => expect(r.body.photoId).toBe(photo.id));
+        .send({ displayName: 'Ola K.' })
+        .expect(200);
+      expect(await isGone(photo)).toBe(false);
+
       await asOwner
         .patch(`/api/staff/${employee.id}`)
         .send({ photoId: null })
         .expect(200)
         .expect((r) => expect(r.body.photoId).toBeNull());
+      expect(await isGone(photo)).toBe(true);
     });
 
     it('answers 400 for a bad field and 404 for a person of another Salon or a removed one', async () => {
@@ -584,15 +631,7 @@ describe('Personel managed by the Właściciel', () => {
     describe('DELETE /api/staff/:id', () => {
       it('with keepVisits=true drops the account, sessions and invitations, and keeps the name on the Wizyty', async () => {
         const { salon, owner, asOwner } = await salonWithStaff();
-        const photo = await raw.photo.create({
-          data: {
-            salonId: salon.id,
-            storageKey: `test/${randomUUID()}`,
-            width: 1,
-            height: 1,
-            bytes: 1,
-          },
-        });
+        const photo = await addPhoto(salon.id);
         const ola = await addStaffMember(salon.id, 'EMPLOYEE', {
           displayName: 'Ola',
         });
@@ -628,6 +667,7 @@ describe('Personel managed by the Właściciel', () => {
           bio: null,
           showOnPage: false,
         });
+        expect(await isGone(photo)).toBe(true);
         const userId = ola.userId ?? '';
         expect(await raw.user.count({ where: { id: userId } })).toBe(0);
         expect(await raw.session.count({ where: { userId } })).toBe(0);
@@ -702,6 +742,11 @@ describe('Personel managed by the Właściciel', () => {
 
       it('with keepVisits=false also deletes her Wizyty, Nieobecności and their Historia zmian', async () => {
         const { salon, owner, employee, asOwner } = await salonWithStaff();
+        const photo = await addPhoto(salon.id);
+        await raw.staffMember.update({
+          where: { id: employee.id },
+          data: { photoId: photo.id },
+        });
         const hers = await addVisits(salon.id, employee.id, owner.id, [
           { in: -5 },
           { in: 3, state: 'CANCELLED' },
@@ -748,7 +793,12 @@ describe('Personel managed by the Właściciel', () => {
           await raw.staffMember.findUniqueOrThrow({
             where: { id: employee.id },
           }),
-        ).toMatchObject({ displayName: 'Ola', deletedAt: expect.any(Date) });
+        ).toMatchObject({
+          displayName: 'Ola',
+          deletedAt: expect.any(Date),
+          photoId: null,
+        });
+        expect(await isGone(photo)).toBe(true);
       });
 
       it('answers 422 for the Właściciel removing themselves, and lets them remove another Właściciel', async () => {

@@ -1,5 +1,17 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PhotoView, photoUrl } from '@bookit/shared';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  CropPhotoRequest,
+  PHOTO_CROP_OUTSIDE,
+  PROFILE_PHOTO_SIDE,
+  PhotoView,
+  photoUrl,
+} from '@bookit/shared';
 import { ClsService } from 'nestjs-cls';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
@@ -7,7 +19,7 @@ import { Photo } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SalonContext } from '../salon-context/salon-context';
 import { PhotoStorage } from './photo-storage';
-import { processPhoto } from './process-photo';
+import { cropPhoto, ProcessedPhoto, processPhoto } from './process-photo';
 
 export const PHOTO_CONTENT_TYPE = 'image/webp';
 
@@ -37,7 +49,42 @@ export class PhotosService {
 
   /** `415` for an unsupported file, see `processPhoto`. */
   async upload(file: Buffer): Promise<PhotoView> {
-    const { webp, width, height } = await processPhoto(file);
+    return this.store(await processPhoto(file));
+  }
+
+  /**
+   * A Zdjęcie profilowe out of an uploaded Photo: the square becomes a new Photo of at
+   * most `PROFILE_PHOTO_SIDE` px a side, and the source Photo goes with its file.
+   * `404` for a Photo of another Salon, `400` for a square that leaves the photo.
+   */
+  async crop(id: string, square: CropPhotoRequest): Promise<PhotoView> {
+    const source = await this.prisma.photo.findUnique({ where: { id } });
+    if (!source) throw new NotFoundException();
+    const { x, y, size } = square;
+    if (
+      x < 0 ||
+      y < 0 ||
+      size < 1 ||
+      x + size > source.width ||
+      y + size > source.height
+    ) {
+      throw new BadRequestException(PHOTO_CROP_OUTSIDE);
+    }
+    const file = await this.storage.get(source.storageKey);
+    if (!file) throw new NotFoundException();
+
+    const photo = await this.store(
+      await cropPhoto(await buffer(file), square, PROFILE_PHOTO_SIDE),
+    );
+    await this.remove(source.id);
+    return photo;
+  }
+
+  private async store({
+    webp,
+    width,
+    height,
+  }: ProcessedPhoto): Promise<PhotoView> {
     const salonId = this.salonId();
     const id = randomUUID();
     const storageKey = `salons/${salonId}/${id}.webp`;
@@ -75,7 +122,11 @@ export class PhotosService {
     return photo ? this.storage.get(photo.storageKey) : null;
   }
 
-  private async deleteFile(storageKey: string): Promise<void> {
+  /**
+   * For a Photo row deleted elsewhere, e.g. in a transaction of the Personel; call it
+   * after the commit. A failure is only logged: a file left behind is harmless.
+   */
+  async deleteFile(storageKey: string): Promise<void> {
     try {
       await this.storage.delete(storageKey);
     } catch (error) {
@@ -88,4 +139,10 @@ export class PhotosService {
     if (!salonId) throw new Error('PhotosService needs a Salon context');
     return salonId;
   }
+}
+
+async function buffer(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks);
 }

@@ -48,7 +48,7 @@ describe('seedStudioKora', () => {
         logoPhoto: true,
         heroPhoto: true,
         staffMembers: {
-          include: { user: true },
+          include: { user: true, photo: true },
           orderBy: { sortOrder: 'asc' },
         },
         serviceCategories: {
@@ -92,6 +92,7 @@ describe('seedStudioKora', () => {
         member.role,
         member.user?.email,
         member.bio,
+        size(member.photo),
       ]),
       pricing: salon.serviceCategories.map((category) => [
         category.name,
@@ -219,7 +220,18 @@ describe('seedStudioKora', () => {
     expect(addDays(page.announcements[0].showUntil ?? '', 1).slice(8)).toBe(
       '01',
     );
-    expect(page.staff.map((member) => member.displayName)).toHaveLength(4);
+    // Cropped by the Właściciel's path; Natalia has the circle with her initial.
+    expect(
+      page.staff.map((member) => [
+        member.displayName,
+        member.photo && `${member.photo.width}x${member.photo.height}`,
+      ]),
+    ).toEqual([
+      ['Magda', '480x480'],
+      ['Kasia', '480x480'],
+      ['Ola', '480x480'],
+      ['Natalia', null],
+    ]);
     expect(page.gallery).toHaveLength(6);
     expect(page.salon.logo).not.toBeNull();
     expect(page.salon.hero).not.toBeNull();

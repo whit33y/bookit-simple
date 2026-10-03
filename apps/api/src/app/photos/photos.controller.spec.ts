@@ -4,6 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  PHOTO_CROP_OUTSIDE,
   PHOTO_FILE_REQUIRED,
   PHOTO_TOO_LARGE,
   PHOTO_UNSUPPORTED_TYPE,
@@ -30,11 +31,14 @@ describe('Photos', () => {
 
   const unique = () => randomUUID().slice(0, 8);
 
-  async function addOwner(salonId: string) {
+  async function addStaffMember(
+    salonId: string,
+    role: 'OWNER' | 'EMPLOYEE' = 'OWNER',
+  ) {
     const email = `photos-${unique()}@bookit.test`;
     const user = await raw.user.create({ data: { email, passwordHash } });
     const staffMember = await raw.staffMember.create({
-      data: { salonId, userId: user.id, role: 'OWNER', displayName: 'Anna' },
+      data: { salonId, userId: user.id, role, displayName: 'Anna' },
     });
     const client = request.agent(app.getHttpServer());
     await client
@@ -49,7 +53,7 @@ describe('Photos', () => {
     const salon = await raw.salon.create({
       data: { name: `Studio ${unique()}`, slug: `test-${randomUUID()}` },
     });
-    const { client, staffMember } = await addOwner(salon.id);
+    const { client, staffMember } = await addStaffMember(salon.id);
     return { salon, asOwner: client, staffMember };
   }
 
@@ -285,6 +289,163 @@ describe('Photos', () => {
         .expect(404);
 
       expect(res.headers['cache-control']).toBeUndefined();
+    });
+  });
+
+  describe('POST /api/photos/:id/crop', () => {
+    /** A PNG of `width` × `height`: red on the left half, blue on the right. */
+    const halves = (width: number, height: number) =>
+      sharp({
+        create: { width, height, channels: 3, background: '#ff0000' },
+      })
+        .composite([
+          {
+            input: {
+              create: {
+                width: width / 2,
+                height,
+                channels: 3,
+                background: '#0000ff',
+              },
+            },
+            left: width / 2,
+            top: 0,
+          },
+        ])
+        .png()
+        .toBuffer();
+
+    async function uploaded(
+      client: ReturnType<typeof request.agent>,
+      width: number,
+      height: number,
+    ) {
+      const res = await upload(
+        client,
+        await halves(width, height),
+        'portrait.png',
+        'image/png',
+      ).expect(201);
+      return res.body as PhotoView;
+    }
+
+    let salon: Awaited<ReturnType<typeof salonWithOwner>>;
+    beforeAll(async () => {
+      salon = await salonWithOwner();
+    });
+
+    it('cuts the square out, scales it to 480 px and drops the source Photo with its file', async () => {
+      const source = await uploaded(salon.asOwner, 1200, 1600);
+      const { row: sourceRow } = await storedFile(source);
+      expect(source).toMatchObject({ width: 1200, height: 1600 });
+
+      const res = await salon.asOwner
+        .post(`/api/photos/${source.id}/crop`)
+        .send({ x: 100, y: 0, size: 900 })
+        .expect(201);
+
+      const photo = res.body as PhotoView;
+      expect(photo).toEqual({
+        id: expect.any(String),
+        url: `/api/public/photos/${photo.id}`,
+        width: 480,
+        height: 480,
+        bytes: expect.any(Number),
+      } satisfies PhotoView);
+      expect(photo.id).not.toBe(source.id);
+      const { row, body, contentType } = await storedFile(photo);
+      expect(row).toMatchObject({
+        salonId: salon.salon.id,
+        width: 480,
+        height: 480,
+        bytes: body.length,
+      });
+      expect(contentType).toBe('image/webp');
+      expect(await sharp(body).metadata()).toMatchObject({
+        format: 'webp',
+        width: 480,
+        height: 480,
+      });
+      // 100..1000 of the source: red up to 600, i.e. 5/9 of the square, then blue.
+      const [r, , b] = await pixel(body, 200, 240);
+      expect(r).toBeGreaterThan(200);
+      expect(b).toBeLessThan(50);
+      const [r2, , b2] = await pixel(body, 300, 240);
+      expect(r2).toBeLessThan(50);
+      expect(b2).toBeGreaterThan(200);
+      expect(await raw.photo.findUnique({ where: { id: source.id } })).toBe(
+        null,
+      );
+      expect(storage.files.has(sourceRow.storageKey)).toBe(false);
+    });
+
+    it('never scales a smaller square up', async () => {
+      const source = await uploaded(salon.asOwner, 1200, 1600);
+
+      const res = await salon.asOwner
+        .post(`/api/photos/${source.id}/crop`)
+        .send({ x: 0, y: 0, size: 300 })
+        .expect(201);
+
+      expect(res.body).toMatchObject({ width: 300, height: 300 });
+      const { body } = await storedFile(res.body);
+      expect(await sharp(body).metadata()).toMatchObject({
+        width: 300,
+        height: 300,
+      });
+    });
+
+    it.each([
+      { x: 400, y: 0, size: 900 },
+      { x: 0, y: 1000, size: 700 },
+      { x: -1, y: 0, size: 100 },
+      { x: 0, y: 0, size: 0 },
+    ])('answers 400 for a square outside the photo: %j', async (square) => {
+      const source = await uploaded(salon.asOwner, 1200, 1600);
+
+      const res = await salon.asOwner
+        .post(`/api/photos/${source.id}/crop`)
+        .send(square)
+        .expect(400);
+
+      expect(res.body.message).toBe(PHOTO_CROP_OUTSIDE);
+      await storedFile(source);
+    });
+
+    it('answers 400 for a body that is not a square', async () => {
+      const source = await uploaded(salon.asOwner, 1200, 1600);
+
+      await salon.asOwner
+        .post(`/api/photos/${source.id}/crop`)
+        .send({ x: 'a', y: 0 })
+        .expect(400);
+    });
+
+    it('answers 404 for a Photo of another Salon and keeps it', async () => {
+      const other = await salonWithOwner();
+      const source = await uploaded(other.asOwner, 1200, 1600);
+
+      await salon.asOwner
+        .post(`/api/photos/${source.id}/crop`)
+        .send({ x: 0, y: 0, size: 300 })
+        .expect(404);
+
+      await storedFile(source);
+    });
+
+    it('answers 403 to a Pracownik', async () => {
+      const source = await uploaded(salon.asOwner, 1200, 1600);
+      const { client: asEmployee } = await addStaffMember(
+        salon.salon.id,
+        'EMPLOYEE',
+      );
+
+      await asEmployee
+        .post(`/api/photos/${source.id}/crop`)
+        .send({ x: 0, y: 0, size: 300 })
+        .expect(403);
+
+      await storedFile(source);
     });
   });
 

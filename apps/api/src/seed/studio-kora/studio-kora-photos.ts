@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import sharp from 'sharp';
+import { StaffKey } from './studio-kora-data';
 
 /** The iPhone photo of the upload tests, so the seed sends one HEIC through the converter. */
 const HEIC_FIXTURE = join(__dirname, '../../../test/fixtures/iphone.heic');
@@ -40,6 +41,24 @@ const gallerySvg = ([light, dark]: string[], index: number) =>
   <rect x="700" y="${150 + index * 40}" width="320" height="320" rx="40" fill="${dark}" fill-opacity="0.4"/>
 </svg>`;
 
+/** Zdjęcia profilowe of everyone but Natalia, who keeps the circle with her initial. */
+const PORTRAIT_COLOURS: Partial<Record<StaffKey, [string, string]>> = {
+  magda: ['#f3d9c8', '#9c4f3c'],
+  kasia: ['#d7e3e0', '#3e6b63'],
+  ola: ['#e6d3e8', '#6b4a7a'],
+};
+
+/** A silhouette, a head and shoulders, on a portrait taller than the square cropped from it. */
+const portraitSvg = ([light, dark]: [string, string]) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200">
+  <rect width="900" height="1200" fill="${light}"/>
+  <circle cx="450" cy="520" r="190" fill="${dark}"/>
+  <path d="M110 1100c0-230 150-360 340-360s340 130 340 360z" fill="${dark}"/>
+</svg>`;
+
+/** What the Właściciel frames in the editor: the whole width, from above the head. */
+export const PORTRAIT_CROP = { x: 0, y: 220, size: 900 };
+
 const render = (svg: string, format: 'png' | 'jpeg') =>
   sharp(Buffer.from(svg))[format]().toBuffer();
 
@@ -48,6 +67,8 @@ export interface StudioKoraPhotoFiles {
   hero: Buffer;
   /** In the order of the Wizytówka; the last one is the HEIC. */
   gallery: Buffer[];
+  /** Portraits to crop with `PORTRAIT_CROP` into Zdjęcia profilowe. */
+  portraits: Partial<Record<StaffKey, Buffer>>;
 }
 
 /** The files the Właściciel would upload: PNG and JPEG, as phones and laptops send them. */
@@ -60,5 +81,9 @@ export async function studioKoraPhotoFiles(): Promise<StudioKoraPhotoFiles> {
       render(gallerySvg(colours, index), 'jpeg'),
     ),
   ]);
-  return { logo, hero, gallery: [...pictures, heic] };
+  const portraits: Partial<Record<StaffKey, Buffer>> = {};
+  for (const [key, colours] of Object.entries(PORTRAIT_COLOURS)) {
+    portraits[key as StaffKey] = await render(portraitSvg(colours), 'jpeg');
+  }
+  return { logo, hero, gallery: [...pictures, heic], portraits };
 }

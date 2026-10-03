@@ -136,6 +136,7 @@ const MATRIX: Row[] = [
 
   // T19: Photos (no file and an unknown id, so nothing changes)
   ['POST', '/api/photos', ['OWNER']],
+  ['POST', `/api/photos/${UNKNOWN_ID}/crop`, ['OWNER']],
   ['DELETE', `/api/photos/${UNKNOWN_ID}`, ['OWNER']],
   ['GET', `/api/public/photos/${UNKNOWN_ID}`, PUBLIC],
 
