@@ -20,6 +20,7 @@ import {
 import { ClsService } from 'nestjs-cls';
 import { Prisma, StaffRole } from '../../generated/prisma/client';
 import { InvitationService } from '../invitations/invitation.service';
+import { PhotosService } from '../photos/photos.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SalonContext } from '../salon-context/salon-context';
 
@@ -87,8 +88,29 @@ const isPrismaError = (error: unknown, code: string) =>
 /** What a change to the Personel touches inside its transaction. */
 type StaffTx = Pick<
   PrismaService,
-  'staffMember' | 'visit' | 'visitChange' | 'absence' | 'invitation' | 'user'
+  | 'staffMember'
+  | 'visit'
+  | 'visitChange'
+  | 'absence'
+  | 'invitation'
+  | 'user'
+  | 'photo'
 >;
+
+/**
+ * Deletes the Photo row in the transaction and gives its file's key, to delete after
+ * the commit. `null` when there is no Photo.
+ */
+async function dropPhoto(
+  tx: Pick<PrismaService, 'photo'>,
+  photoId: string | null,
+): Promise<string | null> {
+  if (!photoId) return null;
+  const photo = await tx.photo.findUnique({ where: { id: photoId } });
+  if (!photo) return null;
+  await tx.photo.delete({ where: { id: photoId } });
+  return photo.storageKey;
+}
 
 /** `422` unless the Salon has a Właściciel other than `id`. */
 async function assertAnotherOwner(
@@ -113,6 +135,7 @@ export class StaffService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(InvitationService) private readonly invitations: InvitationService,
+    @Inject(PhotosService) private readonly photos: PhotosService,
     @Inject(ClsService) private readonly cls: ClsService<SalonContext>,
   ) {}
 
@@ -168,7 +191,8 @@ export class StaffService {
 
   /**
    * `404` for a person outside the Personel, `400` for a photo the Salon does not have,
-   * `422` when the last Właściciel would lose the role. Serializable, so two Właściciele
+   * `422` when the last Właściciel would lose the role. A new `photoId`, or `null`,
+   * deletes the old Zdjęcie profilowe with its file. Serializable, so two Właściciele
    * giving up the role at once cannot both succeed.
    */
   async update(
@@ -176,7 +200,7 @@ export class StaffService {
     changes: StaffMemberChanges,
   ): Promise<StaffMemberView> {
     if (changes.photoId) await this.assertPhotoExists(changes.photoId);
-    await this.changeOwners(async (tx) => {
+    const oldFile = await this.changeOwners(async (tx) => {
       const member = await tx.staffMember.findFirst({
         where: { id, deletedAt: null },
       });
@@ -185,7 +209,11 @@ export class StaffService {
         await assertAnotherOwner(tx, id);
       }
       await tx.staffMember.update({ where: { id }, data: changes });
+      const photoChanged =
+        changes.photoId !== undefined && changes.photoId !== member.photoId;
+      return photoChanged ? dropPhoto(tx, member.photoId) : null;
     });
+    if (oldFile) await this.photos.deleteFile(oldFile);
     return toView(await this.find(id));
   }
 
@@ -244,15 +272,16 @@ export class StaffService {
 
   /**
    * Makes the person an Usunięta osoba z Personelu: the account goes with its sessions
-   * and invitations, only `displayName` stays. Without `keepVisits` her Wizyty, their
-   * Historia zmian and her Nieobecności go too. `404` for a person outside the
-   * Personel, `422` for the caller or the last Właściciel. Serializable, like `update`.
+   * and invitations, the Zdjęcie profilowe with its file, only `displayName` stays.
+   * Without `keepVisits` her Wizyty, their Historia zmian and her Nieobecności go too.
+   * `404` for a person outside the Personel, `422` for the caller or the last
+   * Właściciel. Serializable, like `update`.
    */
   async remove(id: string, keepVisits: boolean): Promise<void> {
     if (id === this.cls.get('staffMemberId')) {
       throw new UnprocessableEntityException(STAFF_DELETE_SELF);
     }
-    await this.changeOwners(async (tx) => {
+    const photoFile = await this.changeOwners(async (tx) => {
       const member = await tx.staffMember.findFirst({
         where: { id, deletedAt: null },
       });
@@ -285,18 +314,20 @@ export class StaffService {
       if (member.userId) {
         await tx.user.delete({ where: { id: member.userId } });
       }
+      return dropPhoto(tx, member.photoId);
     });
+    if (photoFile) await this.photos.deleteFile(photoFile);
   }
 
   /**
    * A change that may take away a Właściciel. Serializable, so two such changes at once
    * cannot both leave the Salon without one; the one that gives way answers `409`.
    */
-  private async changeOwners(
-    change: (tx: StaffTx) => Promise<void>,
-  ): Promise<void> {
+  private async changeOwners<T>(
+    change: (tx: StaffTx) => Promise<T>,
+  ): Promise<T> {
     try {
-      await this.prisma.$transaction(change, {
+      return await this.prisma.$transaction(change, {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       });
     } catch (error) {

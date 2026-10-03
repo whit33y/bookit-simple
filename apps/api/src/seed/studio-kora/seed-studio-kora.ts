@@ -40,7 +40,7 @@ import {
   StaffKey,
   STUDIO_KORA,
 } from './studio-kora-data';
-import { studioKoraPhotoFiles } from './studio-kora-photos';
+import { PORTRAIT_CROP, studioKoraPhotoFiles } from './studio-kora-photos';
 
 /** Same seed, same Klienci and Wizyty: two runs in one week give the same Salon. */
 const RANDOM_SEED = 37;
@@ -158,6 +158,15 @@ export async function seedStudioKora(
         where: { id: salonId },
         data: { logoPhotoId: logo.id, heroPhotoId: hero.id },
       });
+      // Uploaded and cropped, as the Właściciel does in the dialog of the Personel.
+      for (const [key, file] of Object.entries(files.portraits)) {
+        const upload = await photos.upload(file);
+        const photo = await photos.crop(upload.id, PORTRAIT_CROP);
+        await db.staffMember.update({
+          where: { id: staffIds[key as StaffKey] },
+          data: { photoId: photo.id },
+        });
+      }
 
       await new VisitPlanner(
         visits,

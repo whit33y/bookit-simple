@@ -6,7 +6,7 @@ import {
   HttpXhrBackend,
 } from '@angular/common/http';
 import { Injectable, InjectionToken, inject } from '@angular/core';
-import { PhotoView } from '@bookit/shared';
+import { CropPhotoRequest, PhotoView } from '@bookit/shared';
 import { filter, firstValueFrom, map, Observable } from 'rxjs';
 
 /**
@@ -24,7 +24,7 @@ export const PHOTO_UPLOAD_BACKEND = new InjectionToken<HttpBackend>(
 /** While a Photo uploads: the share sent so far (0 to 1), then the saved Photo. */
 export type PhotoUploadEvent = { progress: number } | { photo: PhotoView };
 
-/** `POST /api/photos` and `DELETE /api/photos/:id`, only for the Właściciel. */
+/** `POST /api/photos`, `POST /api/photos/:id/crop` and `DELETE /api/photos/:id`, only for the Właściciel. */
 @Injectable({ providedIn: 'root' })
 export class PhotosService {
   private readonly http = inject(HttpClient);
@@ -51,6 +51,16 @@ export class PhotosService {
         }),
         filter((event) => event !== null),
       );
+  }
+
+  /**
+   * A Zdjęcie profilowe out of an uploaded Photo; the api deletes the source Photo.
+   * `square` is in pixels of the Photo.
+   */
+  crop(id: string, square: CropPhotoRequest): Promise<PhotoView> {
+    return firstValueFrom(
+      this.http.post<PhotoView>(`/api/photos/${id}/crop`, square),
+    );
   }
 
   /** Also clears every reference to the Photo, e.g. a logo or a gallery item. */

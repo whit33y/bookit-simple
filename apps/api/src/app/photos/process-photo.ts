@@ -1,5 +1,5 @@
 import { UnsupportedMediaTypeException } from '@nestjs/common';
-import { PHOTO_UNSUPPORTED_TYPE } from '@bookit/shared';
+import { CropPhotoRequest, PHOTO_UNSUPPORTED_TYPE } from '@bookit/shared';
 import convertHeic from 'heic-convert';
 import sharp from 'sharp';
 
@@ -55,6 +55,23 @@ export async function processPhoto(file: Buffer): Promise<ProcessedPhoto> {
     // A valid signature with a broken body.
     throw new UnsupportedMediaTypeException(PHOTO_UNSUPPORTED_TYPE);
   }
+}
+
+/**
+ * The square `x`, `y`, `size` of a stored WebP, scaled down to `side` px, never up.
+ * The caller checks that the square lies within the photo.
+ */
+export async function cropPhoto(
+  webp: Buffer,
+  { x, y, size }: CropPhotoRequest,
+  side: number,
+): Promise<ProcessedPhoto> {
+  const { data, info } = await sharp(webp)
+    .extract({ left: x, top: y, width: size, height: size })
+    .resize({ width: side, height: side, withoutEnlargement: true })
+    .webp({ quality: 80 })
+    .toBuffer({ resolveWithObject: true });
+  return { webp: data, width: info.width, height: info.height };
 }
 
 /** `file-type` is ESM only; `api` is CommonJS, hence the dynamic `import()`. */
