@@ -1,6 +1,8 @@
 import {
   addressLine,
+  isMapSearchUrl,
   isSafeMapUrl,
+  mapSearchUrl,
   PRIVACY_NOTICE_BLANK,
   privacyNoticeTemplate,
 } from './salon-page';
@@ -16,6 +18,35 @@ describe('addressLine', () => {
     [{}, ''],
   ])('%j → %j', (address, line) => {
     expect(addressLine(address)).toBe(line);
+  });
+});
+
+describe('mapSearchUrl', () => {
+  it('searches Google Maps for the address', () => {
+    expect(
+      mapSearchUrl({
+        street: 'ul. Długa 12',
+        postalCode: '31-147',
+        city: 'Kraków',
+      }),
+    ).toBe(
+      'https://www.google.com/maps/search/?api=1&query=ul.%20D%C5%82uga%2012%2C%2031-147%20Krak%C3%B3w',
+    );
+  });
+
+  it('is null without an address', () => {
+    expect(mapSearchUrl({ street: ' ', city: null })).toBeNull();
+  });
+});
+
+describe('isMapSearchUrl', () => {
+  it.each([
+    [mapSearchUrl({ city: 'Kraków' }) ?? '', true],
+    ['https://maps.app.goo.gl/abc123', false],
+    ['https://www.google.com/maps/place/Studio+Kora', false],
+    ['', false],
+  ])('%j → %j', (url, generated) => {
+    expect(isMapSearchUrl(url)).toBe(generated);
   });
 });
 

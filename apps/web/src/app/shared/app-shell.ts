@@ -91,6 +91,8 @@ export interface NavItem {
   `,
   styles: `
     .shell {
+      /* mat-toolbar is 64 px tall, 56 px below 600 px. Sticky headers on pages sit under it. */
+      --top-bar-height: 64px;
       display: grid;
       min-height: 100dvh;
       grid-template: 'top' auto 'content' 1fr 'bottom' auto / 1fr;
@@ -124,6 +126,8 @@ export interface NavItem {
       grid-area: content;
       padding: 16px 16px 24px;
       min-width: 0;
+      /* Page z-indexes (calendar cards, the "now" line) stay under the top bar and the bottom navigation. */
+      isolation: isolate;
     }
     .bottom {
       grid-area: bottom;
@@ -147,6 +151,11 @@ export interface NavItem {
     .tab.active {
       color: var(--mat-sys-primary);
       font-weight: 600;
+    }
+    @media (max-width: 599.98px) {
+      .shell {
+        --top-bar-height: 56px;
+      }
     }
     @media (max-width: 767.98px) {
       .who {

@@ -262,7 +262,7 @@ const rangesOf = (
     }
     .head {
       position: sticky;
-      top: 64px;
+      top: var(--top-bar-height, 64px);
       z-index: 5;
       background: var(--mat-sys-surface);
       border-bottom: 1px solid var(--mat-sys-outline-variant);

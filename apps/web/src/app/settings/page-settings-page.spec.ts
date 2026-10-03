@@ -146,6 +146,36 @@ describe('PageSettingsPage', () => {
     expect(text()).toContain('Zapisano Wizytówkę');
   });
 
+  it('fills the map link from the address while it is generated or empty', async () => {
+    const { type, field } = await setup({
+      ...SALON,
+      mapUrl: 'https://www.google.com/maps/search/?api=1&query=old',
+    });
+
+    type('Miasto', 'Pabianice');
+    expect(field('Link do mapy').value).toBe(
+      'https://www.google.com/maps/search/?api=1&query=ul.%20Piotrkowska%20120%2C%2090-006%20Pabianice',
+    );
+
+    type('Link do mapy', '');
+    type('Ulica i numer', '');
+    expect(field('Link do mapy').value).toBe(
+      'https://www.google.com/maps/search/?api=1&query=90-006%20Pabianice',
+    );
+
+    type('Kod pocztowy', '');
+    type('Miasto', '');
+    expect(field('Link do mapy').value).toBe('');
+  });
+
+  it('keeps a pasted map link when the address changes', async () => {
+    const { type, field } = await setup();
+
+    type('Miasto', 'Pabianice');
+
+    expect(field('Link do mapy').value).toBe('https://maps.app.goo.gl/abc123');
+  });
+
   it.each(['javascript:alert(1)', 'http://maps.google.com'])(
     'does not save the map link %s and opens the Dane tab',
     async (mapUrl) => {
