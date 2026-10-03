@@ -52,6 +52,10 @@ _Avoid_: aktualność, post, news
 Do 30 zdjęć Salonu na Wizytówce, w kolejności ustawionej przez Właściciela. Zdjęcie usunięte z Galerii jest usuwane na dobre, razem z plikiem.
 _Avoid_: album, portfolio, zdjęcia prac
 
+**Zdjęcie profilowe**:
+Kwadratowe zdjęcie osoby z Personelu, które Właściciel wgrywa i kadruje. Wizytówka pokazuje je w kółku w sekcji Zespół, a osoba bez Zdjęcia profilowego ma tam kółko z pierwszą literą imienia. Nowe zdjęcie, usunięcie zdjęcia albo usunięcie osoby z Personelu usuwa stary plik na dobre.
+_Avoid_: avatar, zdjęcie (bez dopowiedzenia), fotka
+
 **Adres wizytówki**:
 Krótka nazwa Salonu w adresie URL, pod którą Klient znajduje Wizytówkę, np. `studio-anna`.
 _Avoid_: slug (w rozmowie z Właścicielem), link
