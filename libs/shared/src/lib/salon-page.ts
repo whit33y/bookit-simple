@@ -52,6 +52,19 @@ export function addressLine({
   return [street?.trim(), town].filter(Boolean).join(', ');
 }
 
+const MAP_SEARCH_URL = 'https://www.google.com/maps/search/?api=1&query=';
+
+/** Google Maps search for the address, the link the panel fills in; null without an address. */
+export function mapSearchUrl(address: SalonAddress): string | null {
+  const line = addressLine(address);
+  return line ? MAP_SEARCH_URL + encodeURIComponent(line) : null;
+}
+
+/** A link `mapSearchUrl` made, which a new address replaces; a pasted one stays. */
+export function isMapSearchUrl(url: string): boolean {
+  return url.startsWith(MAP_SEARCH_URL);
+}
+
 export interface PrivacyNoticeFields {
   salonName: string;
   /** One line, e.g. "ul. Piotrkowska 120, 90-006 Łódź". */

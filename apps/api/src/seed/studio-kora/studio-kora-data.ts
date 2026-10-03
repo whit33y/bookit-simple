@@ -10,7 +10,7 @@ export const STUDIO_KORA = {
   phone: '+48600100200',
   email: 'kontakt@studio-kora.test',
   mapUrl:
-    'https://www.openstreetmap.org/search?query=D%C5%82uga%2012%20Krak%C3%B3w',
+    'https://www.google.com/maps/search/?api=1&query=ul.%20D%C5%82uga%2012%2C%2031-147%20Krak%C3%B3w',
   accentColor: '#9c4f3c',
   about:
     'Kameralny salon na krakowskim Kleparzu. Strzyżemy, koloryzujemy, robimy paznokcie i brwi. Umów się telefonicznie, oddzwonimy, jeśli nie odbierzemy.',

@@ -18,7 +18,9 @@ import {
   ACCENT_COLOR_INVALID,
   ACCENT_COLOR_PATTERN,
   addressLine,
+  isMapSearchUrl,
   isSafeMapUrl,
+  mapSearchUrl,
   MAP_URL_INVALID,
   MAP_URL_MAX_LENGTH,
   PageSections,
@@ -221,6 +223,20 @@ export class PageSettingsPage implements OnInit {
   private changes(): UpdateSalonPageRequest {
     const { details, appearance, sections, privacy } = this.form.getRawValue();
     return { ...details, ...appearance, sections, ...privacy };
+  }
+
+  /** A typed address refills the map link, unless the Właściciel pasted their own. */
+  protected addressEdited(): void {
+    const details = this.form.controls.details.controls;
+    const current = details.mapUrl.value.trim();
+    if (current && !isMapSearchUrl(current)) return;
+    details.mapUrl.setValue(
+      mapSearchUrl({
+        street: details.street.value,
+        postalCode: details.postalCode.value,
+        city: details.city.value,
+      }) ?? '',
+    );
   }
 
   private fill(salon: SalonPageSettings): void {
