@@ -17,6 +17,7 @@ import { ClsService } from 'nestjs-cls';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { Photo, Prisma } from '../../generated/prisma/client';
+import { serializableTransaction } from '../prisma/serializable-transaction';
 import { PrismaService } from '../prisma/prisma.service';
 import { SalonContext } from '../salon-context/salon-context';
 import { PhotoStorage } from './photo-storage';
@@ -100,7 +101,9 @@ export class PhotosService {
       ),
     );
     try {
-      const storageKey = await this.deleteUnused(this.prisma, source.id);
+      const storageKey = await serializableTransaction(this.prisma, (tx) =>
+        this.deleteUnused(tx, source.id),
+      );
       if (!storageKey)
         throw new BadRequestException(
           'Wgraj zdjęcie ponownie, aby je wykadrować',
@@ -139,13 +142,23 @@ export class PhotosService {
    * and Personel references to `null` and drops the gallery item.
    */
   async remove(id: string, onlyUnused = false): Promise<void> {
-    const photo = await this.prisma.photo.findUnique({ where: { id } });
-    if (!photo) throw new NotFoundException();
     if (onlyUnused) {
-      const storageKey = await this.deleteUnused(this.prisma, id);
+      const storageKey = await serializableTransaction(
+        this.prisma,
+        async (tx) => {
+          const photo = await tx.photo.findUnique({
+            where: { id },
+            select: { id: true },
+          });
+          if (!photo) throw new NotFoundException();
+          return this.deleteUnused(tx, id);
+        },
+      );
       if (storageKey) await this.deleteFile(storageKey);
       return;
     }
+    const photo = await this.prisma.photo.findUnique({ where: { id } });
+    if (!photo) throw new NotFoundException();
     // The row first: a file left behind is harmless, a row without a file is a broken image.
     await this.prisma.photo.deleteMany({ where: { id } });
     await this.deleteFile(photo.storageKey);

@@ -528,6 +528,64 @@ describe('Photos', () => {
       ).toBe(photo.id);
     });
 
+    it('preserves an Ogłoszenie whose creation commits while draft deletion waits on its Photo', async () => {
+      const { salon, asOwner } = await salonWithOwner();
+      const photo = (
+        await upload(asOwner, fixture('transparent.png'), 'a.png').expect(201)
+      ).body as PhotoView;
+      let release!: () => void;
+      let inserted!: () => void;
+      const hold = new Promise<void>((resolve) => (release = resolve));
+      const ready = new Promise<void>((resolve) => (inserted = resolve));
+      // A database fixture holds the save at its external boundary, like create/checkPhoto.
+      const saving = raw.$transaction(
+        async (tx) => {
+          await tx.photo.findUniqueOrThrow({ where: { id: photo.id } });
+          const announcement = await tx.announcement.create({
+            data: {
+              salonId: salon.id,
+              title: 'A',
+              body: 'B',
+              showFrom: new Date('2026-10-01'),
+              photoId: photo.id,
+            },
+          });
+          inserted();
+          await hold;
+          return announcement;
+        },
+        { isolationLevel: 'Serializable', timeout: 15000 },
+      );
+      await ready;
+      const deleting = asOwner
+        .delete(`/api/photos/${photo.id}?unused=true`)
+        .then((response) => response);
+      try {
+        let blocked = false;
+        for (let attempt = 0; attempt < 100 && !blocked; attempt++) {
+          const [{ waiting }] = await raw.$queryRaw<
+            [{ waiting: boolean }]
+          >`SELECT EXISTS (
+            SELECT 1 FROM pg_stat_activity WHERE datname = current_database()
+              AND state = 'active' AND wait_event_type = 'Lock' AND query LIKE '%DELETE%Photo%'
+          ) AS waiting`;
+          blocked = waiting;
+          if (!blocked) await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        expect(blocked).toBe(true);
+      } finally {
+        release();
+      }
+      const [announcement, discarded] = await Promise.all([saving, deleting]);
+      expect(discarded.status).toBe(204);
+      const list = await asOwner.get('/api/announcements').expect(200);
+      expect(
+        list.body.find((a: { id: string }) => a.id === announcement.id).photoId,
+      ).toBe(photo.id);
+      await request(app.getHttpServer()).get(photo.url).expect(200);
+      await storedFile(photo);
+    });
+
     it('deletes an unused draft with its file', async () => {
       const { asOwner } = await salonWithOwner();
       const photo = (

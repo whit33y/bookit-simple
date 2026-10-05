@@ -13,7 +13,8 @@ import {
   endsOnOrAfterStart,
 } from '@bookit/shared';
 import { ClsService } from 'nestjs-cls';
-import { Announcement, Prisma } from '../../generated/prisma/client';
+import { Announcement } from '../../generated/prisma/client';
+import { serializableTransaction } from '../prisma/serializable-transaction';
 import { PrismaService } from '../prisma/prisma.service';
 import { PhotosService } from '../photos/photos.service';
 import { SalonContext } from '../salon-context/salon-context';
@@ -74,7 +75,7 @@ export class AnnouncementsService {
 
   async create(fields: AnnouncementFields): Promise<AnnouncementView> {
     checkDays(fields);
-    return this.prisma.$transaction(async (tx) => {
+    return serializableTransaction(this.prisma, async (tx) => {
       if (fields.photoId) await this.checkPhoto(tx, fields.photoId);
       const announcement = await tx.announcement.create({
         data: {
@@ -92,60 +93,48 @@ export class AnnouncementsService {
     id: string,
     changes: AnnouncementChanges,
   ): Promise<AnnouncementView> {
-    const { view, storageKey } = await this.change(async (tx) => {
-      const current = await tx.announcement.findUnique({ where: { id } });
-      if (!current) throw new NotFoundException();
-      const { showFrom, showUntil } = toView(current);
-      checkDays({
-        showFrom: changes.showFrom ?? showFrom,
-        showUntil:
-          changes.showUntil === undefined ? showUntil : changes.showUntil,
-      });
-      if (changes.photoId) await this.checkPhoto(tx, changes.photoId);
-      const updated = await tx.announcement.update({
-        where: { id },
-        data: { ...changes, ...dayColumns(changes) },
-      });
-      const storageKey =
-        current.photoId &&
-        changes.photoId !== undefined &&
-        changes.photoId !== current.photoId
-          ? await this.photos.deleteUnused(tx, current.photoId)
-          : null;
-      return { view: toView(updated), storageKey };
-    });
+    const { view, storageKey } = await serializableTransaction(
+      this.prisma,
+      async (tx) => {
+        const current = await tx.announcement.findUnique({ where: { id } });
+        if (!current) throw new NotFoundException();
+        const { showFrom, showUntil } = toView(current);
+        checkDays({
+          showFrom: changes.showFrom ?? showFrom,
+          showUntil:
+            changes.showUntil === undefined ? showUntil : changes.showUntil,
+        });
+        if (changes.photoId) await this.checkPhoto(tx, changes.photoId);
+        const updated = await tx.announcement.update({
+          where: { id },
+          data: { ...changes, ...dayColumns(changes) },
+        });
+        const storageKey =
+          current.photoId &&
+          changes.photoId !== undefined &&
+          changes.photoId !== current.photoId
+            ? await this.photos.deleteUnused(tx, current.photoId)
+            : null;
+        return { view: toView(updated), storageKey };
+      },
+    );
     if (storageKey) await this.photos.deleteFile(storageKey);
     return view;
   }
 
   async remove(id: string): Promise<void> {
-    const storageKey = await this.change(async (tx) => {
-      const current = await tx.announcement.findUnique({ where: { id } });
-      if (!current) throw new NotFoundException();
-      await tx.announcement.delete({ where: { id } });
-      return current.photoId
-        ? this.photos.deleteUnused(tx, current.photoId)
-        : null;
-    });
+    const storageKey = await serializableTransaction(
+      this.prisma,
+      async (tx) => {
+        const current = await tx.announcement.findUnique({ where: { id } });
+        if (!current) throw new NotFoundException();
+        await tx.announcement.delete({ where: { id } });
+        return current.photoId
+          ? this.photos.deleteUnused(tx, current.photoId)
+          : null;
+      },
+    );
     if (storageKey) await this.photos.deleteFile(storageKey);
-  }
-
-  /** Serializable writes retry if another request changed the same Ogłoszenie or Photo. */
-  private async change<T>(operation: (db: Db) => Promise<T>): Promise<T> {
-    for (let attempt = 0; ; attempt++) {
-      try {
-        return await this.prisma.$transaction(operation, {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        });
-      } catch (error) {
-        if (
-          !(error instanceof Prisma.PrismaClientKnownRequestError) ||
-          error.code !== 'P2034' ||
-          attempt >= 2
-        )
-          throw error;
-      }
-    }
   }
 
   /** `400` for a Photo that is not in the Salon. */
