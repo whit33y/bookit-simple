@@ -6,8 +6,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  ANNOUNCEMENT_PHOTO_SIDE,
   CropPhotoRequest,
   PHOTO_CROP_OUTSIDE,
+  PHOTO_CROP_USED,
   PROFILE_PHOTO_SIDE,
   PhotoView,
   photoUrl,
@@ -15,11 +17,21 @@ import {
 import { ClsService } from 'nestjs-cls';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
-import { Photo } from '../../generated/prisma/client';
+import { Photo, Prisma } from '../../generated/prisma/client';
+import { serializableTransaction } from '../prisma/serializable-transaction';
 import { PrismaService } from '../prisma/prisma.service';
 import { SalonContext } from '../salon-context/salon-context';
 import { PhotoStorage } from './photo-storage';
 import { cropPhoto, ProcessedPhoto, processPhoto } from './process-photo';
+
+/** Every saved place that can retain a Photo, including legacy shared photos. */
+const unusedPhoto = {
+  salonLogos: { none: {} },
+  salonHeroes: { none: {} },
+  staffMembers: { none: {} },
+  announcements: { none: {} },
+  galleryItem: { is: null },
+} satisfies Prisma.PhotoWhereInput;
 
 export const PHOTO_CONTENT_TYPE = 'image/webp';
 
@@ -53,8 +65,8 @@ export class PhotosService {
   }
 
   /**
-   * A Zdjęcie profilowe out of an uploaded Photo: the square becomes a new Photo of at
-   * most `PROFILE_PHOTO_SIDE` px a side, and the source Photo goes with its file.
+   * An unreferenced upload becomes a new square Photo: up to 480 px for Personel,
+   * 1200 px for Ogłoszenia. The source Photo goes with its file.
    * `404` for a Photo of another Salon, `400` for a square that leaves the photo.
    */
   async crop(id: string, square: CropPhotoRequest): Promise<PhotoView> {
@@ -70,13 +82,37 @@ export class PhotosService {
     ) {
       throw new BadRequestException(PHOTO_CROP_OUTSIDE);
     }
+    const unused = await this.prisma.photo.count({
+      where: { id, ...unusedPhoto },
+    });
+    if (!unused) throw new BadRequestException(PHOTO_CROP_USED);
     const file = await this.storage.get(source.storageKey);
     if (!file) throw new NotFoundException();
 
     const photo = await this.store(
-      await cropPhoto(await buffer(file), square, PROFILE_PHOTO_SIDE),
+      await cropPhoto(
+        await buffer(file),
+        square,
+        square.purpose === 'announcement'
+          ? ANNOUNCEMENT_PHOTO_SIDE
+          : PROFILE_PHOTO_SIDE,
+      ),
     );
-    await this.remove(source.id);
+    try {
+      const storageKey = await serializableTransaction(this.prisma, (tx) =>
+        this.deleteUnused(tx, source.id),
+      );
+      if (!storageKey) throw new BadRequestException(PHOTO_CROP_USED);
+      await this.deleteFile(storageKey);
+    } catch (error) {
+      // Keep the original error; a cropped Photo left behind only costs storage.
+      await this.remove(photo.id).catch((cleanup: unknown) =>
+        this.logger.warn(
+          `Could not remove cropped ${photo.id}: ${String(cleanup)}`,
+        ),
+      );
+      throw error;
+    }
     return photo;
   }
 
@@ -105,7 +141,22 @@ export class PhotosService {
    * `404` for a Photo of another Salon. The database sets the logo, header, Ogłoszenie
    * and Personel references to `null` and drops the gallery item.
    */
-  async remove(id: string): Promise<void> {
+  async remove(id: string, onlyUnused = false): Promise<void> {
+    if (onlyUnused) {
+      const storageKey = await serializableTransaction(
+        this.prisma,
+        async (tx) => {
+          const photo = await tx.photo.findUnique({
+            where: { id },
+            select: { id: true },
+          });
+          if (!photo) throw new NotFoundException();
+          return this.deleteUnused(tx, id);
+        },
+      );
+      if (storageKey) await this.deleteFile(storageKey);
+      return;
+    }
     const photo = await this.prisma.photo.findUnique({ where: { id } });
     if (!photo) throw new NotFoundException();
     // The row first: a file left behind is harmless, a row without a file is a broken image.
@@ -120,6 +171,22 @@ export class PhotosService {
       select: { storageKey: true },
     });
     return photo ? this.storage.get(photo.storageKey) : null;
+  }
+
+  /** Delete an unreferenced row inside the caller's transaction; return the file for post-commit cleanup. */
+  async deleteUnused(
+    db: Pick<PrismaService, 'photo'>,
+    id: string,
+  ): Promise<string | null> {
+    const photo = await db.photo.findUnique({
+      where: { id },
+      select: { storageKey: true },
+    });
+    if (!photo) return null;
+    const { count } = await db.photo.deleteMany({
+      where: { id, ...unusedPhoto },
+    });
+    return count ? photo.storageKey : null;
   }
 
   /**

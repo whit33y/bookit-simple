@@ -180,6 +180,10 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 
 ### Ogłoszenia
 
+- Zdjęcie Ogłoszenia jest opcjonalne. Właściciel po wgraniu wybiera kadr 1:1 w kwadratowej ramce; palcem przesuwa kadr, gestem dwóch palców zmienia jego wielkość. Wynik to WebP maksymalnie 1200×1200 px bez powiększania mniejszych wycinków. „Zatwierdź kadr” tworzy zdjęcie robocze; dopiero „Zapisz” przypina je razem z treścią Ogłoszenia.
+- „Anuluj kadrowanie” usuwa nowe źródło i zachowuje poprzedni podgląd. „Usuń zdjęcie” zmienia tylko formularz; zapis wysyła `photoId: null`. „Anuluj”, Escape i zamknięcie formularza zachowują zapisane Ogłoszenie oraz usuwają zdjęcia robocze. Błąd zapisu pozwala ponowić próbę; porzucenie formularza sprząta pliki robocze.
+- Po udanej wymianie, usunięciu zdjęcia lub Ogłoszenia poprzednie nieużywane `Photo` jest usuwane w transakcji, a plik po jej zatwierdzeniu. Zdjęcie używane przez inne Ogłoszenie, logo, nagłówek, Personel lub Galerię pozostaje.
+- Wizytówka pokazuje zdjęcie nad tytułem i treścią, wyrównane do lewej, w szerokości do 400 px i do szerokości karty. Zachowuje proporcje pliku bez ponownego przycinania w CSS. Już zapisane zdjęcia pozostają w swoich proporcjach do wymiany, również po edycji samego tekstu.
 - Wizytówka pokazuje Ogłoszenie, jeśli `showFrom <= dziś` i (`showUntil` jest puste albo `dziś <= showUntil`), gdzie "dziś" liczymy w Europe/Warsaw. Nowsze pierwsze.
 
 ### Adres wizytówki
@@ -195,6 +199,8 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 - HEIC konwertujemy przez `heic-convert` do JPEG, potem `sharp` robi `rotate()` według EXIF, skaluje do maks. 1600 px dłuższego boku, usuwa metadane (w tym GPS) i zapisuje WebP w jakości 80.
 - Pole pliku ma `accept="image/*"`, dzięki czemu Safari na iOS przy wyborze z galerii zwykle sam wysyła JPEG.
 - Zdjęcie profilowe to kwadrat 480×480 kadrowany przez Właściciela w oknie osoby z Personelu (`ngx-image-cropper`, okrągła maska). Najpierw zwykły upload, potem `POST /photos/:id/crop` wycina kwadrat z WebP, skaluje go do 480 px (mniejszy wycinek zostaje mniejszy) i usuwa źródłowe zdjęcie. Oryginału nie trzymamy, więc zmiana kadru wymaga ponownego wgrania pliku.
+- Sprzątanie roboczych zdjęć używa `DELETE /photos/:id?unused=true`: usuwa tylko zdjęcie bez zapisanych powiązań. Chroni to także udany zapis, którego odpowiedź nie dotarła do formularza. Błędy sieci i serwera przy sprzątaniu są ponawiane dwukrotnie, także po zamknięciu formularza.
+- Kontrakt kadrowania: `{ x, y, size, purpose?: "profile" | "announcement" }`, w pikselach źródłowego WebP po uploadzie. Pominięcie `purpose` zachowuje limit 480 px Personelu; `announcement` wybiera limit 1200 px. Kadrowanie dotyczy tylko nowego, niepowiązanego uploadu, tworzy nowe `Photo` i usuwa źródłowy rekord oraz plik. Zmiana kadru wymaga ponownego uploadu; nie przechowujemy oryginału.
 - Stary plik Zdjęcia profilowego znika z S3 i z bazy przy podmianie zdjęcia, przy usunięciu zdjęcia (`photoId: null`) i przy usunięciu osoby z Personelu. Zdjęcia wgrane w oknie, które Właściciel zamknął bez "Zapisz", też usuwamy.
 
 ### Czas
@@ -256,7 +262,7 @@ GET    /service-categories      POST | PATCH /:id | DELETE /:id | PUT /order
 GET    /services?includeArchived=true  POST | PATCH /:id | POST /:id/archive | /unarchive | PUT /order
 GET    /opening-hours           PUT /opening-hours
 GET    /announcements           POST | PATCH /:id | DELETE /:id
-POST   /photos                  POST /photos/:id/crop { x, y, size }   DELETE /photos/:id
+POST   /photos                  POST /photos/:id/crop { x, y, size, purpose? }   DELETE /photos/:id
 GET    /gallery                 POST { photoId } | DELETE /:photoId (usuwa też Photo) | PUT /order
 GET    /salon/page              PATCH /salon/page
 

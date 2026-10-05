@@ -4,8 +4,8 @@ import { CropPhotoRequest, PhotoView } from '@bookit/shared';
 import { ImageCropperComponent } from 'ngx-image-cropper';
 
 /**
- * Frames a square of an uploaded Photo in a circle, for a Zdjęcie profilowe. One finger
- * moves the circle, two fingers make it larger or smaller. Emits the square in pixels
+ * Frames an uploaded Photo: a circle for Personel (default), a square for Ogłoszenia.
+ * One finger moves the frame, two fingers make it larger or smaller. Emits the square in pixels
  * of the Photo; the parent sends it to `POST /api/photos/:id/crop`.
  */
 @Component({
@@ -16,7 +16,7 @@ import { ImageCropperComponent } from 'ngx-image-cropper';
       [imageURL]="photo().url"
       [maintainAspectRatio]="true"
       [aspectRatio]="1"
-      [roundCropper]="true"
+      [roundCropper]="round()"
       [autoCrop]="false"
       [checkImageType]="false"
       output="base64"
@@ -28,7 +28,8 @@ import { ImageCropperComponent } from 'ngx-image-cropper';
       <p class="error" role="alert">Nie udało się wczytać zdjęcia</p>
     } @else {
       <p class="hint">
-        Przesuń kółko palcem. Dwoma palcami je powiększysz lub zmniejszysz.
+        Przesuń {{ round() ? 'kółko' : 'kwadrat' }} palcem. Dwoma palcami go
+        powiększysz lub zmniejszysz.
       </p>
     }
     <div class="actions">
@@ -76,6 +77,7 @@ import { ImageCropperComponent } from 'ngx-image-cropper';
 export class PhotoCropper {
   /** The uploaded Photo to frame. */
   readonly photo = input.required<PhotoView>();
+  readonly round = input(true);
   readonly cropped = output<CropPhotoRequest>();
   readonly cancelled = output<void>();
 
