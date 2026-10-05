@@ -1,3 +1,4 @@
+import { DEFAULT_PAGE_SECTION_ORDER } from '@bookit/shared';
 import { DOCUMENT } from '@angular/common';
 import { RESPONSE_INIT } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -22,6 +23,7 @@ const PAGE: PublicPage = {
     logo: null,
     hero: null,
   },
+  sectionOrder: DEFAULT_PAGE_SECTION_ORDER,
   sections: ALL_PAGE_SECTIONS,
   categories: [],
   announcements: [],

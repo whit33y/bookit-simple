@@ -39,7 +39,8 @@
 </header>
 
 <main class="wrap">
-  @if (sections.announcements && page.announcements.length) {
+  @for (section of sectionOrder(); track section) { @if (section ===
+  'announcements' && sections.announcements && page.announcements.length) {
   <section>
     <h2>Ogłoszenia</h2>
     @for (announcement of page.announcements; track $index) {
@@ -59,12 +60,12 @@
     </article>
     }
   </section>
-  } @if (sections.about && salon.about) {
+  } @if (section === 'about' && sections.about && salon.about) {
   <section>
     <h2>O nas</h2>
     <p class="text">{{ salon.about }}</p>
   </section>
-  } @if (sections.pricing && page.categories.length) {
+  } @if (section === 'pricing' && sections.pricing && page.categories.length) {
   <section>
     <h2>Cennik</h2>
     @for (category of page.categories; track $index) {
@@ -87,7 +88,7 @@
     </ul>
     }
   </section>
-  } @if (sections.team && page.staff.length) {
+  } @if (section === 'team' && sections.team && page.staff.length) {
   <section>
     <h2>Zespół</h2>
     <ul class="team">
@@ -115,12 +116,12 @@
       }
     </ul>
   </section>
-  } @if (sections.gallery && page.gallery.length) {
+  } @if (section === 'gallery' && sections.gallery && page.gallery.length) {
   <section>
     <h2>Galeria</h2>
     <app-gallery-lightbox [photos]="page.gallery" [salonName]="salon.name" />
   </section>
-  } @if (sections.hours && page.openingHours.length) {
+  } @if (section === 'hours' && sections.hours && page.openingHours.length) {
   <section>
     <h2>Godziny otwarcia</h2>
     <table class="hours">
@@ -141,8 +142,8 @@
       </tbody>
     </table>
   </section>
-  } @if ( sections.contact && (address() || salon.phone || salon.email ||
-  salon.mapUrl) ) {
+  } @if (section === 'contact' && sections.contact && (address() || salon.phone
+  || salon.email || salon.mapUrl) ) {
   <section>
     <h2>Kontakt</h2>
     <address class="contact">
@@ -163,7 +164,7 @@
       }
     </address>
   </section>
-  }
+  } }
 </main>
 
 <footer class="footer wrap">

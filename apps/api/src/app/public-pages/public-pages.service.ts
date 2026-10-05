@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   isAnnouncementVisible,
   pageSections,
+  pageSectionOrder,
   PublicPage,
   warsawDate,
 } from '@bookit/shared';
@@ -124,6 +125,7 @@ export class PublicPagesService {
         hero: photo(salon.heroPhotoId),
       },
       sections: pageSections(salon.sections),
+      sectionOrder: pageSectionOrder(salon.sectionOrder),
       categories: categories
         .filter((category) => category.services.length > 0)
         .map(({ name, services }) => ({

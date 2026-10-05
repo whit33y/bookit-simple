@@ -102,3 +102,31 @@ h2 {
 .layout-description {
   color: var(--mat-sys-on-surface-variant);
 }
+
+.sections li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--mat-sys-surface);
+}
+.sections mat-slide-toggle {
+  flex: 1;
+}
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 48px;
+  cursor: grab;
+  touch-action: none;
+}
+.section-moves {
+  display: flex;
+}
+.cdk-drag-preview {
+  box-shadow: 0 4px 12px #0003;
+}
+.cdk-drag-placeholder {
+  opacity: 0.3;
+}

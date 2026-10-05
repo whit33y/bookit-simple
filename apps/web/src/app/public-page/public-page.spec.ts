@@ -1,3 +1,4 @@
+import { DEFAULT_PAGE_SECTION_ORDER } from '@bookit/shared';
 import { DOCUMENT } from '@angular/common';
 import { RESPONSE_INIT } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -24,6 +25,7 @@ const PAGE: PublicPage = {
     logo: photo('logo-id'),
     hero: photo('hero-id'),
   },
+  sectionOrder: DEFAULT_PAGE_SECTION_ORDER,
   sections: ALL_PAGE_SECTIONS,
   categories: [
     {
@@ -94,6 +96,31 @@ describe('PublicPageView', () => {
         'script[type="application/ld+json"], link[rel="canonical"]',
       )
       .forEach((node) => node.remove());
+  });
+
+  it('renders the saved order, omitting disabled and empty sections', () => {
+    const { el } = setup({
+      ...PAGE,
+      sectionOrder: [
+        'contact',
+        'hours',
+        'gallery',
+        'team',
+        'pricing',
+        'about',
+        'announcements',
+      ],
+      sections: { ...ALL_PAGE_SECTIONS, gallery: false },
+      staff: [],
+    });
+    expect(
+      [...el.querySelectorAll('main h2')].map((h) => h.textContent?.trim()),
+    ).toEqual(['Kontakt', 'Godziny otwarcia', 'Cennik', 'O nas', 'Ogłoszenia']);
+    expect([...el.children].map((e) => e.tagName)).toEqual([
+      'HEADER',
+      'MAIN',
+      'FOOTER',
+    ]);
   });
 
   it('shows the header with name, logo, photo and a button to call', () => {

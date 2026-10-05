@@ -1,3 +1,4 @@
+import { DEFAULT_PAGE_SECTION_ORDER } from '@bookit/shared';
 import { provideHttpClient } from '@angular/common/http';
 import {
   HttpTestingController,
@@ -27,6 +28,7 @@ const SALON: SalonPageSettings = {
   accentColor: '#6750a4',
   logoPhotoId: null,
   heroPhotoId: null,
+  sectionOrder: DEFAULT_PAGE_SECTION_ORDER,
   sections: ALL_PAGE_SECTIONS,
   privacyNotice: null,
 };
@@ -95,6 +97,47 @@ describe('PageSettingsPage', () => {
     TestBed.inject(HttpTestingController).verify();
   });
 
+  it('reorders disabled sections locally, keeps a failed draft and saves on retry', async () => {
+    const { el, http, tab, settle, submit } = await setup({
+      ...SALON,
+      sections: { ...ALL_PAGE_SECTIONS, about: false },
+    });
+    await tab('Sekcje');
+    const move = (label: string) =>
+      el.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
+    expect(move('W górę: Ogłoszenia').disabled).toBe(true);
+    expect(move('W dół: Kontakt').disabled).toBe(true);
+    move('W górę: O nas').click();
+    await settle();
+    expect(
+      el.querySelector('.sections li mat-slide-toggle')?.textContent?.trim(),
+    ).toBe('O nas');
+    http.expectNone({ url: URL, method: 'PATCH' });
+    await submit();
+    const req = http.expectOne({ url: URL, method: 'PATCH' });
+    const order = [
+      'about',
+      'announcements',
+      'pricing',
+      'team',
+      'gallery',
+      'hours',
+      'contact',
+    ];
+    expect(req.request.body.sectionOrder).toEqual(order);
+    expect(req.request.body.sections.about).toBe(false);
+    req.flush({}, { status: 500, statusText: 'Server Error' });
+    await settle();
+    expect(
+      el.querySelector('.sections li mat-slide-toggle')?.textContent?.trim(),
+    ).toBe('O nas');
+    await submit();
+    const retry = http.expectOne({ url: URL, method: 'PATCH' });
+    expect(retry.request.body.sectionOrder).toEqual(order);
+    retry.flush({ ...SALON, sectionOrder: order });
+    await settle();
+  });
+
   it('fills the Dane tab and links to the Wizytówka in a new tab', async () => {
     const { el, field } = await setup();
 
@@ -140,6 +183,7 @@ describe('PageSettingsPage', () => {
       accentColor: '#c0392b',
       logoPhotoId: null,
       heroPhotoId: null,
+      sectionOrder: DEFAULT_PAGE_SECTION_ORDER,
       sections: { ...ALL_PAGE_SECTIONS, gallery: false },
       privacyNotice: '',
     });

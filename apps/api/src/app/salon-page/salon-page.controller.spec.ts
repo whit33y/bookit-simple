@@ -1,3 +1,4 @@
+import { DEFAULT_PAGE_SECTION_ORDER } from '@bookit/shared';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
@@ -108,6 +109,7 @@ describe('Treść Wizytówki', () => {
         accentColor: DEFAULT_ACCENT_COLOR,
         logoPhotoId: null,
         heroPhotoId: null,
+        sectionOrder: DEFAULT_PAGE_SECTION_ORDER,
         sections: { ...ALL_PAGE_SECTIONS, gallery: false },
         privacyNotice: null,
       } satisfies SalonPageSettings);
@@ -115,6 +117,72 @@ describe('Treść Wizytówki', () => {
   });
 
   describe('PATCH /api/salon/page', () => {
+    it('persists order independently of visibility and header layout', async () => {
+      const { salon, asOwner } = await salonWithOwner();
+      const sectionOrder = [
+        'contact',
+        'hours',
+        'gallery',
+        'team',
+        'pricing',
+        'about',
+        'announcements',
+      ];
+      await asOwner
+        .patch('/api/salon/page')
+        .send({
+          sectionOrder,
+          sections: { about: false },
+          about: 'Treść',
+          headerLayout: 'COMPACT',
+        })
+        .expect(200);
+      await asOwner
+        .patch('/api/salon/page')
+        .send({ sections: { about: true }, headerLayout: 'PHOTO_SIDE' })
+        .expect(200);
+      const saved = await asOwner.get('/api/salon/page').expect(200);
+      expect(saved.body).toMatchObject({
+        sectionOrder,
+        about: 'Treść',
+        sections: { about: true },
+        headerLayout: 'PHOTO_SIDE',
+      });
+      const page = await request(app.getHttpServer())
+        .get(`/api/public/pages/${salon.slug}`)
+        .expect(200);
+      expect(page.body.sectionOrder).toEqual(sectionOrder);
+      expect(page.body.salon.headerLayout).toBe('PHOTO_SIDE');
+    });
+
+    it.each([
+      null,
+      'about',
+      {},
+      [],
+      ['about'],
+      ['about', 'about', 'pricing', 'team', 'gallery', 'hours', 'contact'],
+      ['unknown', 'about', 'pricing', 'team', 'gallery', 'hours', 'contact'],
+      [...DEFAULT_PAGE_SECTION_ORDER, 'about'],
+      [42, 'about', 'pricing', 'team', 'gallery', 'hours', 'contact'],
+    ])('rejects invalid order %j atomically', async (sectionOrder) => {
+      const { salon, asOwner } = await salonWithOwner();
+      const savedOrder = [...DEFAULT_PAGE_SECTION_ORDER].reverse();
+      await asOwner
+        .patch('/api/salon/page')
+        .send({ sectionOrder: savedOrder })
+        .expect(200);
+      await asOwner
+        .patch('/api/salon/page')
+        .send({ sectionOrder, about: 'Nie zapisze się' })
+        .expect(422);
+      const page = await request(app.getHttpServer())
+        .get(`/api/public/pages/${salon.slug}`)
+        .expect(200);
+      expect(page.body.sectionOrder).toEqual(savedOrder);
+      expect(page.body.salon.about).toBeNull();
+    });
+
     it('saves the content, normalized, and the Wizytówka shows it', async () => {
       const { salon, asOwner } = await salonWithOwner();
       const logo = await addPhoto(salon.id);
@@ -153,6 +221,7 @@ describe('Treść Wizytówki', () => {
         accentColor: '#c0392b',
         logoPhotoId: logo.id,
         heroPhotoId: hero.id,
+        sectionOrder: DEFAULT_PAGE_SECTION_ORDER,
         sections: ALL_PAGE_SECTIONS,
         privacyNotice: 'Administratorem danych jest Studio Kora.',
       };

@@ -21,6 +21,36 @@ export interface PageSections {
   contact: boolean;
 }
 
+/** Complete order of the seven sections, independent of visibility and header layout. */
+export const PAGE_SECTION_IDS = [
+  'announcements',
+  'about',
+  'pricing',
+  'team',
+  'gallery',
+  'hours',
+  'contact',
+] as const;
+export type PageSectionId = (typeof PAGE_SECTION_IDS)[number];
+export type PageSectionOrder = readonly PageSectionId[];
+export const DEFAULT_PAGE_SECTION_ORDER: PageSectionOrder = PAGE_SECTION_IDS;
+export const PAGE_SECTION_ORDER_INVALID =
+  'Nieprawidłowa kolejność sekcji Wizytówki';
+
+export function isPageSectionOrder(value: unknown): value is PageSectionOrder {
+  return (
+    Array.isArray(value) &&
+    value.length === PAGE_SECTION_IDS.length &&
+    new Set(value).size === PAGE_SECTION_IDS.length &&
+    value.every((id) => PAGE_SECTION_IDS.includes(id))
+  );
+}
+
+/** Older data without an order uses the original order. */
+export function pageSectionOrder(stored: unknown): PageSectionOrder {
+  return isPageSectionOrder(stored) ? stored : DEFAULT_PAGE_SECTION_ORDER;
+}
+
 /** A new Salon starts with every section on; the Właściciel turns them off in #20. */
 export const ALL_PAGE_SECTIONS: PageSections = {
   announcements: true,
@@ -130,6 +160,7 @@ export interface SalonPageSettings {
   logoPhotoId: string | null;
   heroPhotoId: string | null;
   sections: PageSections;
+  sectionOrder: PageSectionOrder;
   privacyNotice: string | null;
 }
 

@@ -1,5 +1,6 @@
 import {
   addressLine,
+  pageSectionOrder,
   isMapSearchUrl,
   isSafeMapUrl,
   mapSearchUrl,
@@ -97,4 +98,21 @@ describe('isSafeMapUrl', () => {
   ])('%j → %j', (url, safe) => {
     expect(isSafeMapUrl(url)).toBe(safe);
   });
+});
+
+describe('pageSectionOrder', () => {
+  it.each([undefined, null])(
+    'uses the original order for older data %s',
+    (stored) => {
+      expect(pageSectionOrder(stored)).toEqual([
+        'announcements',
+        'about',
+        'pricing',
+        'team',
+        'gallery',
+        'hours',
+        'contact',
+      ]);
+    },
+  );
 });

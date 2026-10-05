@@ -6,6 +6,7 @@ import {
 import {
   DEFAULT_ACCENT_COLOR,
   pageSections,
+  pageSectionOrder,
   SALON_PHOTO_NOT_FOUND,
   SalonPageSettings,
 } from '@bookit/shared';
@@ -30,6 +31,7 @@ const toSettings = (salon: Salon): SalonPageSettings => ({
   logoPhotoId: salon.logoPhotoId,
   heroPhotoId: salon.heroPhotoId,
   sections: pageSections(salon.sections),
+  sectionOrder: pageSectionOrder(salon.sectionOrder),
   privacyNotice: salon.privacyNotice,
 });
 
