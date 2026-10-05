@@ -48,6 +48,10 @@ _Avoid_: strona salonu, landing, profil
 Wybrany przez Właściciela sposób prezentacji góry Wizytówki: Klasyczny, Zdjęcie obok danych albo Kompaktowy. Nie zmienia wyglądu sekcji poniżej ani ich kolejności.
 _Avoid_: szablon strony, motyw
 
+**Kolejność sekcji Wizytówki**:
+Ustawiona przez Właściciela kolejność sekcji poniżej nagłówka Wizytówki. Jest niezależna od Układu Wizytówki; wyłączone i puste sekcje zachowują swoje miejsca, a nagłówek i stopka mają stałe miejsca.
+_Avoid_: kolejność bloków
+
 **Ogłoszenie**:
 Krótka informacja na Wizytówce (promocja, zamknięcie, nowość), pokazywana tylko między datą "od" i "do".
 _Avoid_: aktualność, post, news
