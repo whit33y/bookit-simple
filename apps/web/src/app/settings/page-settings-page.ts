@@ -1,4 +1,21 @@
-import { Component, inject, OnInit, signal, viewChild } from '@angular/core';
+import {
+  CdkDrag,
+  CdkDragHandle,
+  CdkDropList,
+  CdkDragDrop,
+  moveItemInArray,
+} from '@angular/cdk/drag-drop';
+import { LiveAnnouncer } from '@angular/cdk/a11y';
+import {
+  afterNextRender,
+  Component,
+  ElementRef,
+  inject,
+  Injector,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 import {
   AbstractControl,
   FormControl,
@@ -17,6 +34,9 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTabGroup, MatTabsModule } from '@angular/material/tabs';
 import {
   DEFAULT_PAGE_HEADER_LAYOUT,
+  DEFAULT_PAGE_SECTION_ORDER,
+  PageSectionOrder,
+  pageSectionOrder,
   PageHeaderLayout,
   ACCENT_COLOR_INVALID,
   ACCENT_COLOR_PATTERN,
@@ -45,7 +65,7 @@ import { errorMessage } from '../shared/error-message';
 import { PhotoUpload } from '../shared/photo-upload';
 import { SalonPageService } from './salon-page.service';
 
-/** Sections in the order the Wizytówka shows them. */
+/** Labels for the seven editable sections. */
 const SECTIONS: { key: keyof PageSections; label: string }[] = [
   { key: 'announcements', label: 'Ogłoszenia' },
   { key: 'about', label: 'O nas' },
@@ -86,6 +106,9 @@ const TABS = ['details', 'appearance', 'sections', 'privacy'] as const;
 @Component({
   selector: 'app-page-settings-page',
   imports: [
+    CdkDrag,
+    CdkDragHandle,
+    CdkDropList,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
@@ -103,8 +126,13 @@ const TABS = ['details', 'appearance', 'sections', 'privacy'] as const;
 export class PageSettingsPage implements OnInit {
   private readonly api = inject(SalonPageService);
   private readonly tabs = viewChild(MatTabGroup);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+  private readonly announcer = inject(LiveAnnouncer);
 
-  protected readonly sectionList = SECTIONS;
+  protected readonly sectionLabels = Object.fromEntries(
+    SECTIONS.map(({ key, label }) => [key, label]),
+  ) as Record<keyof PageSections, string>;
   protected readonly layouts: {
     value: PageHeaderLayout;
     label: string;
@@ -167,6 +195,10 @@ export class PageSettingsPage implements OnInit {
       heroPhotoId: new FormControl<string | null>(null),
     }),
     sections: sectionsForm(),
+    sectionOrder: new FormControl<PageSectionOrder>(
+      DEFAULT_PAGE_SECTION_ORDER,
+      { nonNullable: true },
+    ),
     privacy: new FormGroup({
       privacyNotice: textControl(
         Validators.maxLength(PRIVACY_NOTICE_MAX_LENGTH),
@@ -186,6 +218,46 @@ export class PageSettingsPage implements OnInit {
     } catch (error) {
       this.loadError.set(errorMessage(error));
     }
+  }
+
+  protected dropSection(event: CdkDragDrop<unknown>): void {
+    this.moveSection(event.previousIndex, event.currentIndex);
+  }
+
+  // A button that becomes disabled at the list edge would drop focus to
+  // the body, so focus follows the moved section to its other button.
+  protected moveSectionBy(index: number, delta: -1 | 1): void {
+    const order = this.form.controls.sectionOrder.value;
+    const key = order[index];
+    const to = index + delta;
+    this.moveSection(index, to);
+    if (order === this.form.controls.sectionOrder.value) return;
+    const label = this.sectionLabels[key];
+    this.announcer.announce(`${label}: pozycja ${to + 1} z ${order.length}`);
+    afterNextRender(
+      () => {
+        const button = (direction: string) =>
+          this.host.nativeElement.querySelector<HTMLButtonElement>(
+            `button[aria-label="${direction}: ${label}"]`,
+          );
+        const same = button(delta < 0 ? 'W górę' : 'W dół');
+        (same && !same.disabled
+          ? same
+          : button(delta < 0 ? 'W dół' : 'W górę')
+        )?.focus();
+      },
+      { injector: this.injector },
+    );
+  }
+
+  protected moveSection(from: number, to: number): void {
+    const control = this.form.controls.sectionOrder;
+    if (this.saving() || to < 0 || to >= control.value.length || from === to)
+      return;
+    const order = [...control.value];
+    moveItemInArray(order, from, to);
+    control.setValue(order);
+    control.markAsDirty();
   }
 
   protected photoSrc(id: string | null): string | null {
@@ -252,8 +324,9 @@ export class PageSettingsPage implements OnInit {
   }
 
   private changes(): UpdateSalonPageRequest {
-    const { details, appearance, sections, privacy } = this.form.getRawValue();
-    return { ...details, ...appearance, sections, ...privacy };
+    const { details, appearance, sections, sectionOrder, privacy } =
+      this.form.getRawValue();
+    return { ...details, ...appearance, sections, sectionOrder, ...privacy };
   }
 
   /** A typed address refills the map link, unless the Właściciel pasted their own. */
@@ -292,6 +365,7 @@ export class PageSettingsPage implements OnInit {
         heroPhotoId: salon.heroPhotoId,
       },
       sections: salon.sections,
+      sectionOrder: pageSectionOrder(salon.sectionOrder),
       privacy: { privacyNotice: text(salon.privacyNotice) },
     });
   }

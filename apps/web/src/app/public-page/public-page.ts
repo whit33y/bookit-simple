@@ -12,6 +12,7 @@ import {
   formatPhone,
   formatPrice,
   photoUrl,
+  pageSectionOrder,
   WEEKDAY_NAMES,
 } from '@bookit/shared';
 import { GalleryLightbox } from './gallery-lightbox';
@@ -22,7 +23,7 @@ import { NotFoundPage, PageUnavailable } from './status-pages';
 
 /**
  * The Wizytówka (`/:slug`), rendered on the server for Klienci and Google. Its own light
- * styles, no Angular Material. Sections in the order of docs/mvp.md; one the Właściciel
+ * styles, no Angular Material. Sections in the saved order; one the Właściciel
  * turned off, or one with nothing to show, is left out.
  */
 @Component({
@@ -71,6 +72,10 @@ export class PublicPageView {
       };
     });
   });
+
+  protected readonly sectionOrder = computed(() =>
+    pageSectionOrder(this.data()?.sectionOrder),
+  );
 
   protected readonly photoUrl = photoUrl;
   protected readonly formatPhone = formatPhone;

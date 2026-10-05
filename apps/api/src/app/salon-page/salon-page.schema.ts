@@ -6,6 +6,9 @@ import {
   ACCENT_COLOR_INVALID,
   ACCENT_COLOR_PATTERN,
   ALL_PAGE_SECTIONS,
+  isPageSectionOrder,
+  PageSectionOrder,
+  PAGE_SECTION_ORDER_INVALID,
   isSafeMapUrl,
   MAP_URL_INVALID,
   MAP_URL_MAX_LENGTH,
@@ -85,6 +88,9 @@ const updateSchema = z
     logoPhotoId: photoId,
     heroPhotoId: photoId,
     sections,
+    sectionOrder: z
+      .custom<PageSectionOrder>(isPageSectionOrder, PAGE_SECTION_ORDER_INVALID)
+      .transform((order) => [...order]),
     privacyNotice: text(PRIVACY_NOTICE_MAX_LENGTH, PRIVACY_NOTICE_TOO_LONG),
   })
   .partial() satisfies z.ZodType<unknown, UpdateSalonPageRequest>;

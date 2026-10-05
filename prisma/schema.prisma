@@ -70,6 +70,8 @@ model Salon {
   heroPhotoId   String?          @db.Uuid
   /// Which Wizytówka sections are enabled
   sections      Json             @default("{}")
+  /// Full order of Wizytówka sections; null in older data means the default
+  sectionOrder  Json?
   privacyNotice String?
 
   logoPhoto         Photo?              @relation("SalonLogo", fields: [logoPhotoId], references: [id], onDelete: SetNull)

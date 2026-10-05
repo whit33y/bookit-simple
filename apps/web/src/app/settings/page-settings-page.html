@@ -191,12 +191,45 @@
         <p class="hint">
           Wyłączona sekcja znika z Wizytówki. Jej treść zostaje zapisana.
         </p>
-        <ul class="sections">
-          @for (section of sectionList; track section.key) {
-          <li>
-            <mat-slide-toggle [formControlName]="section.key"
-              >{{ section.label }}</mat-slide-toggle
+        <p class="hint">
+          Przeciągnij uchwyt lub użyj przycisków. Zmiany zatwierdź przez
+          „Zapisz”.
+        </p>
+        <ul
+          class="sections"
+          cdkDropList
+          [cdkDropListDisabled]="saving()"
+          (cdkDropListDropped)="dropSection($event)"
+        >
+          @for (key of form.controls.sectionOrder.value; track key; let i =
+          $index) {
+          <li cdkDrag cdkDragLockAxis="y">
+            <span class="drag-handle" cdkDragHandle aria-hidden="true">
+              <mat-icon>drag_indicator</mat-icon>
+            </span>
+            <mat-slide-toggle [formControlName]="key"
+              >{{ sectionLabels[key] }}</mat-slide-toggle
             >
+            <div class="section-moves">
+              <button
+                mat-icon-button
+                type="button"
+                [disabled]="i === 0 || saving()"
+                [attr.aria-label]="'W górę: ' + sectionLabels[key]"
+                (click)="moveSectionBy(i, -1)"
+              >
+                <mat-icon>arrow_upward</mat-icon>
+              </button>
+              <button
+                mat-icon-button
+                type="button"
+                [disabled]="$last || saving()"
+                [attr.aria-label]="'W dół: ' + sectionLabels[key]"
+                (click)="moveSectionBy(i, 1)"
+              >
+                <mat-icon>arrow_downward</mat-icon>
+              </button>
+            </div>
           </li>
           }
         </ul>

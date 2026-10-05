@@ -278,6 +278,7 @@ describe('GET /api/public/pages/:slug', () => {
         'salon.headerLayout',
         ...photoKeys('salon.logo'),
         ...photoKeys('salon.hero'),
+        'sectionOrder',
         'sections',
         ...Object.keys(ALL_PAGE_SECTIONS).map((key) => `sections.${key}`),
         'categories',

@@ -1,3 +1,4 @@
+import { DEFAULT_PAGE_SECTION_ORDER } from '@bookit/shared';
 import { PublicPage } from '@bookit/shared';
 import {
   formatDuration,
@@ -123,6 +124,7 @@ describe('salonJsonLd', () => {
       logo: null,
       hero: { id: 'hero-id', width: 1600, height: 900 },
     },
+    sectionOrder: DEFAULT_PAGE_SECTION_ORDER,
     sections: {
       announcements: true,
       about: true,

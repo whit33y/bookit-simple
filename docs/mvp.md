@@ -82,6 +82,7 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 - `accentColor` (hex), `logoPhotoId`, `heroPhotoId`
 - `headerLayout` (Układ Wizytówki): `classic` (Klasyczny, domyślny) | `photo-side` (Zdjęcie obok danych) | `compact` (Kompaktowy); zmiana nie usuwa zdjęć ani treści
 - `sections` (JSON: które sekcje Wizytówki są włączone)
+- `sectionOrder` (Kolejność sekcji Wizytówki): pełna kolejność siedmiu sekcji, niezależna od widoczności i Układu Wizytówki; brak ustawienia oznacza kolejność domyślną
 - `privacyNotice` (treść klauzuli informacyjnej RODO)
 
 **SalonSlugRedirect**: `oldSlug` (unikalny), `salonId`. Stare adresy po zmianie przez Administratora.
@@ -224,14 +225,16 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 - **Personel:** lista, zaproś (imię, e-mail, rola), przełączniki Przyjmuje Wizyty i pokazuj na Wizytówce, zdjęcie, opis, kolejność, usuń.
 - **Cennik:** Kategorie Usług i Usługi z przeciąganiem kolejności, archiwizacja Usługi.
 - **Godziny otwarcia:** siedem wierszy, przełącznik zamknięte / otwarte, godziny od–do.
-- **Wizytówka:** dane kontaktowe, O nas, link do mapy, Układ Wizytówki, kolor, logo, zdjęcie nagłówka, włączanie sekcji, klauzula RODO (z gotowym szablonem do uzupełnienia), podgląd.
+- **Wizytówka:** dane kontaktowe, O nas, link do mapy, Układ Wizytówki, kolor, logo, zdjęcie nagłówka, włączanie i kolejność sekcji (przeciąganie lub przyciski W górę/W dół), klauzula RODO (z gotowym szablonem do uzupełnienia). Wspólny przycisk „Zapisz”, potem „Otwórz Wizytówkę”.
 - **Galeria:** upload wielu plików, kolejność, usuwanie.
 - **Ogłoszenia:** lista aktywnych, zaplanowanych i minionych, formularz.
 - **Historia zmian:** lista z filtrami.
 
 ### Wizytówka (`/{adres}`)
 
-Sekcje w kolejności: nagłówek (logo, nazwa, zdjęcie, przycisk "Zadzwoń" jako `tel:`), Ogłoszenia, O nas, Cennik (Kategorie, Usługa z nazwą, opisem, Ceną i czasem), Zespół, Galeria, Godziny otwarcia (z wyróżnieniem dzisiejszego dnia), Kontakt z adresem i linkiem do mapy. W stopce klauzula informacyjna RODO jako rozwijany tekst lub osobna podstrona `/{adres}/prywatnosc`.
+Domyślna kolejność: nagłówek (logo, nazwa, zdjęcie, przycisk "Zadzwoń" jako `tel:`), Ogłoszenia, O nas, Cennik (Kategorie, Usługa z nazwą, opisem, Ceną i czasem), Zespół, Galeria, Godziny otwarcia (z wyróżnieniem dzisiejszego dnia), Kontakt z adresem i linkiem do mapy. W stopce klauzula informacyjna RODO jako rozwijany tekst lub osobna podstrona `/{adres}/prywatnosc`.
+
+Właściciel może dowolnie przestawiać siedem sekcji między nagłówkiem a stopką. Sekcje wyłączone i puste zachowują swoje miejsca, ale nie pojawiają się publicznie. Nagłówek i stopka mają stałe miejsca.
 
 SEO: `<title>`, `meta description` z O nas, Open Graph ze zdjęciem nagłówka, JSON-LD `HairSalon` / `NailSalon` / `BeautySalon` z adresem, telefonem i `openingHoursSpecification`.
 
