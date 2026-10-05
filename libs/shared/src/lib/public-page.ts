@@ -1,6 +1,6 @@
 import { CalendarDay } from './calendar-day';
 import { OpeningHoursDay } from './opening-hours';
-import { PageSections } from './salon-page';
+import { PageHeaderLayout, PageSections } from './salon-page';
 
 export type PriceType = 'FIXED' | 'FROM';
 
@@ -61,6 +61,7 @@ export interface PublicPage {
     email: string | null;
     mapUrl: string | null;
     accentColor: string | null;
+    headerLayout: PageHeaderLayout;
     logo: PublicPhoto | null;
     hero: PublicPhoto | null;
   };

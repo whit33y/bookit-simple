@@ -118,6 +118,7 @@ export class PublicPagesService {
         phone: salon.phone,
         email: salon.email,
         mapUrl: salon.mapUrl,
+        headerLayout: salon.headerLayout,
         accentColor: salon.accentColor,
         logo: photo(salon.logoPhotoId),
         hero: photo(salon.heroPhotoId),

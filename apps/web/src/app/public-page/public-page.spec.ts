@@ -20,6 +20,7 @@ const PAGE: PublicPage = {
     email: 'kontakt@kora.test',
     mapUrl: 'https://maps.example/kora',
     accentColor: '#f1c40f',
+    headerLayout: 'CLASSIC',
     logo: photo('logo-id'),
     hero: photo('hero-id'),
   },
@@ -109,6 +110,83 @@ describe('PublicPageView', () => {
       'Logo Studio Kora',
     );
   });
+
+  it.each(['CLASSIC', 'PHOTO_SIDE', 'COMPACT'] as const)(
+    'renders layout %s with unchanged sections and link preview',
+    (headerLayout) => {
+      const { el, head, section } = setup({
+        ...PAGE,
+        salon: { ...PAGE.salon, headerLayout },
+      });
+      const header = el.querySelector('header');
+      expect(header?.classList.contains('photo-side')).toBe(
+        headerLayout === 'PHOTO_SIDE',
+      );
+      expect(header?.classList.contains('compact')).toBe(
+        headerLayout === 'COMPACT',
+      );
+      expect(el.querySelector('header .hero-photo') !== null).toBe(
+        headerLayout !== 'COMPACT',
+      );
+      expect(el.querySelector('header .logo')).not.toBeNull();
+      expect(el.querySelector('header .call')?.getAttribute('href')).toBe(
+        'tel:+48600100200',
+      );
+      expect(el.querySelector('header')?.textContent).not.toContain(
+        PAGE.salon.about,
+      );
+      expect(section('O nas')?.textContent).toContain(PAGE.salon.about);
+      expect(section('Zespół')?.querySelector('img')?.getAttribute('src')).toBe(
+        '/api/public/photos/magda-id',
+      );
+      expect(
+        section('Zespół')?.querySelector('.initial')?.textContent,
+      ).toContain('O');
+      expect(
+        head
+          .querySelector('meta[property="og:image"]')
+          ?.getAttribute('content'),
+      ).toMatch(/hero-id$/);
+      expect(
+        [...el.querySelectorAll('section h2')].map((h) =>
+          h.textContent?.trim(),
+        ),
+      ).toEqual([
+        'Ogłoszenia',
+        'O nas',
+        'Cennik',
+        'Zespół',
+        'Galeria',
+        'Godziny otwarcia',
+        'Kontakt',
+      ]);
+    },
+  );
+
+  it.each(['CLASSIC', 'PHOTO_SIDE', 'COMPACT'] as const)(
+    'leaves no empty optional header elements in %s',
+    (headerLayout) => {
+      const { el } = setup({
+        ...PAGE,
+        salon: {
+          ...PAGE.salon,
+          headerLayout,
+          hero: null,
+          logo: null,
+          street: null,
+          postalCode: null,
+          city: null,
+          phone: null,
+        },
+      });
+      expect(el.querySelector('header img')).toBeNull();
+      expect(el.querySelector('header .header-address')).toBeNull();
+      expect(el.querySelector('header .call')).toBeNull();
+      expect(el.querySelector('header')?.classList.contains('has-hero')).toBe(
+        false,
+      );
+    },
+  );
 
   it('shows the sections in the order of the Wizytówka', () => {
     const { el } = setup(PAGE);

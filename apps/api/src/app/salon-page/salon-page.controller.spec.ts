@@ -104,6 +104,7 @@ describe('Treść Wizytówki', () => {
         phone: null,
         email: null,
         mapUrl: null,
+        headerLayout: 'CLASSIC',
         accentColor: DEFAULT_ACCENT_COLOR,
         logoPhotoId: null,
         heroPhotoId: null,
@@ -148,6 +149,7 @@ describe('Treść Wizytówki', () => {
         phone: '+48600123456',
         email: 'kontakt@studiokora.pl',
         mapUrl: 'https://maps.app.goo.gl/abc123',
+        headerLayout: 'CLASSIC',
         accentColor: '#c0392b',
         logoPhotoId: logo.id,
         heroPhotoId: hero.id,
@@ -168,6 +170,78 @@ describe('Treść Wizytówki', () => {
       });
       expect(page.body.privacyNotice).toBe(saved.privacyNotice);
     });
+
+    it.each(['CLASSIC', 'PHOTO_SIDE', 'COMPACT'])(
+      'persists header layout %s without changing photos or content',
+      async (headerLayout) => {
+        const { salon, asOwner } = await salonWithOwner();
+        const hero = await addPhoto(salon.id);
+        const logo = await addPhoto(salon.id);
+        await asOwner
+          .patch('/api/salon/page')
+          .send({ heroPhotoId: hero.id, logoPhotoId: logo.id, about: 'O nas' })
+          .expect(200);
+        await asOwner
+          .patch('/api/salon/page')
+          .send({ headerLayout })
+          .expect(200);
+        const saved = await asOwner.get('/api/salon/page').expect(200);
+        expect(saved.body).toMatchObject({
+          headerLayout,
+          heroPhotoId: hero.id,
+          logoPhotoId: logo.id,
+          about: 'O nas',
+        });
+        await asOwner
+          .patch('/api/salon/page')
+          .send({ city: 'Łódź' })
+          .expect(200);
+        const page = await request(app.getHttpServer())
+          .get(`/api/public/pages/${salon.slug}`)
+          .expect(200);
+        expect(page.body.salon).toMatchObject({
+          headerLayout,
+          hero: { id: hero.id },
+          logo: { id: logo.id },
+          about: 'O nas',
+        });
+        await asOwner
+          .patch('/api/salon/page')
+          .send({ headerLayout: 'CLASSIC' })
+          .expect(200);
+        const restored = await request(app.getHttpServer())
+          .get(`/api/public/pages/${salon.slug}`)
+          .expect(200);
+        expect(restored.body.salon).toMatchObject({
+          headerLayout: 'CLASSIC',
+          hero: { id: hero.id },
+          logo: { id: logo.id },
+          about: 'O nas',
+        });
+      },
+    );
+
+    it.each(['unknown', '', null, 42])(
+      'rejects layout %s atomically and preserves the public choice',
+      async (headerLayout) => {
+        const { salon, asOwner } = await salonWithOwner();
+        await asOwner
+          .patch('/api/salon/page')
+          .send({ headerLayout: 'COMPACT' })
+          .expect(200);
+        await asOwner
+          .patch('/api/salon/page')
+          .send({ headerLayout, about: 'Nie zapisze się' })
+          .expect(422);
+        const page = await request(app.getHttpServer())
+          .get(`/api/public/pages/${salon.slug}`)
+          .expect(200);
+        expect(page.body.salon).toMatchObject({
+          headerLayout: 'COMPACT',
+          about: null,
+        });
+      },
+    );
 
     it('changes only the fields sent, and only the sections named', async () => {
       const { asOwner } = await salonWithOwner();

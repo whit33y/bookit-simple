@@ -25,6 +25,7 @@ const toSettings = (salon: Salon): SalonPageSettings => ({
   phone: salon.phone,
   email: salon.email,
   mapUrl: salon.mapUrl,
+  headerLayout: salon.headerLayout,
   accentColor: salon.accentColor ?? DEFAULT_ACCENT_COLOR,
   logoPhotoId: salon.logoPhotoId,
   heroPhotoId: salon.heroPhotoId,

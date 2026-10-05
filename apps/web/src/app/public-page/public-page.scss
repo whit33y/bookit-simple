@@ -232,3 +232,43 @@ a {
   padding-bottom: 32px;
   border-top: 1px solid var(--line);
 }
+
+// Alternate layouts share the header content and leave all sections below alone.
+.compact {
+  text-align: left;
+  .header-identity {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo {
+    flex: none;
+    width: 56px;
+    height: 56px;
+    margin: 0;
+  }
+  h1 {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 768px) {
+  .photo-side.has-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    max-width: 1040px;
+    margin: 0 auto;
+    text-align: left;
+    .hero-photo {
+      aspect-ratio: 4 / 3;
+      height: 100%;
+      max-height: 420px;
+    }
+    .header-body {
+      min-width: 0;
+      margin: 0;
+      padding: 32px;
+    }
+  }
+}

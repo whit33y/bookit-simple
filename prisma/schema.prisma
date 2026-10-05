@@ -26,6 +26,12 @@ enum PriceType {
   FROM
 }
 
+enum PageHeaderLayout {
+  CLASSIC
+  PHOTO_SIDE
+  COMPACT
+}
+
 enum VisitState {
   SCHEDULED
   CANCELLED
@@ -42,13 +48,13 @@ enum VisitChangeAction {
 }
 
 model Salon {
-  id            String      @id @default(uuid()) @db.Uuid
-  createdAt     DateTime    @default(now()) @db.Timestamptz
-  updatedAt     DateTime    @updatedAt @db.Timestamptz
+  id            String           @id @default(uuid()) @db.Uuid
+  createdAt     DateTime         @default(now()) @db.Timestamptz
+  updatedAt     DateTime         @updatedAt @db.Timestamptz
   name          String
   /// Adres wizytówki
-  slug          String      @unique
-  status        SalonStatus @default(ACTIVE)
+  slug          String           @unique
+  status        SalonStatus      @default(ACTIVE)
   about         String?
   street        String?
   postalCode    String?
@@ -58,10 +64,12 @@ model Salon {
   mapUrl        String?
   /// Hex, e.g. `#c0392b`
   accentColor   String?
-  logoPhotoId   String?     @db.Uuid
-  heroPhotoId   String?     @db.Uuid
+  /// Układ Wizytówki; changes only the public header
+  headerLayout  PageHeaderLayout @default(CLASSIC)
+  logoPhotoId   String?          @db.Uuid
+  heroPhotoId   String?          @db.Uuid
   /// Which Wizytówka sections are enabled
-  sections      Json        @default("{}")
+  sections      Json             @default("{}")
   privacyNotice String?
 
   logoPhoto         Photo?              @relation("SalonLogo", fields: [logoPhotoId], references: [id], onDelete: SetNull)

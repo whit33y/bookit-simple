@@ -18,6 +18,7 @@ const PAGE: PublicPage = {
     email: 'kontakt@kora.test',
     mapUrl: null,
     accentColor: '#f1c40f',
+    headerLayout: 'CLASSIC',
     logo: null,
     hero: null,
   },

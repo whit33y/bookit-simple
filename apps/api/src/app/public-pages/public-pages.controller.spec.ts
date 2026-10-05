@@ -275,6 +275,7 @@ describe('GET /api/public/pages/:slug', () => {
         'salon.email',
         'salon.mapUrl',
         'salon.accentColor',
+        'salon.headerLayout',
         ...photoKeys('salon.logo'),
         ...photoKeys('salon.hero'),
         'sections',
