@@ -116,7 +116,7 @@ h1 {
   border-radius: 12px;
   img {
     display: block;
-    width: min(400px, 100%);
+    max-width: min(400px, 100%);
     height: auto;
     margin-bottom: 12px;
     border-radius: 8px;

@@ -44,3 +44,10 @@ export const ANNOUNCEMENT_PHOTO_SIDE = 1200;
 
 /** `400` from `POST /api/photos/:id/crop` for a square that leaves the photo. */
 export const PHOTO_CROP_OUTSIDE = 'Kadr wychodzi poza zdjęcie';
+
+/** `400` from `POST /api/photos/:id/crop` for a Photo that is already in use. */
+export const PHOTO_CROP_USED = 'Wgraj zdjęcie ponownie, aby je wykadrować';
+
+/** `409` when a write keeps losing to concurrent changes of the same data. */
+export const WRITE_CONFLICT =
+  'Ktoś właśnie zmienił te dane. Odśwież stronę i spróbuj ponownie';

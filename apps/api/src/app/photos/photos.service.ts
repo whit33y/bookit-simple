@@ -9,6 +9,7 @@ import {
   ANNOUNCEMENT_PHOTO_SIDE,
   CropPhotoRequest,
   PHOTO_CROP_OUTSIDE,
+  PHOTO_CROP_USED,
   PROFILE_PHOTO_SIDE,
   PhotoView,
   photoUrl,
@@ -84,10 +85,7 @@ export class PhotosService {
     const unused = await this.prisma.photo.count({
       where: { id, ...unusedPhoto },
     });
-    if (!unused)
-      throw new BadRequestException(
-        'Wgraj zdjęcie ponownie, aby je wykadrować',
-      );
+    if (!unused) throw new BadRequestException(PHOTO_CROP_USED);
     const file = await this.storage.get(source.storageKey);
     if (!file) throw new NotFoundException();
 
@@ -104,13 +102,15 @@ export class PhotosService {
       const storageKey = await serializableTransaction(this.prisma, (tx) =>
         this.deleteUnused(tx, source.id),
       );
-      if (!storageKey)
-        throw new BadRequestException(
-          'Wgraj zdjęcie ponownie, aby je wykadrować',
-        );
+      if (!storageKey) throw new BadRequestException(PHOTO_CROP_USED);
       await this.deleteFile(storageKey);
     } catch (error) {
-      await this.remove(photo.id);
+      // Keep the original error; a cropped Photo left behind only costs storage.
+      await this.remove(photo.id).catch((cleanup: unknown) =>
+        this.logger.warn(
+          `Could not remove cropped ${photo.id}: ${String(cleanup)}`,
+        ),
+      );
       throw error;
     }
     return photo;
