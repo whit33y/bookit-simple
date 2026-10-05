@@ -197,14 +197,19 @@ test('Zdjęcie Ogłoszenia saves a square, rolls back on Escape and backdrop, an
         has: publicPage.getByRole('heading', { name: title, exact: true }),
       });
       const image = card.locator('img');
-      await expect(image).toBeVisible();
-      const img = await image.boundingBox();
-      const heading = await card.locator('h3').boundingBox();
-      expect(img!.width).toBeLessThanOrEqual(400);
-      expect(img!.width / img!.height).toBeCloseTo(ratio, 2);
-      expect(heading!.y).toBeGreaterThanOrEqual(img!.y + img!.height);
-      expect(img!.x).toBeCloseTo(heading!.x, 1);
-      expect(img!.x + img!.width).toBeLessThanOrEqual(width);
+      // SSR hydration can briefly replace the elements between layout reads.
+      await expect(async () => {
+        await expect(image).toBeVisible();
+        const img = await image.boundingBox();
+        const heading = await card.locator('h3').boundingBox();
+        expect(img).not.toBeNull();
+        expect(heading).not.toBeNull();
+        expect(img!.width).toBeLessThanOrEqual(400);
+        expect(img!.width / img!.height).toBeCloseTo(ratio, 2);
+        expect(heading!.y).toBeGreaterThanOrEqual(img!.y + img!.height);
+        expect(img!.x).toBeCloseTo(heading!.x, 1);
+        expect(img!.x + img!.width).toBeLessThanOrEqual(width);
+      }).toPass({ timeout: 10_000 });
     }
     await publicPage.screenshot({
       path: testInfo.outputPath(`announcements-${width}.png`),
