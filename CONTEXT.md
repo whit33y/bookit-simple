@@ -56,6 +56,10 @@ _Avoid_: kolejność bloków
 Krótka informacja na Wizytówce (promocja, zamknięcie, nowość), pokazywana tylko między datą "od" i "do".
 _Avoid_: aktualność, post, news
 
+**Zdjęcie Ogłoszenia**:
+Opcjonalne zdjęcie jednego Ogłoszenia na Wizytówce, kadrowane przez Właściciela do kwadratu po wgraniu. Zmiana lub usunięcie Zdjęcia Ogłoszenia obowiązuje dopiero po zapisaniu Ogłoszenia.
+_Avoid_: Zdjęcie profilowe, miniatura, baner
+
 **Galeria**:
 Do 30 zdjęć Salonu na Wizytówce, w kolejności ustawionej przez Właściciela. Zdjęcie usunięte z Galerii jest usuwane na dobre, razem z plikiem.
 _Avoid_: album, portfolio, zdjęcia prac
