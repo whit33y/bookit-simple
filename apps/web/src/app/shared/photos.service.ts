@@ -3,11 +3,20 @@ import {
   HttpBackend,
   HttpClient,
   HttpEventType,
+  HttpErrorResponse,
   HttpXhrBackend,
 } from '@angular/common/http';
 import { Injectable, InjectionToken, inject } from '@angular/core';
 import { CropPhotoRequest, PhotoView } from '@bookit/shared';
-import { filter, firstValueFrom, map, Observable } from 'rxjs';
+import {
+  filter,
+  firstValueFrom,
+  map,
+  Observable,
+  retry,
+  throwError,
+  timer,
+} from 'rxjs';
 
 /**
  * The app sends requests with `fetch`, which cannot report upload progress, so uploads
@@ -60,6 +69,29 @@ export class PhotosService {
   crop(id: string, square: CropPhotoRequest): Promise<PhotoView> {
     return firstValueFrom(
       this.http.post<PhotoView>(`/api/photos/${id}/crop`, square),
+    );
+  }
+
+  /**
+   * Discard a draft only if no saved reference uses it, including a save whose response
+   * was lost. Retries transient failures even after the parent dialog is destroyed.
+   */
+  removeUnused(id: string): Promise<void> {
+    return firstValueFrom(
+      this.http
+        .delete<void>(`/api/photos/${id}`, {
+          params: { unused: 'true' },
+        })
+        .pipe(
+          retry({
+            count: 2,
+            delay: (error: unknown, attempt) =>
+              error instanceof HttpErrorResponse &&
+              (error.status === 0 || error.status >= 500)
+                ? timer(250 * attempt)
+                : throwError(() => error),
+          }),
+        ),
     );
   }
 

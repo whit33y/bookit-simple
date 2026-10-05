@@ -505,6 +505,40 @@ describe('Photos', () => {
   });
 
   describe('DELETE /api/photos/:id', () => {
+    it('guards draft cleanup against an already committed save', async () => {
+      const { asOwner } = await salonWithOwner();
+      const photo = (
+        await upload(asOwner, fixture('transparent.png'), 'a.png').expect(201)
+      ).body as PhotoView;
+      const announcement = await asOwner
+        .post('/api/announcements')
+        .send({
+          title: 'A',
+          body: 'B',
+          showFrom: '2026-10-01',
+          photoId: photo.id,
+        })
+        .expect(201);
+      await asOwner.delete(`/api/photos/${photo.id}?unused=true`).expect(204);
+      await request(app.getHttpServer()).get(photo.url).expect(200);
+      const list = await asOwner.get('/api/announcements').expect(200);
+      expect(
+        list.body.find((a: { id: string }) => a.id === announcement.body.id)
+          .photoId,
+      ).toBe(photo.id);
+    });
+
+    it('deletes an unused draft with its file', async () => {
+      const { asOwner } = await salonWithOwner();
+      const photo = (
+        await upload(asOwner, fixture('transparent.png'), 'a.png').expect(201)
+      ).body as PhotoView;
+      const { row } = await storedFile(photo);
+      await asOwner.delete(`/api/photos/${photo.id}?unused=true`).expect(204);
+      await request(app.getHttpServer()).get(photo.url).expect(404);
+      expect(storage.files.has(row.storageKey)).toBe(false);
+    });
+
     it('deletes the file and the row, and clears every reference to it', async () => {
       const { salon, asOwner, staffMember } = await salonWithOwner();
       const photo = (

@@ -444,6 +444,54 @@ describe('Ogłoszenia', () => {
       expect(storage.files.has(photo.storageKey)).toBe(true);
     });
 
+    it('cleans the actually replaced photo during concurrent saves', async () => {
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const { salon, asOwner, photo, id } = await withPhoto();
+        const first = await addPhoto(salon.id);
+        const second = await addPhoto(salon.id);
+        await Promise.all([
+          asOwner.patch(`${URL}/${id}`).send({ photoId: first.id }).expect(200),
+          asOwner
+            .patch(`${URL}/${id}`)
+            .send({ photoId: second.id })
+            .expect(200),
+        ]);
+        const list = await asOwner.get(URL).expect(200);
+        const saved = list.body.find((a: AnnouncementView) => a.id === id);
+        expect([first.id, second.id]).toContain(saved.photoId);
+        for (const candidate of [photo, first, second]) {
+          expect(storage.files.has(candidate.storageKey)).toBe(
+            candidate.id === saved.photoId,
+          );
+          const row = await raw.photo.findUnique({
+            where: { id: candidate.id },
+          });
+          if (candidate.id === saved.photoId) expect(row).not.toBeNull();
+          else expect(row).toBeNull();
+        }
+      }
+    });
+
+    it('cleans the current photo when deletion overlaps a save', async () => {
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const { salon, asOwner, photo, id } = await withPhoto();
+        const replacement = await addPhoto(salon.id);
+        const [updated] = await Promise.all([
+          asOwner.patch(`${URL}/${id}`).send({ photoId: replacement.id }),
+          asOwner.delete(`${URL}/${id}`).expect(204),
+        ]);
+        expect([200, 404]).toContain(updated.status);
+        expect(
+          await raw.photo.findUnique({ where: { id: photo.id } }),
+        ).toBeNull();
+        expect(storage.files.has(photo.storageKey)).toBe(false);
+        // If deletion won, the replacement never belonged to the Ogłoszenie.
+        expect(storage.files.has(replacement.storageKey)).toBe(
+          updated.status === 404,
+        );
+      }
+    });
+
     it.each(['announcement', 'logo', 'hero', 'staff', 'gallery'])(
       'keeps a photo used by another %s',
       async (relation) => {

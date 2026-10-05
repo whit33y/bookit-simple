@@ -15,6 +15,7 @@ import {
   ParseUUIDPipe,
   PayloadTooLargeException,
   Post,
+  Query,
   Res,
   StreamableFile,
   UploadedFile,
@@ -105,8 +106,13 @@ export class PhotosController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.photos.remove(id);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('unused') unused?: string,
+  ): Promise<void> {
+    if (unused !== undefined && unused !== 'true')
+      throw new BadRequestException();
+    return this.photos.remove(id, unused === 'true');
   }
 }
 

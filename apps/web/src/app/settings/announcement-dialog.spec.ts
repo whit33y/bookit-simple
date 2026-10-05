@@ -240,7 +240,9 @@ describe('AnnouncementDialog', () => {
     });
     await upload('source');
     cropper().cancelled.emit();
-    http.expectOne({ url: '/api/photos/source', method: 'DELETE' }).flush(null);
+    http
+      .expectOne({ url: '/api/photos/source?unused=true', method: 'DELETE' })
+      .flush(null);
     await settle();
     expect(el.querySelector('.photo-preview')?.getAttribute('src')).toBe(
       '/api/public/photos/p1',
@@ -266,7 +268,7 @@ describe('AnnouncementDialog', () => {
     http.expectOne('/api/photos/source2/crop').flush(photo('square2'));
     await settle();
     http
-      .expectOne({ url: '/api/photos/square1', method: 'DELETE' })
+      .expectOne({ url: '/api/photos/square1?unused=true', method: 'DELETE' })
       .flush(null);
     await submit();
     const req = http.expectOne('/api/announcements/a1');
@@ -274,7 +276,7 @@ describe('AnnouncementDialog', () => {
     req.flush({ ...PROMO, photoId: 'square2' });
     await settle();
     fixture.destroy();
-    http.expectNone('/api/photos/square2');
+    http.expectNone('/api/photos/square2?unused=true');
     http.expectNone('/api/photos/p1');
   });
 
@@ -294,14 +296,14 @@ describe('AnnouncementDialog', () => {
       );
     await settle();
     expect(close).not.toHaveBeenCalled();
-    http.expectNone('/api/photos/square');
+    http.expectNone('/api/photos/square?unused=true');
     await submit();
     const req = http.expectOne('/api/announcements/a1');
     expect(req.request.body.photoId).toBe('square');
     req.flush({ ...PROMO, photoId: 'square' });
     await settle();
     fixture.destroy();
-    http.expectNone('/api/photos/square');
+    http.expectNone('/api/photos/square?unused=true');
   });
 
   it('cleans the draft after abandoning a failed save', async () => {
@@ -318,7 +320,9 @@ describe('AnnouncementDialog', () => {
       .flush({}, { status: 500, statusText: 'Error' });
     await settle();
     fixture.destroy();
-    http.expectOne({ url: '/api/photos/square', method: 'DELETE' }).flush(null);
+    http
+      .expectOne({ url: '/api/photos/square?unused=true', method: 'DELETE' })
+      .flush(null);
     http.expectNone('/api/photos/p1');
   });
 
@@ -332,8 +336,8 @@ describe('AnnouncementDialog', () => {
     await settle();
     await upload('source2');
     fixture.destroy();
-    http.expectOne('/api/photos/square').flush(null);
-    http.expectOne('/api/photos/source2').flush(null);
+    http.expectOne('/api/photos/square?unused=true').flush(null);
+    http.expectOne('/api/photos/source2?unused=true').flush(null);
     http.expectNone('/api/photos/p1');
   });
 
@@ -347,10 +351,10 @@ describe('AnnouncementDialog', () => {
     await settle();
     button('Anuluj')?.click();
     fixture.destroy();
-    http.expectNone('/api/photos/source');
+    http.expectNone('/api/photos/source?unused=true');
     req.flush(photo('square'));
     await settle();
-    http.expectOne('/api/photos/square').flush(null);
+    http.expectOne('/api/photos/square?unused=true').flush(null);
     http.expectNone('/api/photos/p1');
   });
 
@@ -371,13 +375,42 @@ describe('AnnouncementDialog', () => {
       'Spróbuj ponownie',
     );
     cropper().cancelled.emit();
-    http.expectOne('/api/photos/source').flush(null);
+    http.expectOne('/api/photos/source?unused=true').flush(null);
     await settle();
     expect(el.querySelector('.photo-preview')?.getAttribute('src')).toBe(
       '/api/public/photos/p1',
     );
     button('Anuluj')?.click();
     fixture.destroy();
+  });
+
+  it('uses guarded cleanup after losing the response to a save', async () => {
+    const { upload, cropper, http, settle, submit, fixture } = await setup({
+      announcement: PROMO,
+    });
+    await upload('source');
+    cropper().cropped.emit({ x: 0, y: 0, size: 1400 });
+    http.expectOne('/api/photos/source/crop').flush(photo('square'));
+    await settle();
+    await submit();
+    http.expectOne('/api/announcements/a1').error(new ProgressEvent('error'));
+    await settle();
+    fixture.destroy();
+    const discard = http.expectOne('/api/photos/square?unused=true');
+    expect(discard.request.method).toBe('DELETE');
+    discard.flush(null);
+    http.expectNone('/api/photos/p1');
+  });
+
+  it('retries transient cleanup failures after the dialog is destroyed', async () => {
+    const { upload, http, fixture } = await setup({ announcement: PROMO });
+    await upload('source');
+    fixture.destroy();
+    http
+      .expectOne('/api/photos/source?unused=true')
+      .flush({}, { status: 500, statusText: 'Error' });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    http.expectOne('/api/photos/source?unused=true').flush(null);
   });
 
   it('does not send an end before the start', async () => {

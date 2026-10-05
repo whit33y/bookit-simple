@@ -13,7 +13,7 @@ import {
   endsOnOrAfterStart,
 } from '@bookit/shared';
 import { ClsService } from 'nestjs-cls';
-import { Announcement } from '../../generated/prisma/client';
+import { Announcement, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PhotosService } from '../photos/photos.service';
 import { SalonContext } from '../salon-context/salon-context';
@@ -92,7 +92,7 @@ export class AnnouncementsService {
     id: string,
     changes: AnnouncementChanges,
   ): Promise<AnnouncementView> {
-    const { view, storageKey } = await this.prisma.$transaction(async (tx) => {
+    const { view, storageKey } = await this.change(async (tx) => {
       const current = await tx.announcement.findUnique({ where: { id } });
       if (!current) throw new NotFoundException();
       const { showFrom, showUntil } = toView(current);
@@ -119,7 +119,7 @@ export class AnnouncementsService {
   }
 
   async remove(id: string): Promise<void> {
-    const storageKey = await this.prisma.$transaction(async (tx) => {
+    const storageKey = await this.change(async (tx) => {
       const current = await tx.announcement.findUnique({ where: { id } });
       if (!current) throw new NotFoundException();
       await tx.announcement.delete({ where: { id } });
@@ -128,6 +128,24 @@ export class AnnouncementsService {
         : null;
     });
     if (storageKey) await this.photos.deleteFile(storageKey);
+  }
+
+  /** Serializable writes retry if another request changed the same Ogłoszenie or Photo. */
+  private async change<T>(operation: (db: Db) => Promise<T>): Promise<T> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.prisma.$transaction(operation, {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        });
+      } catch (error) {
+        if (
+          !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+          error.code !== 'P2034' ||
+          attempt >= 2
+        )
+          throw error;
+      }
+    }
   }
 
   /** `400` for a Photo that is not in the Salon. */

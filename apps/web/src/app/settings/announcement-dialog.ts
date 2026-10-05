@@ -415,7 +415,7 @@ export class AnnouncementDialog {
 
   private discard(id: string): void {
     this.uploads.delete(id);
-    this.photos.remove(id).catch(() => this.uploads.add(id));
+    this.photos.removeUnused(id).catch(() => undefined);
   }
 
   protected async save(): Promise<void> {

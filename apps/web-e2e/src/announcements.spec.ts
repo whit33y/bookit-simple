@@ -113,7 +113,7 @@ test('Zdjęcie Ogłoszenia saves a square, rolls back on Escape and backdrop, an
     r.url().endsWith(`/photos/${source.id}/crop`),
   );
   await dialog.getByRole('button', { name: 'Zatwierdź kadr' }).click();
-  const square = await (await cropResponse).json();
+  let square = await (await cropResponse).json();
   expect(square).toMatchObject({ width: 1200, height: 1200 });
   expect((await page.request.get(source.url)).status()).toBe(404);
   await dialog.getByRole('button', { name: 'Zapisz', exact: true }).click();
@@ -135,6 +135,30 @@ test('Zdjęcie Ogłoszenia saves a square, rolls back on Escape and backdrop, an
     expect(saved[0].photoId).toBe(square.id);
     expect((await page.request.get(square.url)).status()).toBe(200);
   }
+
+  // The server can commit while the response is lost. Closing must retain that photo.
+  await page.getByRole('button', { name: 'Edytuj: Kwadrat' }).click();
+  const retrySource = await choose();
+  const retryCrop = page.waitForResponse((r) =>
+    r.url().endsWith(`/photos/${retrySource.id}/crop`),
+  );
+  await dialog.getByRole('button', { name: 'Zatwierdź kadr' }).click();
+  square = await (await retryCrop).json();
+  await page.route('**/api/announcements/*', async (route) => {
+    if (route.request().method() === 'PATCH') {
+      const response = await route.fetch();
+      expect(response.ok()).toBe(true);
+      await route.abort('failed');
+    } else await route.continue();
+  });
+  await dialog.getByRole('button', { name: 'Zapisz', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Anuluj', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await page.unroute('**/api/announcements/*');
+  const persisted = await (await page.request.get('/api/announcements')).json();
+  expect(persisted[0].photoId).toBe(square.id);
+  expect((await page.request.get(square.url)).status()).toBe(200);
 
   // A legacy rectangular Photo remains rectangular after editing only the text.
   const legacyFile = {
@@ -169,11 +193,9 @@ test('Zdjęcie Ogłoszenia saves a square, rolls back on Escape and backdrop, an
       ['Kwadrat', 1],
       ['Starsze zdjęcie', 1600 / 900],
     ] as const) {
-      const card = publicPage
-        .locator('.announcement')
-        .filter({
-          has: publicPage.getByRole('heading', { name: title, exact: true }),
-        });
+      const card = publicPage.locator('.announcement').filter({
+        has: publicPage.getByRole('heading', { name: title, exact: true }),
+      });
       const image = card.locator('img');
       await expect(image).toBeVisible();
       const img = await image.boundingBox();

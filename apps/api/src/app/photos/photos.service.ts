@@ -138,9 +138,14 @@ export class PhotosService {
    * `404` for a Photo of another Salon. The database sets the logo, header, Ogłoszenie
    * and Personel references to `null` and drops the gallery item.
    */
-  async remove(id: string): Promise<void> {
+  async remove(id: string, onlyUnused = false): Promise<void> {
     const photo = await this.prisma.photo.findUnique({ where: { id } });
     if (!photo) throw new NotFoundException();
+    if (onlyUnused) {
+      const storageKey = await this.deleteUnused(this.prisma, id);
+      if (storageKey) await this.deleteFile(storageKey);
+      return;
+    }
     // The row first: a file left behind is harmless, a row without a file is a broken image.
     await this.prisma.photo.deleteMany({ where: { id } });
     await this.deleteFile(photo.storageKey);
