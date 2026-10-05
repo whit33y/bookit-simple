@@ -204,12 +204,7 @@
           @for (key of form.controls.sectionOrder.value; track key; let i =
           $index) {
           <li cdkDrag cdkDragLockAxis="y">
-            <span
-              class="drag-handle"
-              cdkDragHandle
-              role="img"
-              [attr.aria-label]="'Przeciągnij: ' + sectionLabels[key]"
-            >
+            <span class="drag-handle" cdkDragHandle aria-hidden="true">
               <mat-icon>drag_indicator</mat-icon>
             </span>
             <mat-slide-toggle [formControlName]="key"
@@ -221,16 +216,16 @@
                 type="button"
                 [disabled]="i === 0 || saving()"
                 [attr.aria-label]="'W górę: ' + sectionLabels[key]"
-                (click)="moveSection(i, i - 1)"
+                (click)="moveSectionBy(i, -1)"
               >
                 <mat-icon>arrow_upward</mat-icon>
               </button>
               <button
                 mat-icon-button
                 type="button"
-                [disabled]="i === 6 || saving()"
+                [disabled]="$last || saving()"
                 [attr.aria-label]="'W dół: ' + sectionLabels[key]"
-                (click)="moveSection(i, i + 1)"
+                (click)="moveSectionBy(i, 1)"
               >
                 <mat-icon>arrow_downward</mat-icon>
               </button>

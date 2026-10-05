@@ -5,7 +5,17 @@ import {
   CdkDragDrop,
   moveItemInArray,
 } from '@angular/cdk/drag-drop';
-import { Component, inject, OnInit, signal, viewChild } from '@angular/core';
+import { LiveAnnouncer } from '@angular/cdk/a11y';
+import {
+  afterNextRender,
+  Component,
+  ElementRef,
+  inject,
+  Injector,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 import {
   AbstractControl,
   FormControl,
@@ -116,10 +126,13 @@ const TABS = ['details', 'appearance', 'sections', 'privacy'] as const;
 export class PageSettingsPage implements OnInit {
   private readonly api = inject(SalonPageService);
   private readonly tabs = viewChild(MatTabGroup);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+  private readonly announcer = inject(LiveAnnouncer);
 
   protected readonly sectionLabels = Object.fromEntries(
     SECTIONS.map(({ key, label }) => [key, label]),
-  );
+  ) as Record<keyof PageSections, string>;
   protected readonly layouts: {
     value: PageHeaderLayout;
     label: string;
@@ -209,6 +222,32 @@ export class PageSettingsPage implements OnInit {
 
   protected dropSection(event: CdkDragDrop<unknown>): void {
     this.moveSection(event.previousIndex, event.currentIndex);
+  }
+
+  // A button that becomes disabled at the list edge would drop focus to
+  // the body, so focus follows the moved section to its other button.
+  protected moveSectionBy(index: number, delta: -1 | 1): void {
+    const order = this.form.controls.sectionOrder.value;
+    const key = order[index];
+    const to = index + delta;
+    this.moveSection(index, to);
+    if (order === this.form.controls.sectionOrder.value) return;
+    const label = this.sectionLabels[key];
+    this.announcer.announce(`${label}: pozycja ${to + 1} z ${order.length}`);
+    afterNextRender(
+      () => {
+        const button = (direction: string) =>
+          this.host.nativeElement.querySelector<HTMLButtonElement>(
+            `button[aria-label="${direction}: ${label}"]`,
+          );
+        const same = button(delta < 0 ? 'W górę' : 'W dół');
+        (same && !same.disabled
+          ? same
+          : button(delta < 0 ? 'W dół' : 'W górę')
+        )?.focus();
+      },
+      { injector: this.injector },
+    );
   }
 
   protected moveSection(from: number, to: number): void {

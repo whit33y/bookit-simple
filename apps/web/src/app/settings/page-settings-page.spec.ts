@@ -112,6 +112,8 @@ describe('PageSettingsPage', () => {
     expect(
       el.querySelector('.sections li mat-slide-toggle')?.textContent?.trim(),
     ).toBe('O nas');
+    // "W górę" is now disabled, so focus moves to the section's other button.
+    expect(document.activeElement).toBe(move('W dół: O nas'));
     http.expectNone({ url: URL, method: 'PATCH' });
     await submit();
     const req = http.expectOne({ url: URL, method: 'PATCH' });
