@@ -11,6 +11,8 @@ import {
   MAP_URL_MAX_LENGTH,
   MAP_URL_TOO_LONG,
   PageSections,
+  PAGE_HEADER_LAYOUTS,
+  PAGE_HEADER_LAYOUT_INVALID,
   parsePhone,
   PHONE_INVALID,
   POSTAL_CODE_INVALID,
@@ -77,6 +79,9 @@ const updateSchema = z
       .trim()
       .regex(ACCENT_COLOR_PATTERN, ACCENT_COLOR_INVALID)
       .toLowerCase(),
+    headerLayout: z.enum(PAGE_HEADER_LAYOUTS, {
+      error: PAGE_HEADER_LAYOUT_INVALID,
+    }),
     logoPhotoId: photoId,
     heroPhotoId: photoId,
     sections,

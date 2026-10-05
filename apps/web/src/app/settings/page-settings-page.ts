@@ -11,10 +11,14 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatRadioModule } from '@angular/material/radio';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTabGroup, MatTabsModule } from '@angular/material/tabs';
 import {
+  DEFAULT_PAGE_HEADER_LAYOUT,
+  pageHeaderLayout,
+  PageHeaderLayout,
   ACCENT_COLOR_INVALID,
   ACCENT_COLOR_PATTERN,
   addressLine,
@@ -88,6 +92,7 @@ const TABS = ['details', 'appearance', 'sections', 'privacy'] as const;
     MatIconModule,
     MatInputModule,
     MatProgressSpinnerModule,
+    MatRadioModule,
     MatSlideToggleModule,
     MatTabsModule,
     PhotoUpload,
@@ -101,6 +106,29 @@ export class PageSettingsPage implements OnInit {
   private readonly tabs = viewChild(MatTabGroup);
 
   protected readonly sectionList = SECTIONS;
+  protected readonly layouts: {
+    value: PageHeaderLayout;
+    label: string;
+    description: string;
+  }[] = [
+    {
+      value: 'classic',
+      label: 'Klasyczny',
+      description: 'Zdjęcie tła nad okrągłym logo i danymi Salonu.',
+    },
+    {
+      value: 'photo-side',
+      label: 'Zdjęcie obok danych',
+      description:
+        'Zdjęcie obok logo i danych Salonu. Na telefonie zdjęcie nad danymi.',
+    },
+    {
+      value: 'compact',
+      label: 'Kompaktowy',
+      description:
+        'Małe logo obok nazwy, adres i telefon. Bez dużego zdjęcia tła.',
+    },
+  ];
   protected readonly messages = {
     phone: PHONE_INVALID,
     email: SALON_EMAIL_INVALID,
@@ -128,6 +156,10 @@ export class PageSettingsPage implements OnInit {
       ),
     }),
     appearance: new FormGroup({
+      headerLayout: new FormControl<PageHeaderLayout>(
+        DEFAULT_PAGE_HEADER_LAYOUT,
+        { nonNullable: true },
+      ),
       accentColor: textControl(
         Validators.required,
         Validators.pattern(ACCENT_COLOR_PATTERN),
@@ -255,6 +287,7 @@ export class PageSettingsPage implements OnInit {
         mapUrl: text(salon.mapUrl),
       },
       appearance: {
+        headerLayout: pageHeaderLayout(salon.headerLayout),
         accentColor: salon.accentColor,
         logoPhotoId: salon.logoPhotoId,
         heroPhotoId: salon.heroPhotoId,

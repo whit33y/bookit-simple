@@ -1,3 +1,22 @@
+/** Only the header changes; sections and their order stay independent. */
+export const PAGE_HEADER_LAYOUTS = [
+  'classic',
+  'photo-side',
+  'compact',
+] as const;
+export type PageHeaderLayout = (typeof PAGE_HEADER_LAYOUTS)[number];
+export const DEFAULT_PAGE_HEADER_LAYOUT: PageHeaderLayout = 'classic';
+
+/** Older data without the setting uses the original header. */
+export function pageHeaderLayout(stored: unknown): PageHeaderLayout {
+  return (
+    PAGE_HEADER_LAYOUTS.find((layout) => layout === stored) ??
+    DEFAULT_PAGE_HEADER_LAYOUT
+  );
+}
+
+export const PAGE_HEADER_LAYOUT_INVALID = 'Nieprawidłowy Układ Wizytówki';
+
 /** Which Wizytówka sections are shown (`Salon.sections`). */
 export interface PageSections {
   announcements: boolean;
@@ -114,6 +133,7 @@ export interface SalonPageSettings {
   mapUrl: string | null;
   /** `#rrggbb`, lowercase */
   accentColor: string;
+  headerLayout: PageHeaderLayout;
   logoPhotoId: string | null;
   heroPhotoId: string | null;
   sections: PageSections;

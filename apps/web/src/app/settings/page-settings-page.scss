@@ -86,3 +86,19 @@ h2 {
 .error {
   color: var(--mat-sys-error);
 }
+
+.layouts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.layout-name,
+.layout-description {
+  display: block;
+}
+.layout-name {
+  font-weight: 500;
+}
+.layout-description {
+  color: var(--mat-sys-on-surface-variant);
+}

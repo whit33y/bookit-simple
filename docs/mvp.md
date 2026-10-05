@@ -25,7 +25,7 @@ Cel MVP: salon pilotażowy Studio Kora (patrz sekcja 9) prowadzi cały kalendarz
 | Płatności, kasa, raporty przychodów | Wizyta nie zapisuje płatności. |
 | Informacje o zdrowiu Klienta | [ADR 0003](adr/0003-bez-informacji-o-zdrowiu.md). |
 | Kilka lokalizacji jednego Salonu | Jeden Salon to jeden adres. |
-| Kilka szablonów Wizytówki | Jeden szablon, kolor i logo do ustawienia. |
+| Własne szablony Wizytówki | Trzy Układy Wizytówki zmieniają tylko nagłówek: Klasyczny, Zdjęcie obok danych, Kompaktowy. Sekcje poniżej mają wspólny wygląd. |
 | Subdomeny i własne domeny | [ADR 0002](adr/0002-adres-wizytowki-jako-sciezka.md) opisuje, jak je dodać. |
 | Wizyty cykliczne | Rzadkie w małych salonach. |
 | Logowanie przez Google, wcielanie się Administratora w Właściciela | Później, to drugie tylko z logiem. |
@@ -80,6 +80,7 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 - `name`, `slug` (Adres wizytówki, unikalny), `status`: `ACTIVE | SUSPENDED`
 - `about` (O nas), `street`, `postalCode`, `city`, `phone`, `email`, `mapUrl`
 - `accentColor` (hex), `logoPhotoId`, `heroPhotoId`
+- `headerLayout` (Układ Wizytówki): Klasyczny (domyślny), Zdjęcie obok danych albo Kompaktowy; zmiana nie usuwa zdjęć ani treści
 - `sections` (JSON: które sekcje Wizytówki są włączone)
 - `privacyNotice` (treść klauzuli informacyjnej RODO)
 
@@ -223,7 +224,7 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 - **Personel:** lista, zaproś (imię, e-mail, rola), przełączniki Przyjmuje Wizyty i pokazuj na Wizytówce, zdjęcie, opis, kolejność, usuń.
 - **Cennik:** Kategorie Usług i Usługi z przeciąganiem kolejności, archiwizacja Usługi.
 - **Godziny otwarcia:** siedem wierszy, przełącznik zamknięte / otwarte, godziny od–do.
-- **Wizytówka:** dane kontaktowe, O nas, link do mapy, kolor, logo, zdjęcie nagłówka, włączanie sekcji, klauzula RODO (z gotowym szablonem do uzupełnienia), podgląd.
+- **Wizytówka:** dane kontaktowe, O nas, link do mapy, Układ Wizytówki, kolor, logo, zdjęcie nagłówka, włączanie sekcji, klauzula RODO (z gotowym szablonem do uzupełnienia), podgląd.
 - **Galeria:** upload wielu plików, kolejność, usuwanie.
 - **Ogłoszenia:** lista aktywnych, zaplanowanych i minionych, formularz.
 - **Historia zmian:** lista z filtrami.

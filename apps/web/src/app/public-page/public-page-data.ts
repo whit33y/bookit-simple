@@ -2,7 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, InjectionToken } from '@angular/core';
 import { ResolveFn } from '@angular/router';
-import { PublicPage, validateSlug } from '@bookit/shared';
+import { pageHeaderLayout, PublicPage, validateSlug } from '@bookit/shared';
 import { firstValueFrom } from 'rxjs';
 
 /**
@@ -28,9 +28,16 @@ export const publicPageResolver: ResolveFn<PublicPageResult> = async (
   const http = inject(HttpClient);
   const origin = inject(API_ORIGIN);
   try {
-    return await firstValueFrom(
+    const page = await firstValueFrom(
       http.get<PublicPage>(`${origin}/api/public/pages/${slug}`),
     );
+    return {
+      ...page,
+      salon: {
+        ...page.salon,
+        headerLayout: pageHeaderLayout(page.salon.headerLayout),
+      },
+    };
   } catch (error) {
     if (error instanceof HttpErrorResponse && error.status === 404) {
       return 'not-found';

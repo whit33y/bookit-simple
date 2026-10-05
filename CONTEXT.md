@@ -44,6 +44,10 @@ _Avoid_: aktywny, dostępny
 Publiczna strona Salonu dla Klientów, z cennikiem, godzinami otwarcia, ogłoszeniami i kontaktem. Nie pokazuje kalendarza.
 _Avoid_: strona salonu, landing, profil
 
+**Układ Wizytówki**:
+Wybrany przez Właściciela sposób prezentacji góry Wizytówki: Klasyczny, Zdjęcie obok danych albo Kompaktowy. Nie zmienia wyglądu sekcji poniżej ani ich kolejności.
+_Avoid_: szablon strony, motyw
+
 **Ogłoszenie**:
 Krótka informacja na Wizytówce (promocja, zamknięcie, nowość), pokazywana tylko między datą "od" i "do".
 _Avoid_: aktualność, post, news

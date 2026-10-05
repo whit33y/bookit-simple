@@ -58,6 +58,8 @@ model Salon {
   mapUrl        String?
   /// Hex, e.g. `#c0392b`
   accentColor   String?
+  /// Układ Wizytówki; changes only the public header
+  headerLayout  String      @default("classic")
   logoPhotoId   String?     @db.Uuid
   heroPhotoId   String?     @db.Uuid
   /// Which Wizytówka sections are enabled

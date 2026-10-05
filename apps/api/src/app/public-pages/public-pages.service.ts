@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   isAnnouncementVisible,
   pageSections,
+  pageHeaderLayout,
   PublicPage,
   warsawDate,
 } from '@bookit/shared';
@@ -118,6 +119,7 @@ export class PublicPagesService {
         phone: salon.phone,
         email: salon.email,
         mapUrl: salon.mapUrl,
+        headerLayout: pageHeaderLayout(salon.headerLayout),
         accentColor: salon.accentColor,
         logo: photo(salon.logoPhotoId),
         hero: photo(salon.heroPhotoId),

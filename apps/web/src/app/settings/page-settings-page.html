@@ -109,6 +109,23 @@
 
     <mat-tab label="Wygląd">
       <div class="tab" formGroupName="appearance">
+        <h2 id="header-layout-label">Układ Wizytówki</h2>
+        <mat-radio-group
+          class="layouts"
+          formControlName="headerLayout"
+          aria-labelledby="header-layout-label"
+        >
+          @for (layout of layouts; track layout.value) {
+          <mat-radio-button [value]="layout.value">
+            <span class="layout-name">{{ layout.label }}</span>
+            <span class="layout-description">{{ layout.description }}</span>
+          </mat-radio-button>
+          }
+        </mat-radio-group>
+        <p class="hint">
+          Układ zmienia tylko nagłówek. Zapisz i użyj „Otwórz Wizytówkę”, aby
+          zobaczyć efekt.
+        </p>
         <h2>Kolor</h2>
         <div class="color">
           <input

@@ -40,7 +40,19 @@ describe('publicPageResolver', () => {
 
     http().expectOne(PAGE_URL).flush(page);
 
-    expect(await result).toBe(page);
+    expect(await result).toEqual({
+      ...page,
+      salon: { ...page.salon, headerLayout: 'classic' },
+    });
+  });
+
+  it('passes through a saved header layout', async () => {
+    const result = resolve('studio-kora');
+    const page = {
+      salon: { name: 'Studio Kora', headerLayout: 'photo-side' },
+    } as PublicPage;
+    http().expectOne(PAGE_URL).flush(page);
+    expect(await result).toEqual(page);
   });
 
   it('is not found for an unknown address', async () => {

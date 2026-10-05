@@ -23,6 +23,7 @@ const SALON: SalonPageSettings = {
   phone: '+48600123456',
   email: 'kontakt@studiokora.pl',
   mapUrl: 'https://maps.app.goo.gl/abc123',
+  headerLayout: 'classic',
   accentColor: '#6750a4',
   logoPhotoId: null,
   heroPhotoId: null,
@@ -135,6 +136,7 @@ describe('PageSettingsPage', () => {
       phone: '+48 600 123 456',
       email: 'kontakt@studiokora.pl',
       mapUrl: 'https://maps.app.goo.gl/abc123',
+      headerLayout: 'classic',
       accentColor: '#c0392b',
       logoPhotoId: null,
       heroPhotoId: null,
@@ -144,6 +146,63 @@ describe('PageSettingsPage', () => {
     req.flush({ ...SALON, city: 'Pabianice' });
     await settle();
     expect(text()).toContain('Zapisano Wizytówkę');
+  });
+
+  it.each(['classic', 'photo-side', 'compact'] as const)(
+    'loads and saves layout %s through the shared form',
+    async (headerLayout) => {
+      const { el, http, tab, settle, submit } = await setup({
+        ...SALON,
+        headerLayout,
+      });
+      await tab('Wygląd');
+      const selected = el.querySelector<HTMLInputElement>(
+        `input[type="radio"][value="${headerLayout}"]`,
+      );
+      expect(selected?.checked).toBe(true);
+      const next = headerLayout === 'compact' ? 'classic' : 'compact';
+      el.querySelector<HTMLInputElement>(
+        `input[type="radio"][value="${next}"]`,
+      )?.click();
+      await settle();
+      http.expectNone({ url: URL, method: 'PATCH' });
+      await submit();
+      const save = http.expectOne({ url: URL, method: 'PATCH' });
+      expect(save.request.body.headerLayout).toBe(next);
+      save.flush({ ...SALON, headerLayout: next });
+      await settle();
+      expect(
+        el.querySelector<HTMLInputElement>(
+          `input[type="radio"][value="${next}"]`,
+        )?.checked,
+      ).toBe(true);
+    },
+  );
+
+  it('keeps the draft layout after a refused save and allows retry', async () => {
+    const { el, http, tab, settle, submit, text } = await setup();
+    await tab('Wygląd');
+    el.querySelector<HTMLInputElement>(
+      'input[type="radio"][value="compact"]',
+    )?.click();
+    await settle();
+    await submit();
+    http
+      .expectOne({ url: URL, method: 'PATCH' })
+      .flush(
+        { message: 'Błąd zapisu' },
+        { status: 500, statusText: 'Server Error' },
+      );
+    await settle();
+    expect(text()).toContain('Wystąpił błąd serwera');
+    expect(
+      el.querySelector<HTMLInputElement>('input[type="radio"][value="compact"]')
+        ?.checked,
+    ).toBe(true);
+    await submit();
+    const retry = http.expectOne({ url: URL, method: 'PATCH' });
+    expect(retry.request.body.headerLayout).toBe('compact');
+    retry.flush({ ...SALON, headerLayout: 'compact' });
   });
 
   it('fills the map link from the address while it is generated or empty', async () => {
