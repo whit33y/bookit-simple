@@ -43,7 +43,7 @@ test('header layouts persist only on save and render on desktop and phone', asyn
   const publicUrl = `/api/public/pages/${data.slug}`;
   const publicSalon = async () =>
     (await (await page.request.get(publicUrl)).json()).salon;
-  expect((await publicSalon()).headerLayout).toBe('classic');
+  expect((await publicSalon()).headerLayout).toBe('CLASSIC');
 
   const photo = await page.request.post('/api/photos', {
     multipart: {
@@ -77,7 +77,7 @@ test('header layouts persist only on save and render on desktop and phone', asyn
   await page.getByRole('tab', { name: 'Wygląd', exact: true }).click();
   await expect(page.locator('.mat-tab-body-animating')).toHaveCount(0);
   await page.getByRole('radio', { name: /^Kompaktowy/ }).check();
-  expect((await publicSalon()).headerLayout).toBe('classic');
+  expect((await publicSalon()).headerLayout).toBe('CLASSIC');
 
   await page.route('**/api/salon/page', async (route) => {
     if (route.request().method() === 'PATCH')
@@ -86,14 +86,14 @@ test('header layouts persist only on save and render on desktop and phone', asyn
   });
   await page.getByRole('button', { name: 'Zapisz', exact: true }).click();
   await expect(page.getByRole('alert')).toBeVisible();
-  expect((await publicSalon()).headerLayout).toBe('classic');
+  expect((await publicSalon()).headerLayout).toBe('CLASSIC');
   await page.unroute('**/api/salon/page');
 
   const publicPage = await context.newPage();
   for (const [layout, label] of [
-    ['compact', 'Kompaktowy'],
-    ['photo-side', 'Zdjęcie obok danych'],
-    ['classic', 'Klasyczny'],
+    ['COMPACT', 'Kompaktowy'],
+    ['PHOTO_SIDE', 'Zdjęcie obok danych'],
+    ['CLASSIC', 'Klasyczny'],
   ] as const) {
     await page.getByRole('radio', { name: new RegExp(`^${label}`) }).check();
     await page.getByRole('button', { name: 'Zapisz', exact: true }).click();
@@ -115,7 +115,7 @@ test('header layouts persist only on save and render on desktop and phone', asyn
       await publicPage.goto(`/${data.slug}`);
       await expect(publicPage.locator('header h1')).toHaveText(salonName);
       await expect(publicPage.locator('header .hero-photo')).toHaveCount(
-        layout === 'compact' ? 0 : 1,
+        layout === 'COMPACT' ? 0 : 1,
       );
       await expect(publicPage.locator('header .call')).toBeVisible();
       await expect(publicPage.locator('header')).not.toContainText(
@@ -126,7 +126,7 @@ test('header layouts persist only on save and render on desktop and phone', asyn
           () => document.documentElement.scrollWidth <= window.innerWidth,
         ),
       ).toBe(true);
-      if (layout === 'photo-side') {
+      if (layout === 'PHOTO_SIDE') {
         const hero = await publicPage
           .locator('header .hero-photo')
           .boundingBox();
@@ -150,7 +150,7 @@ test('header layouts persist only on save and render on desktop and phone', asyn
       })
     ).ok(),
   ).toBe(true);
-  for (const layout of ['classic', 'photo-side', 'compact']) {
+  for (const layout of ['CLASSIC', 'PHOTO_SIDE', 'COMPACT']) {
     expect(
       (
         await page.request.patch(settings, { data: { headerLayout: layout } })

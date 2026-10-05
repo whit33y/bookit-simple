@@ -25,7 +25,7 @@ Cel MVP: salon pilotażowy Studio Kora (patrz sekcja 9) prowadzi cały kalendarz
 | Płatności, kasa, raporty przychodów | Wizyta nie zapisuje płatności. |
 | Informacje o zdrowiu Klienta | [ADR 0003](adr/0003-bez-informacji-o-zdrowiu.md). |
 | Kilka lokalizacji jednego Salonu | Jeden Salon to jeden adres. |
-| Własne szablony Wizytówki | Trzy Układy Wizytówki zmieniają tylko nagłówek: Klasyczny, Zdjęcie obok danych, Kompaktowy. Sekcje poniżej mają wspólny wygląd. |
+| Własne Układy Wizytówki | Trzy Układy Wizytówki zmieniają tylko nagłówek: Klasyczny, Zdjęcie obok danych, Kompaktowy. Sekcje poniżej mają wspólny wygląd. |
 | Subdomeny i własne domeny | [ADR 0002](adr/0002-adres-wizytowki-jako-sciezka.md) opisuje, jak je dodać. |
 | Wizyty cykliczne | Rzadkie w małych salonach. |
 | Logowanie przez Google, wcielanie się Administratora w Właściciela | Później, to drugie tylko z logiem. |
@@ -80,7 +80,7 @@ Nazwy tabel po angielsku w kodzie, po polsku w UI. Każda tabela ma `id` (UUID),
 - `name`, `slug` (Adres wizytówki, unikalny), `status`: `ACTIVE | SUSPENDED`
 - `about` (O nas), `street`, `postalCode`, `city`, `phone`, `email`, `mapUrl`
 - `accentColor` (hex), `logoPhotoId`, `heroPhotoId`
-- `headerLayout` (Układ Wizytówki): Klasyczny (domyślny), Zdjęcie obok danych albo Kompaktowy; zmiana nie usuwa zdjęć ani treści
+- `headerLayout` (Układ Wizytówki): `classic` (Klasyczny, domyślny) | `photo-side` (Zdjęcie obok danych) | `compact` (Kompaktowy); zmiana nie usuwa zdjęć ani treści
 - `sections` (JSON: które sekcje Wizytówki są włączone)
 - `privacyNotice` (treść klauzuli informacyjnej RODO)
 

@@ -20,6 +20,7 @@ const PAGE: PublicPage = {
     email: 'kontakt@kora.test',
     mapUrl: 'https://maps.example/kora',
     accentColor: '#f1c40f',
+    headerLayout: 'CLASSIC',
     logo: photo('logo-id'),
     hero: photo('hero-id'),
   },
@@ -110,18 +111,22 @@ describe('PublicPageView', () => {
     );
   });
 
-  it.each(['classic', 'photo-side', 'compact'] as const)(
+  it.each(['CLASSIC', 'PHOTO_SIDE', 'COMPACT'] as const)(
     'renders layout %s with unchanged sections and link preview',
     (headerLayout) => {
       const { el, head, section } = setup({
         ...PAGE,
         salon: { ...PAGE.salon, headerLayout },
       });
-      expect(el.querySelector('header')?.classList.contains(headerLayout)).toBe(
-        headerLayout !== 'classic',
+      const header = el.querySelector('header');
+      expect(header?.classList.contains('photo-side')).toBe(
+        headerLayout === 'PHOTO_SIDE',
+      );
+      expect(header?.classList.contains('compact')).toBe(
+        headerLayout === 'COMPACT',
       );
       expect(el.querySelector('header .hero-photo') !== null).toBe(
-        headerLayout !== 'compact',
+        headerLayout !== 'COMPACT',
       );
       expect(el.querySelector('header .logo')).not.toBeNull();
       expect(el.querySelector('header .call')?.getAttribute('href')).toBe(
@@ -158,7 +163,7 @@ describe('PublicPageView', () => {
     },
   );
 
-  it.each(['classic', 'photo-side', 'compact'] as const)(
+  it.each(['CLASSIC', 'PHOTO_SIDE', 'COMPACT'] as const)(
     'leaves no empty optional header elements in %s',
     (headerLayout) => {
       const { el } = setup({

@@ -12,7 +12,6 @@ import {
   formatPhone,
   formatPrice,
   photoUrl,
-  pageHeaderLayout,
   WEEKDAY_NAMES,
 } from '@bookit/shared';
 import { GalleryLightbox } from './gallery-lightbox';
@@ -47,10 +46,6 @@ export class PublicPageView {
   });
   protected readonly unavailable = computed(
     () => this.page() === 'unavailable',
-  );
-
-  protected readonly layout = computed(() =>
-    pageHeaderLayout(this.data()?.salon.headerLayout),
   );
 
   protected readonly accent = computed(

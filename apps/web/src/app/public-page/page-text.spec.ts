@@ -119,6 +119,7 @@ describe('salonJsonLd', () => {
       email: 'kontakt@kora.test',
       mapUrl: 'https://maps.example/kora',
       accentColor: '#c0392b',
+      headerLayout: 'CLASSIC',
       logo: null,
       hero: { id: 'hero-id', width: 1600, height: 900 },
     },

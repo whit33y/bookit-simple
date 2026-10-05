@@ -23,7 +23,7 @@ const SALON: SalonPageSettings = {
   phone: '+48600123456',
   email: 'kontakt@studiokora.pl',
   mapUrl: 'https://maps.app.goo.gl/abc123',
-  headerLayout: 'classic',
+  headerLayout: 'CLASSIC',
   accentColor: '#6750a4',
   logoPhotoId: null,
   heroPhotoId: null,
@@ -136,7 +136,7 @@ describe('PageSettingsPage', () => {
       phone: '+48 600 123 456',
       email: 'kontakt@studiokora.pl',
       mapUrl: 'https://maps.app.goo.gl/abc123',
-      headerLayout: 'classic',
+      headerLayout: 'CLASSIC',
       accentColor: '#c0392b',
       logoPhotoId: null,
       heroPhotoId: null,
@@ -148,7 +148,7 @@ describe('PageSettingsPage', () => {
     expect(text()).toContain('Zapisano Wizytówkę');
   });
 
-  it.each(['classic', 'photo-side', 'compact'] as const)(
+  it.each(['CLASSIC', 'PHOTO_SIDE', 'COMPACT'] as const)(
     'loads and saves layout %s through the shared form',
     async (headerLayout) => {
       const { el, http, tab, settle, submit } = await setup({
@@ -160,7 +160,7 @@ describe('PageSettingsPage', () => {
         `input[type="radio"][value="${headerLayout}"]`,
       );
       expect(selected?.checked).toBe(true);
-      const next = headerLayout === 'compact' ? 'classic' : 'compact';
+      const next = headerLayout === 'COMPACT' ? 'CLASSIC' : 'COMPACT';
       el.querySelector<HTMLInputElement>(
         `input[type="radio"][value="${next}"]`,
       )?.click();
@@ -183,7 +183,7 @@ describe('PageSettingsPage', () => {
     const { el, http, tab, settle, submit, text } = await setup();
     await tab('Wygląd');
     el.querySelector<HTMLInputElement>(
-      'input[type="radio"][value="compact"]',
+      'input[type="radio"][value="COMPACT"]',
     )?.click();
     await settle();
     await submit();
@@ -196,13 +196,13 @@ describe('PageSettingsPage', () => {
     await settle();
     expect(text()).toContain('Wystąpił błąd serwera');
     expect(
-      el.querySelector<HTMLInputElement>('input[type="radio"][value="compact"]')
+      el.querySelector<HTMLInputElement>('input[type="radio"][value="COMPACT"]')
         ?.checked,
     ).toBe(true);
     await submit();
     const retry = http.expectOne({ url: URL, method: 'PATCH' });
-    expect(retry.request.body.headerLayout).toBe('compact');
-    retry.flush({ ...SALON, headerLayout: 'compact' });
+    expect(retry.request.body.headerLayout).toBe('COMPACT');
+    retry.flush({ ...SALON, headerLayout: 'COMPACT' });
   });
 
   it('fills the map link from the address while it is generated or empty', async () => {

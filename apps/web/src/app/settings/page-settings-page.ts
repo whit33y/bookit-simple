@@ -17,7 +17,6 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTabGroup, MatTabsModule } from '@angular/material/tabs';
 import {
   DEFAULT_PAGE_HEADER_LAYOUT,
-  pageHeaderLayout,
   PageHeaderLayout,
   ACCENT_COLOR_INVALID,
   ACCENT_COLOR_PATTERN,
@@ -112,18 +111,18 @@ export class PageSettingsPage implements OnInit {
     description: string;
   }[] = [
     {
-      value: 'classic',
+      value: 'CLASSIC',
       label: 'Klasyczny',
       description: 'Zdjęcie tła nad okrągłym logo i danymi Salonu.',
     },
     {
-      value: 'photo-side',
+      value: 'PHOTO_SIDE',
       label: 'Zdjęcie obok danych',
       description:
         'Zdjęcie obok logo i danych Salonu. Na telefonie zdjęcie nad danymi.',
     },
     {
-      value: 'compact',
+      value: 'COMPACT',
       label: 'Kompaktowy',
       description:
         'Małe logo obok nazwy, adres i telefon. Bez dużego zdjęcia tła.',
@@ -287,7 +286,7 @@ export class PageSettingsPage implements OnInit {
         mapUrl: text(salon.mapUrl),
       },
       appearance: {
-        headerLayout: pageHeaderLayout(salon.headerLayout),
+        headerLayout: salon.headerLayout,
         accentColor: salon.accentColor,
         logoPhotoId: salon.logoPhotoId,
         heroPhotoId: salon.heroPhotoId,

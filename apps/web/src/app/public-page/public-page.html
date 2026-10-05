@@ -1,11 +1,11 @@
 @if (data(); as page) { @let salon = page.salon; @let sections = page.sections;
 <header
   class="header"
-  [class.photo-side]="layout() === 'photo-side'"
-  [class.compact]="layout() === 'compact'"
+  [class.photo-side]="salon.headerLayout === 'PHOTO_SIDE'"
+  [class.compact]="salon.headerLayout === 'COMPACT'"
   [class.has-hero]="!!salon.hero"
 >
-  @if (layout() !== 'compact' && salon.hero) { @let hero = salon.hero;
+  @if (salon.headerLayout !== 'COMPACT' && salon.hero) { @let hero = salon.hero;
   <img
     class="hero-photo"
     [src]="photoUrl(hero.id)"

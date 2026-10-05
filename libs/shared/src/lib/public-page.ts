@@ -61,8 +61,7 @@ export interface PublicPage {
     email: string | null;
     mapUrl: string | null;
     accentColor: string | null;
-    /** Optional for older public data; absence means Klasyczny. */
-    headerLayout?: PageHeaderLayout;
+    headerLayout: PageHeaderLayout;
     logo: PublicPhoto | null;
     hero: PublicPhoto | null;
   };

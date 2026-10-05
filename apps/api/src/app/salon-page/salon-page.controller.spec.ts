@@ -104,7 +104,7 @@ describe('Treść Wizytówki', () => {
         phone: null,
         email: null,
         mapUrl: null,
-        headerLayout: 'classic',
+        headerLayout: 'CLASSIC',
         accentColor: DEFAULT_ACCENT_COLOR,
         logoPhotoId: null,
         heroPhotoId: null,
@@ -149,7 +149,7 @@ describe('Treść Wizytówki', () => {
         phone: '+48600123456',
         email: 'kontakt@studiokora.pl',
         mapUrl: 'https://maps.app.goo.gl/abc123',
-        headerLayout: 'classic',
+        headerLayout: 'CLASSIC',
         accentColor: '#c0392b',
         logoPhotoId: logo.id,
         heroPhotoId: hero.id,
@@ -171,7 +171,7 @@ describe('Treść Wizytówki', () => {
       expect(page.body.privacyNotice).toBe(saved.privacyNotice);
     });
 
-    it.each(['classic', 'photo-side', 'compact'])(
+    it.each(['CLASSIC', 'PHOTO_SIDE', 'COMPACT'])(
       'persists header layout %s without changing photos or content',
       async (headerLayout) => {
         const { salon, asOwner } = await salonWithOwner();
@@ -207,13 +207,13 @@ describe('Treść Wizytówki', () => {
         });
         await asOwner
           .patch('/api/salon/page')
-          .send({ headerLayout: 'classic' })
+          .send({ headerLayout: 'CLASSIC' })
           .expect(200);
         const restored = await request(app.getHttpServer())
           .get(`/api/public/pages/${salon.slug}`)
           .expect(200);
         expect(restored.body.salon).toMatchObject({
-          headerLayout: 'classic',
+          headerLayout: 'CLASSIC',
           hero: { id: hero.id },
           logo: { id: logo.id },
           about: 'O nas',
@@ -227,7 +227,7 @@ describe('Treść Wizytówki', () => {
         const { salon, asOwner } = await salonWithOwner();
         await asOwner
           .patch('/api/salon/page')
-          .send({ headerLayout: 'compact' })
+          .send({ headerLayout: 'COMPACT' })
           .expect(200);
         await asOwner
           .patch('/api/salon/page')
@@ -237,7 +237,7 @@ describe('Treść Wizytówki', () => {
           .get(`/api/public/pages/${salon.slug}`)
           .expect(200);
         expect(page.body.salon).toMatchObject({
-          headerLayout: 'compact',
+          headerLayout: 'COMPACT',
           about: null,
         });
       },

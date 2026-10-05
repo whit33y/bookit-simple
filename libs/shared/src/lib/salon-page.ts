@@ -1,19 +1,12 @@
-/** Only the header changes; sections and their order stay independent. */
+/** Układ Wizytówki (`Salon.headerLayout`): only the header changes; sections and their order stay independent. */
 export const PAGE_HEADER_LAYOUTS = [
-  'classic',
-  'photo-side',
-  'compact',
+  'CLASSIC',
+  'PHOTO_SIDE',
+  'COMPACT',
 ] as const;
 export type PageHeaderLayout = (typeof PAGE_HEADER_LAYOUTS)[number];
-export const DEFAULT_PAGE_HEADER_LAYOUT: PageHeaderLayout = 'classic';
-
-/** Older data without the setting uses the original header. */
-export function pageHeaderLayout(stored: unknown): PageHeaderLayout {
-  return (
-    PAGE_HEADER_LAYOUTS.find((layout) => layout === stored) ??
-    DEFAULT_PAGE_HEADER_LAYOUT
-  );
-}
+/** Every Salon starts with the original header, also those saved before the setting existed. */
+export const DEFAULT_PAGE_HEADER_LAYOUT: PageHeaderLayout = 'CLASSIC';
 
 export const PAGE_HEADER_LAYOUT_INVALID = 'Nieprawidłowy Układ Wizytówki';
 

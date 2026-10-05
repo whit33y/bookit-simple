@@ -6,7 +6,6 @@ import {
 import {
   DEFAULT_ACCENT_COLOR,
   pageSections,
-  pageHeaderLayout,
   SALON_PHOTO_NOT_FOUND,
   SalonPageSettings,
 } from '@bookit/shared';
@@ -26,7 +25,7 @@ const toSettings = (salon: Salon): SalonPageSettings => ({
   phone: salon.phone,
   email: salon.email,
   mapUrl: salon.mapUrl,
-  headerLayout: pageHeaderLayout(salon.headerLayout),
+  headerLayout: salon.headerLayout,
   accentColor: salon.accentColor ?? DEFAULT_ACCENT_COLOR,
   logoPhotoId: salon.logoPhotoId,
   heroPhotoId: salon.heroPhotoId,
