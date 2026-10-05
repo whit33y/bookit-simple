@@ -15,6 +15,7 @@ import {
 import { ClsService } from 'nestjs-cls';
 import { Announcement } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { PhotosService } from '../photos/photos.service';
 import { SalonContext } from '../salon-context/salon-context';
 import type {
   AnnouncementChanges,
@@ -59,6 +60,7 @@ function checkDays(days: AnnouncementDays): void {
 export class AnnouncementsService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(PhotosService) private readonly photos: PhotosService,
     @Inject(ClsService) private readonly cls: ClsService<SalonContext>,
   ) {}
 
@@ -90,7 +92,7 @@ export class AnnouncementsService {
     id: string,
     changes: AnnouncementChanges,
   ): Promise<AnnouncementView> {
-    return this.prisma.$transaction(async (tx) => {
+    const { view, storageKey } = await this.prisma.$transaction(async (tx) => {
       const current = await tx.announcement.findUnique({ where: { id } });
       if (!current) throw new NotFoundException();
       const { showFrom, showUntil } = toView(current);
@@ -104,15 +106,28 @@ export class AnnouncementsService {
         where: { id },
         data: { ...changes, ...dayColumns(changes) },
       });
-      return toView(updated);
+      const storageKey =
+        current.photoId &&
+        changes.photoId !== undefined &&
+        changes.photoId !== current.photoId
+          ? await this.photos.deleteUnused(tx, current.photoId)
+          : null;
+      return { view: toView(updated), storageKey };
     });
+    if (storageKey) await this.photos.deleteFile(storageKey);
+    return view;
   }
 
   async remove(id: string): Promise<void> {
-    const { count } = await this.prisma.announcement.deleteMany({
-      where: { id },
+    const storageKey = await this.prisma.$transaction(async (tx) => {
+      const current = await tx.announcement.findUnique({ where: { id } });
+      if (!current) throw new NotFoundException();
+      await tx.announcement.delete({ where: { id } });
+      return current.photoId
+        ? this.photos.deleteUnused(tx, current.photoId)
+        : null;
     });
-    if (count === 0) throw new NotFoundException();
+    if (storageKey) await this.photos.deleteFile(storageKey);
   }
 
   /** `400` for a Photo that is not in the Salon. */

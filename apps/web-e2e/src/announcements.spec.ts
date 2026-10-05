@@ -68,3 +68,126 @@ test('the Właściciel adds an Ogłoszenie, sees the groups and deletes it, and 
   );
   expect(await shown()).toEqual([]);
 });
+
+test('Zdjęcie Ogłoszenia saves a square, rolls back on Escape and backdrop, and fits desktop and phone', async ({
+  page,
+  context,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  const owner = await loggedInOwner(page.request);
+  const sharp = (await import('sharp')).default;
+  const png = await sharp({
+    create: { width: 1400, height: 1400, channels: 3, background: '#795548' },
+  })
+    .png()
+    .toBuffer();
+  const uploadFile = {
+    name: 'announcement.png',
+    mimeType: 'image/png',
+    buffer: png,
+  };
+  await page.goto('/panel/ustawienia/ogloszenia');
+  await page.getByRole('button', { name: 'Dodaj Ogłoszenie' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Tytuł').fill('Kwadrat');
+  await dialog.getByLabel('Treść').fill('Nowe Zdjęcie Ogłoszenia.');
+  const choose = async () => {
+    const response = page.waitForResponse(
+      (r) => r.url().endsWith('/api/photos') && r.request().method() === 'POST',
+    );
+    await dialog.locator('input[type=file]').setInputFiles(uploadFile);
+    const source = await (await response).json();
+    await expect(
+      dialog.getByRole('button', { name: 'Zatwierdź kadr' }),
+    ).toBeEnabled();
+    await expect(dialog.locator('.ngx-ic-cropper')).not.toHaveClass(
+      /ngx-ic-round/,
+    );
+    return source;
+  };
+  const source = await choose();
+  await expect(
+    dialog.getByRole('button', { name: 'Zapisz', exact: true }),
+  ).toBeDisabled();
+  const cropResponse = page.waitForResponse((r) =>
+    r.url().endsWith(`/photos/${source.id}/crop`),
+  );
+  await dialog.getByRole('button', { name: 'Zatwierdź kadr' }).click();
+  const square = await (await cropResponse).json();
+  expect(square).toMatchObject({ width: 1200, height: 1200 });
+  expect((await page.request.get(source.url)).status()).toBe(404);
+  await dialog.getByRole('button', { name: 'Zapisz', exact: true }).click();
+  await expect(dialog).toBeHidden();
+
+  for (const close of ['Escape', 'backdrop']) {
+    await page.getByRole('button', { name: 'Edytuj: Kwadrat' }).click();
+    const abandoned = await choose();
+    if (close === 'Escape') await page.keyboard.press('Escape');
+    else
+      await page
+        .locator('.cdk-overlay-backdrop')
+        .click({ position: { x: 5, y: 5 } });
+    await expect(dialog).toBeHidden();
+    await expect
+      .poll(async () => (await page.request.get(abandoned.url)).status())
+      .toBe(404);
+    const saved = await (await page.request.get('/api/announcements')).json();
+    expect(saved[0].photoId).toBe(square.id);
+    expect((await page.request.get(square.url)).status()).toBe(200);
+  }
+
+  // A legacy rectangular Photo remains rectangular after editing only the text.
+  const legacyFile = {
+    ...uploadFile,
+    buffer: await sharp({
+      create: { width: 1600, height: 900, channels: 3, background: '#1976d2' },
+    })
+      .png()
+      .toBuffer(),
+  };
+  const legacy = await (
+    await page.request.post('/api/photos', { multipart: { file: legacyFile } })
+  ).json();
+  const legacyAnnouncement = await (
+    await page.request.post('/api/announcements', {
+      data: {
+        title: 'Starsze zdjęcie',
+        body: 'Treść',
+        showFrom: today,
+        photoId: legacy.id,
+      },
+    })
+  ).json();
+  await page.request.patch(`/api/announcements/${legacyAnnouncement.id}`, {
+    data: { body: 'Zmieniona treść' },
+  });
+  const publicPage = await context.newPage();
+  for (const width of [1280, 375]) {
+    await publicPage.setViewportSize({ width, height: 900 });
+    await publicPage.goto(`/${owner.slug}`);
+    for (const [title, ratio] of [
+      ['Kwadrat', 1],
+      ['Starsze zdjęcie', 1600 / 900],
+    ] as const) {
+      const card = publicPage
+        .locator('.announcement')
+        .filter({
+          has: publicPage.getByRole('heading', { name: title, exact: true }),
+        });
+      const image = card.locator('img');
+      await expect(image).toBeVisible();
+      const img = await image.boundingBox();
+      const heading = await card.locator('h3').boundingBox();
+      expect(img!.width).toBeLessThanOrEqual(400);
+      expect(img!.width / img!.height).toBeCloseTo(ratio, 2);
+      expect(heading!.y).toBeGreaterThanOrEqual(img!.y + img!.height);
+      expect(img!.x).toBeCloseTo(heading!.x, 1);
+      expect(img!.x + img!.width).toBeLessThanOrEqual(width);
+    }
+    await publicPage.screenshot({
+      path: testInfo.outputPath(`announcements-${width}.png`),
+      fullPage: true,
+    });
+  }
+  await publicPage.close();
+});

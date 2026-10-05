@@ -379,6 +379,30 @@ describe('Photos', () => {
       expect(storage.files.has(sourceRow.storageKey)).toBe(false);
     });
 
+    it.each([
+      [1400, 1200],
+      [300, 300],
+    ])(
+      'crops a %i px Zdjęcie Ogłoszenia to %i px and removes the source',
+      async (size, side) => {
+        const source = await uploaded(salon.asOwner, 1600, 1600);
+        const { row } = await storedFile(source);
+        const res = await salon.asOwner
+          .post(`/api/photos/${source.id}/crop`)
+          .send({ x: 0, y: 0, size, purpose: 'announcement' })
+          .expect(201);
+        expect(res.body).toMatchObject({ width: side, height: side });
+        const { body } = await storedFile(res.body);
+        expect(await sharp(body).metadata()).toMatchObject({
+          format: 'webp',
+          width: side,
+          height: side,
+        });
+        await request(app.getHttpServer()).get(source.url).expect(404);
+        expect(storage.files.has(row.storageKey)).toBe(false);
+      },
+    );
+
     it('never scales a smaller square up', async () => {
       const source = await uploaded(salon.asOwner, 1200, 1600);
 
@@ -395,12 +419,14 @@ describe('Photos', () => {
       });
     });
 
-    it.each([
-      { x: 400, y: 0, size: 900 },
-      { x: 0, y: 1000, size: 700 },
-      { x: -1, y: 0, size: 100 },
-      { x: 0, y: 0, size: 0 },
-    ])('answers 400 for a square outside the photo: %j', async (square) => {
+    it.each(
+      [
+        { x: 400, y: 0, size: 900 },
+        { x: 0, y: 1000, size: 700 },
+        { x: -1, y: 0, size: 100 },
+        { x: 0, y: 0, size: 0 },
+      ].flatMap((square) => [square, { ...square, purpose: 'announcement' }]),
+    )('answers 400 for a square outside the photo: %j', async (square) => {
       const source = await uploaded(salon.asOwner, 1200, 1600);
 
       const res = await salon.asOwner
@@ -409,6 +435,29 @@ describe('Photos', () => {
         .expect(400);
 
       expect(res.body.message).toBe(PHOTO_CROP_OUTSIDE);
+      await storedFile(source);
+    });
+
+    it('rejects recropping a Photo already attached to an Ogłoszenie', async () => {
+      const source = await uploaded(salon.asOwner, 1600, 1600);
+      const announcement = await salon.asOwner
+        .post('/api/announcements')
+        .send({
+          title: 'A',
+          body: 'B',
+          showFrom: '2026-10-01',
+          photoId: source.id,
+        })
+        .expect(201);
+      await salon.asOwner
+        .post(`/api/photos/${source.id}/crop`)
+        .send({ x: 0, y: 0, size: 1400, purpose: 'announcement' })
+        .expect(400);
+      const list = await salon.asOwner.get('/api/announcements').expect(200);
+      expect(
+        list.body.find((a: { id: string }) => a.id === announcement.body.id)
+          .photoId,
+      ).toBe(source.id);
       await storedFile(source);
     });
 
@@ -421,32 +470,38 @@ describe('Photos', () => {
         .expect(400);
     });
 
-    it('answers 404 for a Photo of another Salon and keeps it', async () => {
-      const other = await salonWithOwner();
-      const source = await uploaded(other.asOwner, 1200, 1600);
+    it.each(['profile', 'announcement'])(
+      'answers 404 for a Photo of another Salon and keeps it (%s)',
+      async (purpose) => {
+        const other = await salonWithOwner();
+        const source = await uploaded(other.asOwner, 1200, 1600);
 
-      await salon.asOwner
-        .post(`/api/photos/${source.id}/crop`)
-        .send({ x: 0, y: 0, size: 300 })
-        .expect(404);
+        await salon.asOwner
+          .post(`/api/photos/${source.id}/crop`)
+          .send({ x: 0, y: 0, size: 300, purpose })
+          .expect(404);
 
-      await storedFile(source);
-    });
+        await storedFile(source);
+      },
+    );
 
-    it('answers 403 to a Pracownik', async () => {
-      const source = await uploaded(salon.asOwner, 1200, 1600);
-      const { client: asEmployee } = await addStaffMember(
-        salon.salon.id,
-        'EMPLOYEE',
-      );
+    it.each(['profile', 'announcement'])(
+      'answers 403 to a Pracownik (%s)',
+      async (purpose) => {
+        const source = await uploaded(salon.asOwner, 1200, 1600);
+        const { client: asEmployee } = await addStaffMember(
+          salon.salon.id,
+          'EMPLOYEE',
+        );
 
-      await asEmployee
-        .post(`/api/photos/${source.id}/crop`)
-        .send({ x: 0, y: 0, size: 300 })
-        .expect(403);
+        await asEmployee
+          .post(`/api/photos/${source.id}/crop`)
+          .send({ x: 0, y: 0, size: 300, purpose })
+          .expect(403);
 
-      await storedFile(source);
-    });
+        await storedFile(source);
+      },
+    );
   });
 
   describe('DELETE /api/photos/:id', () => {

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import {
   FormControl,
   FormGroup,
@@ -26,12 +26,17 @@ import {
   AnnouncementView,
   CalendarDay,
   CreateAnnouncementRequest,
+  CropPhotoRequest,
+  PHOTO_MAX_BYTES,
+  PHOTO_TOO_LARGE,
   photoUrl,
   PhotoView,
   warsawDate,
 } from '@bookit/shared';
 import { errorMessage } from '../shared/error-message';
-import { PhotoUpload } from '../shared/photo-upload';
+import { filter, lastValueFrom, map } from 'rxjs';
+import { PhotoCropper } from '../shared/photo-cropper';
+import { PhotosService, PhotoUploadEvent } from '../shared/photos.service';
 import { AnnouncementsService } from './announcements.service';
 
 export interface AnnouncementDialogData {
@@ -65,7 +70,7 @@ export const dateToDay = (date: Date): CalendarDay =>
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
-    PhotoUpload,
+    PhotoCropper,
     ReactiveFormsModule,
   ],
   template: `
@@ -137,27 +142,75 @@ export const dateToDay = (date: Date): CalendarDay =>
           Ogłoszenie jest na Wizytówce od początku pierwszego dnia do końca
           ostatniego, według czasu polskiego.
         </p>
-        <app-photo-upload
-          [current]="photo()?.url ?? null"
-          (uploaded)="photo.set($event)"
-        />
-        @if (photo()) {
-          <button
-            mat-button
-            type="button"
-            class="remove-photo"
-            (click)="photo.set(null)"
-          >
-            Usuń zdjęcie
-          </button>
+        @if (cropping(); as source) {
+          @if (!photoBusy()) {
+            <app-photo-cropper
+              [photo]="source"
+              [round]="false"
+              (cropped)="crop(source, $event)"
+              (cancelled)="cancelCrop(source)"
+            />
+          }
+        } @else {
+          @if (photo(); as preview) {
+            <img
+              class="photo-preview"
+              [src]="preview.url"
+              alt="Zdjęcie Ogłoszenia"
+            />
+          }
+          <input
+            #picker
+            type="file"
+            accept="image/*"
+            hidden
+            (change)="pick(picker)"
+          />
+          <div class="photo-actions">
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="pending() || photoBusy()"
+              (click)="picker.click()"
+            >
+              {{ photo() ? 'Zmień zdjęcie' : 'Wgraj zdjęcie' }}
+            </button>
+            @if (photo()) {
+              <button
+                mat-button
+                type="button"
+                [disabled]="pending() || photoBusy()"
+                (click)="removePhoto()"
+              >
+                Usuń zdjęcie
+              </button>
+            }
+          </div>
+        }
+        @if (photoBusy()) {
+          <p role="status">Przetwarzanie zdjęcia…</p>
+        }
+        @if (photoError(); as message) {
+          <p class="error" role="alert">{{ message }}</p>
         }
         @if (error(); as message) {
           <p class="error" role="alert">{{ message }}</p>
         }
       </mat-dialog-content>
       <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Anuluj</button>
-        <button mat-flat-button type="submit" [disabled]="pending()">
+        <button
+          mat-button
+          type="button"
+          [disabled]="pending()"
+          (click)="cancel()"
+        >
+          Anuluj
+        </button>
+        <button
+          mat-flat-button
+          type="submit"
+          [disabled]="pending() || photoBusy() || !!cropping()"
+        >
           Zapisz
         </button>
       </mat-dialog-actions>
@@ -186,6 +239,18 @@ export const dateToDay = (date: Date): CalendarDay =>
       font-size: 12px;
       color: var(--mat-sys-on-surface-variant);
     }
+    .photo-preview {
+      display: block;
+      max-width: 100%;
+      width: 160px;
+      height: auto;
+      margin-bottom: 8px;
+      border-radius: 8px;
+    }
+    .photo-actions {
+      display: flex;
+      gap: 8px;
+    }
     .remove-photo {
       align-self: flex-start;
       margin-top: 8px;
@@ -198,6 +263,7 @@ export const dateToDay = (date: Date): CalendarDay =>
 })
 export class AnnouncementDialog {
   private readonly api = inject(AnnouncementsService);
+  private readonly photos = inject(PhotosService);
   private readonly ref =
     inject<MatDialogRef<AnnouncementDialog, AnnouncementView>>(MatDialogRef);
   protected readonly announcement =
@@ -251,8 +317,109 @@ export class AnnouncementDialog {
   protected readonly pending = signal(false);
   protected readonly error = signal<string | null>(null);
 
-  protected async save(): Promise<void> {
+  protected readonly cropping = signal<PhotoView | null>(null);
+  protected readonly photoBusy = signal(false);
+  protected readonly photoError = signal<string | null>(null);
+  private readonly uploads = new Set<string>();
+  private closed = false;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      this.closed = true;
+      // An in-flight crop replaces its source; an in-flight save may attach its result.
+      if (!this.photoBusy() && !this.pending()) this.discardUploads();
+    });
+  }
+
+  protected async pick(picker: HTMLInputElement): Promise<void> {
+    const file = picker.files?.[0];
+    picker.value = '';
+    if (!file || this.pending() || this.photoBusy() || this.cropping()) return;
+    if (file.size > PHOTO_MAX_BYTES) {
+      this.photoError.set(PHOTO_TOO_LARGE);
+      return;
+    }
+    this.photoError.set(null);
+    this.photoBusy.set(true);
+    try {
+      const source = await lastValueFrom(
+        this.photos.upload(file).pipe(
+          filter(
+            (event): event is Extract<PhotoUploadEvent, { photo: PhotoView }> =>
+              'photo' in event,
+          ),
+          map((event) => event.photo),
+        ),
+      );
+      this.uploads.add(source.id);
+      if (!this.closed) this.cropping.set(source);
+    } catch (error) {
+      this.photoError.set(errorMessage(error));
+    } finally {
+      this.photoBusy.set(false);
+      if (this.closed) this.discardUploads();
+    }
+  }
+
+  protected async crop(
+    source: PhotoView,
+    square: CropPhotoRequest,
+  ): Promise<void> {
+    if (this.photoBusy() || this.pending()) return;
+    this.photoBusy.set(true);
+    this.photoError.set(null);
+    try {
+      const cropped = await this.photos.crop(source.id, {
+        ...square,
+        purpose: 'announcement',
+      });
+      this.uploads.delete(source.id);
+      this.uploads.add(cropped.id);
+      if (!this.closed) {
+        const previous = this.photo()?.id;
+        this.photo.set(cropped);
+        this.cropping.set(null);
+        if (previous && this.uploads.has(previous)) this.discard(previous);
+      }
+    } catch (error) {
+      this.photoError.set(errorMessage(error));
+    } finally {
+      this.photoBusy.set(false);
+      if (this.closed) this.discardUploads();
+    }
+  }
+
+  protected cancelCrop(source: PhotoView): void {
+    if (this.photoBusy()) return;
+    this.cropping.set(null);
+    this.photoError.set(null);
+    this.discard(source.id);
+  }
+
+  protected removePhoto(): void {
+    const id = this.photo()?.id;
+    this.photo.set(null);
+    if (id && this.uploads.has(id)) this.discard(id);
+  }
+
+  protected cancel(): void {
     if (this.pending()) return;
+    this.closed = true;
+    if (!this.photoBusy()) this.discardUploads();
+    this.ref.close();
+  }
+
+  private discardUploads(): void {
+    for (const id of this.uploads) this.discard(id);
+  }
+
+  private discard(id: string): void {
+    this.uploads.delete(id);
+    this.photos.remove(id).catch(() => this.uploads.add(id));
+  }
+
+  protected async save(): Promise<void> {
+    if (this.pending() || this.photoBusy() || this.cropping()) return;
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
     const fields = this.form.getRawValue();
@@ -265,17 +432,22 @@ export class AnnouncementDialog {
       showUntil: fields.showUntil ? dateToDay(fields.showUntil) : null,
     };
     this.pending.set(true);
+    const disableClose = this.ref.disableClose;
+    this.ref.disableClose = true;
     this.error.set(null);
     try {
-      this.ref.close(
-        this.announcement
-          ? await this.api.update(this.announcement.id, body)
-          : await this.api.create(body),
-      );
+      const saved = this.announcement
+        ? await this.api.update(this.announcement.id, body)
+        : await this.api.create(body);
+      if (saved.photoId) this.uploads.delete(saved.photoId);
+      this.discardUploads();
+      this.ref.close(saved);
     } catch (error) {
       this.error.set(errorMessage(error));
     } finally {
       this.pending.set(false);
+      this.ref.disableClose = disableClose;
+      if (this.closed) this.discardUploads();
     }
   }
 }

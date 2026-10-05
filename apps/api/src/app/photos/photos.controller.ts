@@ -63,6 +63,7 @@ const cropSchema = z.object({
   x: pixels,
   y: pixels,
   size: pixels,
+  purpose: z.enum(['profile', 'announcement']).optional(),
 }) satisfies z.ZodType<CropPhotoRequest>;
 
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {

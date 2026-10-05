@@ -54,7 +54,7 @@ export class PhotosService {
   }
 
   /**
-   * A Zdjęcie profilowe out of an uploaded Photo; the api deletes the source Photo.
+   * A square for Personel (default) or Ogłoszenia; the api deletes the source Photo.
    * `square` is in pixels of the Photo.
    */
   crop(id: string, square: CropPhotoRequest): Promise<PhotoView> {

@@ -19,6 +19,8 @@ import { hash } from 'argon2';
 import request from 'supertest';
 import { AppModule } from '../app.module';
 import { configureApp } from '../configure-app';
+import { InMemoryPhotoStorage } from '../../../test/in-memory-photo-storage';
+import { PhotoStorage } from '../photos/photo-storage';
 import { createPrismaClient } from '../prisma/prisma.service';
 
 const PASSWORD = 'correct horse battery staple';
@@ -26,6 +28,7 @@ const URL = '/api/announcements';
 
 describe('Ogłoszenia', () => {
   const raw = createPrismaClient(process.env.DATABASE_URL ?? '');
+  const storage = new InMemoryPhotoStorage();
   let app: INestApplication;
   let passwordHash: string;
 
@@ -52,9 +55,9 @@ describe('Ogłoszenia', () => {
     return { salon, asOwner: await logIn(salon.id, 'OWNER') };
   }
 
-  function addPhoto(salonId: string) {
+  async function addPhoto(salonId: string) {
     const id = randomUUID();
-    return raw.photo.create({
+    const photo = await raw.photo.create({
       data: {
         id,
         salonId,
@@ -64,6 +67,8 @@ describe('Ogłoszenia', () => {
         bytes: 1000,
       },
     });
+    await storage.put(photo.storageKey, Buffer.from('webp'), 'image/webp');
+    return photo;
   }
 
   function addAnnouncement(
@@ -93,7 +98,10 @@ describe('Ogłoszenia', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(PhotoStorage)
+      .useValue(storage)
+      .compile();
     app = configureApp(moduleRef.createNestApplication());
     await app.init();
     passwordHash = await hash(PASSWORD);
@@ -384,8 +392,102 @@ describe('Ogłoszenia', () => {
     });
   });
 
+  describe('Zdjęcie Ogłoszenia lifecycle', () => {
+    async function withPhoto() {
+      const { salon, asOwner } = await salonWithOwner();
+      const photo = await addPhoto(salon.id);
+      const res = await asOwner
+        .post(URL)
+        .send({ ...valid, photoId: photo.id })
+        .expect(201);
+      return { salon, asOwner, photo, id: res.body.id as string };
+    }
+
+    it('replaces the photo and deletes the old row and file', async () => {
+      const { salon, asOwner, photo, id } = await withPhoto();
+      const replacement = await addPhoto(salon.id);
+      await asOwner
+        .patch(`${URL}/${id}`)
+        .send({ photoId: replacement.id })
+        .expect(200);
+      expect(
+        await raw.photo.findUnique({ where: { id: photo.id } }),
+      ).toBeNull();
+      expect(storage.files.has(photo.storageKey)).toBe(false);
+      expect(storage.files.has(replacement.storageKey)).toBe(true);
+    });
+
+    it('removes an unused photo only after saving photoId null', async () => {
+      const { asOwner, photo, id } = await withPhoto();
+      await asOwner.patch(`${URL}/${id}`).send({ photoId: null }).expect(200);
+      expect(
+        await raw.photo.findUnique({ where: { id: photo.id } }),
+      ).toBeNull();
+      expect(storage.files.has(photo.storageKey)).toBe(false);
+    });
+
+    it('keeps the old photo and file after a rejected update and after editing only text', async () => {
+      const { salon, asOwner, photo, id } = await withPhoto();
+      const replacement = await addPhoto(salon.id);
+      await asOwner
+        .patch(`${URL}/${id}`)
+        .send({ photoId: replacement.id, showUntil: '2026-09-01' })
+        .expect(422);
+      const res = await asOwner
+        .patch(`${URL}/${id}`)
+        .send({ body: 'Nowa treść' })
+        .expect(200);
+      expect(res.body.photoId).toBe(photo.id);
+      expect(
+        await raw.photo.findUnique({ where: { id: photo.id } }),
+      ).toMatchObject({ width: 1600, height: 900 });
+      expect(storage.files.has(photo.storageKey)).toBe(true);
+    });
+
+    it.each(['announcement', 'logo', 'hero', 'staff', 'gallery'])(
+      'keeps a photo used by another %s',
+      async (relation) => {
+        const { salon, asOwner, photo, id } = await withPhoto();
+        if (relation === 'announcement')
+          await asOwner
+            .post(URL)
+            .send({ ...valid, photoId: photo.id })
+            .expect(201);
+        if (relation === 'logo')
+          await raw.salon.update({
+            where: { id: salon.id },
+            data: { logoPhotoId: photo.id },
+          });
+        if (relation === 'hero')
+          await raw.salon.update({
+            where: { id: salon.id },
+            data: { heroPhotoId: photo.id },
+          });
+        if (relation === 'staff')
+          await raw.staffMember.updateMany({
+            where: { salonId: salon.id },
+            data: { photoId: photo.id },
+          });
+        if (relation === 'gallery')
+          await raw.galleryItem.create({
+            data: { salonId: salon.id, photoId: photo.id },
+          });
+        await asOwner.patch(`${URL}/${id}`).send({ photoId: null }).expect(200);
+        await asOwner
+          .patch(`${URL}/${id}`)
+          .send({ photoId: photo.id })
+          .expect(200);
+        await asOwner.delete(`${URL}/${id}`).expect(204);
+        expect(
+          await raw.photo.findUnique({ where: { id: photo.id } }),
+        ).not.toBeNull();
+        expect(storage.files.has(photo.storageKey)).toBe(true);
+      },
+    );
+  });
+
   describe('DELETE /api/announcements/:id', () => {
-    it('deletes the Ogłoszenie and keeps its Photo', async () => {
+    it('deletes the Ogłoszenie and its unused Photo and file', async () => {
       const { salon, asOwner } = await salonWithOwner();
       const photo = await addPhoto(salon.id);
       const announcement = await raw.announcement.create({
@@ -405,7 +507,8 @@ describe('Ogłoszenia', () => {
       ).toBeNull();
       expect(
         await raw.photo.findUnique({ where: { id: photo.id } }),
-      ).not.toBeNull();
+      ).toBeNull();
+      expect(storage.files.has(photo.storageKey)).toBe(false);
     });
 
     it('answers 404 for an Ogłoszenie of another Salon', async () => {
