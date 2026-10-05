@@ -202,13 +202,13 @@ test('Zdjęcie Ogłoszenia saves a square, rolls back on Escape and backdrop, an
         await expect(image).toBeVisible();
         const img = await image.boundingBox();
         const heading = await card.locator('h3').boundingBox();
-        expect(img).not.toBeNull();
-        expect(heading).not.toBeNull();
-        expect(img!.width).toBeLessThanOrEqual(400);
-        expect(img!.width / img!.height).toBeCloseTo(ratio, 2);
-        expect(heading!.y).toBeGreaterThanOrEqual(img!.y + img!.height);
-        expect(img!.x).toBeCloseTo(heading!.x, 1);
-        expect(img!.x + img!.width).toBeLessThanOrEqual(width);
+        if (!img || !heading)
+          throw new Error('Układ Ogłoszenia nie jest jeszcze widoczny');
+        expect(img.width).toBeLessThanOrEqual(400);
+        expect(img.width / img.height).toBeCloseTo(ratio, 2);
+        expect(heading.y).toBeGreaterThanOrEqual(img.y + img.height);
+        expect(img.x).toBeCloseTo(heading.x, 1);
+        expect(img.x + img.width).toBeLessThanOrEqual(width);
       }).toPass({ timeout: 10_000 });
     }
     await publicPage.screenshot({
