@@ -139,7 +139,10 @@ test('dzień recepcji: Kasia adds, moves, cancels a Wizyta, marks one not come a
   const [cancelled, missed] = visits.filter(
     (v) => v.id !== moved.id && alone(v),
   );
-  await page.getByRole('button', { name: visitName(cancelled) }).click();
+  // A 10-minute Wizyta has its resize handle over the centre. Open its body above it.
+  await page.getByRole('button', { name: visitName(cancelled) }).click({
+    position: { x: 6, y: 3 },
+  });
   const card = page.getByRole('dialog', { name: cancelled.client.name });
   await card.getByRole('button', { name: 'Odwołaj' }).click();
   await expect(card.locator('.state')).toHaveText('Odwołana');
@@ -149,7 +152,9 @@ test('dzień recepcji: Kasia adds, moves, cancels a Wizyta, marks one not come a
     page.getByRole('button', { name: visitName(cancelled) }),
   ).toHaveCount(0);
 
-  await page.getByRole('button', { name: visitName(missed) }).click();
+  await page.getByRole('button', { name: visitName(missed) }).click({
+    position: { x: 6, y: 3 },
+  });
   const missedCard = page.getByRole('dialog', { name: missed.client.name });
   await missedCard.getByRole('button', { name: 'Nie przyszedł' }).click();
   await expect(missedCard.locator('.state')).toHaveText('Nieodbyta');
