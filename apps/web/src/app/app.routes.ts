@@ -14,19 +14,22 @@ export const appRoutes: Route[] = [
     path: 'logowanie',
     title: 'Logowanie · Bookit',
     canActivate: [guestGuard],
-    loadComponent: () => import('./auth/login-page').then((m) => m.LoginPage),
+    loadComponent: () =>
+      import('./auth/login-page/login-page').then((m) => m.LoginPage),
   },
   {
     path: 'zaproszenie/:token',
     title: 'Zaproszenie · Bookit',
     loadComponent: () =>
-      import('./auth/invitation-page').then((m) => m.InvitationPage),
+      import('./auth/invitation-page/invitation-page').then(
+        (m) => m.InvitationPage,
+      ),
   },
   {
     path: 'reset-hasla',
     title: 'Nie pamiętasz hasła? · Bookit',
     loadComponent: () =>
-      import('./auth/password-reset-request-page').then(
+      import('./auth/password-reset-request-page/password-reset-request-page').then(
         (m) => m.PasswordResetRequestPage,
       ),
   },
@@ -34,7 +37,7 @@ export const appRoutes: Route[] = [
     path: 'reset-hasla/:token',
     title: 'Nowe hasło · Bookit',
     loadComponent: () =>
-      import('./auth/password-reset-confirm-page').then(
+      import('./auth/password-reset-confirm-page/password-reset-confirm-page').then(
         (m) => m.PasswordResetConfirmPage,
       ),
   },
@@ -42,58 +45,72 @@ export const appRoutes: Route[] = [
     path: 'panel',
     canActivate: [authGuard, roleGuard('OWNER', 'EMPLOYEE')],
     loadComponent: () =>
-      import('./panel/panel-layout').then((m) => m.PanelLayout),
+      import('./panel/panel-layout/panel-layout').then((m) => m.PanelLayout),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'kalendarz' },
       {
         path: 'kalendarz',
         title: 'Kalendarz · Bookit',
         loadComponent: () =>
-          import('./calendar/calendar-page').then((m) => m.CalendarPage),
+          import('./calendar/calendar-page/calendar-page').then(
+            (m) => m.CalendarPage,
+          ),
       },
       {
         path: 'kalendarz/tydzien',
         title: 'Kalendarz · Bookit',
         data: { view: 'week' },
         loadComponent: () =>
-          import('./calendar/calendar-page').then((m) => m.CalendarPage),
+          import('./calendar/calendar-page/calendar-page').then(
+            (m) => m.CalendarPage,
+          ),
       },
       {
         path: 'klienci',
         title: 'Klienci · Bookit',
         loadComponent: () =>
-          import('./clients/clients-page').then((m) => m.ClientsPage),
+          import('./clients/clients-page/clients-page').then(
+            (m) => m.ClientsPage,
+          ),
       },
       {
         path: 'klienci/:id',
         title: 'Karta Klienta · Bookit',
         loadComponent: () =>
-          import('./clients/client-card-page').then((m) => m.ClientCardPage),
+          import('./clients/client-card-page/client-card-page').then(
+            (m) => m.ClientCardPage,
+          ),
       },
       {
         path: 'ustawienia',
         canActivate: [roleGuard('OWNER')],
         loadComponent: () =>
-          import('./settings/settings-layout').then((m) => m.SettingsLayout),
+          import('./settings/settings-layout/settings-layout').then(
+            (m) => m.SettingsLayout,
+          ),
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'personel' },
           {
             path: 'personel',
             title: 'Personel · Bookit',
             loadComponent: () =>
-              import('./settings/staff-page').then((m) => m.StaffPage),
+              import('./settings/staff/staff-page/staff-page').then(
+                (m) => m.StaffPage,
+              ),
           },
           {
             path: 'cennik',
             title: 'Cennik · Bookit',
             loadComponent: () =>
-              import('./settings/pricing-page').then((m) => m.PricingPage),
+              import('./settings/pricing/pricing-page/pricing-page').then(
+                (m) => m.PricingPage,
+              ),
           },
           {
             path: 'godziny',
             title: 'Godziny otwarcia · Bookit',
             loadComponent: () =>
-              import('./settings/opening-hours-page').then(
+              import('./settings/opening-hours/opening-hours-page/opening-hours-page').then(
                 (m) => m.OpeningHoursPage,
               ),
           },
@@ -101,7 +118,7 @@ export const appRoutes: Route[] = [
             path: 'ogloszenia',
             title: 'Ogłoszenia · Bookit',
             loadComponent: () =>
-              import('./settings/announcements-page').then(
+              import('./settings/announcements/announcements-page/announcements-page').then(
                 (m) => m.AnnouncementsPage,
               ),
           },
@@ -109,13 +126,15 @@ export const appRoutes: Route[] = [
             path: 'galeria',
             title: 'Galeria · Bookit',
             loadComponent: () =>
-              import('./settings/gallery-page').then((m) => m.GalleryPage),
+              import('./settings/gallery/gallery-page/gallery-page').then(
+                (m) => m.GalleryPage,
+              ),
           },
           {
             path: 'wizytowka',
             title: 'Wizytówka · Bookit',
             loadComponent: () =>
-              import('./settings/page-settings-page').then(
+              import('./settings/page-settings/page-settings-page/page-settings-page').then(
                 (m) => m.PageSettingsPage,
               ),
           },
@@ -123,7 +142,7 @@ export const appRoutes: Route[] = [
             path: 'historia',
             title: 'Historia zmian · Bookit',
             loadComponent: () =>
-              import('./settings/visit-changes-page').then(
+              import('./settings/visit-history/visit-changes-page/visit-changes-page').then(
                 (m) => m.VisitChangesPage,
               ),
           },
@@ -135,25 +154,29 @@ export const appRoutes: Route[] = [
     path: 'admin',
     canActivate: [authGuard, adminGuard],
     loadComponent: () =>
-      import('./admin/admin-layout').then((m) => m.AdminLayout),
+      import('./admin/admin-layout/admin-layout').then((m) => m.AdminLayout),
     children: [
       {
         path: '',
         title: 'Salony · Bookit',
         loadComponent: () =>
-          import('./admin/salons-page').then((m) => m.SalonsPage),
+          import('./admin/salons-page/salons-page').then((m) => m.SalonsPage),
       },
       {
         path: 'salony/nowy',
         title: 'Nowy Salon · Bookit',
         loadComponent: () =>
-          import('./admin/new-salon-page').then((m) => m.NewSalonPage),
+          import('./admin/new-salon-page/new-salon-page').then(
+            (m) => m.NewSalonPage,
+          ),
       },
       {
         path: 'salony/:id',
         title: 'Salon · Bookit',
         loadComponent: () =>
-          import('./admin/salon-details-page').then((m) => m.SalonDetailsPage),
+          import('./admin/salon-details-page/salon-details-page').then(
+            (m) => m.SalonDetailsPage,
+          ),
       },
     ],
   },
@@ -161,7 +184,7 @@ export const appRoutes: Route[] = [
     path: ':slug/prywatnosc',
     resolve: { page: publicPageResolver },
     loadComponent: () =>
-      import('./public-page/privacy-notice-page').then(
+      import('./public-page/privacy-notice-page/privacy-notice-page').then(
         (m) => m.PrivacyNoticePage,
       ),
   },
@@ -170,11 +193,15 @@ export const appRoutes: Route[] = [
     path: ':slug',
     resolve: { page: publicPageResolver },
     loadComponent: () =>
-      import('./public-page/public-page').then((m) => m.PublicPageView),
+      import('./public-page/public-page/public-page').then(
+        (m) => m.PublicPageView,
+      ),
   },
   {
     path: '**',
     loadComponent: () =>
-      import('./public-page/status-pages').then((m) => m.NotFoundPage),
+      import('./public-page/not-found-page/not-found-page').then(
+        (m) => m.NotFoundPage,
+      ),
   },
 ];
