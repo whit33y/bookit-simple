@@ -207,7 +207,10 @@ test('Zdjęcie Ogłoszenia saves a square, rolls back on Escape and backdrop, an
         expect(img.width).toBeLessThanOrEqual(400);
         expect(img.width / img.height).toBeCloseTo(ratio, 2);
         expect(heading.y).toBeGreaterThanOrEqual(img.y + img.height);
-        expect(img.x).toBeCloseTo(heading.x, 1);
+        expect(img.x + img.width / 2).toBeCloseTo(
+          heading.x + heading.width / 2,
+          0,
+        );
         expect(img.x + img.width).toBeLessThanOrEqual(width);
       }).toPass({ timeout: 10_000 });
     }
